@@ -18,46 +18,61 @@ Author URI: http://shamokaldarpon.com/
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
 function laskuhari_kayttajan_tiedot() {
-  $custom_meta_fields = array();
-  $custom_meta_fields['laskuhari_laskutusasiakas'] = 'Laskutusasiakas';
-  return $custom_meta_fields;
+    $custom_meta_fields = array();
+    $custom_meta_fields['laskuhari_laskutusasiakas'] = 'Laskutusasiakas';
+    return $custom_meta_fields;
 }
-function laskuhari_kayttajan_lisatiedot($user) {
-  print('<h3>Laskuhari</h3>');
 
-  print('<table class="form-table">');
+function laskuhari_kayttajan_lisatiedot( $user ) {
+    echo '<h3>Laskuhari</h3>
+    <table class="form-table">';
 
-  $meta_number = 0;
-  $custom_meta_fields = laskuhari_kayttajan_tiedot();
-  foreach ($custom_meta_fields as $meta_field_name => $meta_disp_name) {
-    $meta_number++;
-    print('<tr>');
-    print('<th><label for="' . $meta_field_name . '">' . $meta_disp_name . '</label></th>');
-    print('<td>');
-    print('<input type="checkbox" name="' . $meta_field_name . '" id="' . $meta_field_name . '" value="yes" ' . (get_the_author_meta($meta_field_name, $user->ID ) == "yes" ? " checked" : "") . ' /> Kyllä<br />');
-    print('<span class="description"></span>');
-    print('</td>');
-    print('</tr>');
-  }
-  print('</table>');
+    $meta_number = 0;
+    $custom_meta_fields = laskuhari_kayttajan_tiedot();
+
+    foreach ($custom_meta_fields as $meta_field_name => $meta_disp_name) {
+        $meta_number++;
+
+        if( get_the_author_meta( $meta_field_name, $user->ID ) == "yes" ) {
+            $author_meta_checked = "checked";
+        } else {
+            $author_meta_checked = "";
+        }
+
+        echo '
+        <tr>
+            <th>' . $meta_disp_name . '</th>
+            <td>
+                <input type="checkbox" name="' . $meta_field_name . '" 
+                       id="' . $meta_field_name . '" 
+                       value="yes" ' . $author_meta_checked . ' /> 
+                <label for="' . $meta_field_name . '">Kyllä</label><br />
+                <span class="description"></span>
+            </td>
+        </tr>';
+    }
+
+    echo '</table>';
 }
-function laskuhari_paivita_kayttajan_lisatiedot($user_id) {
 
-  if (!current_user_can('edit_user', $user_id))
-    return false;
+function laskuhari_paivita_kayttajan_lisatiedot( $user_id ) {
 
-  $meta_number = 0;
-  $custom_meta_fields = laskuhari_kayttajan_tiedot();
-  foreach ($custom_meta_fields as $meta_field_name => $meta_disp_name) {
-    $meta_number++;
-    update_usermeta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
-  }
+    if( ! current_user_can( 'edit_user', $user_id ) ) {
+        return false;
+    }
+
+    $meta_number = 0;
+    $custom_meta_fields = laskuhari_kayttajan_tiedot();
+    foreach ($custom_meta_fields as $meta_field_name => $meta_disp_name) {
+        $meta_number++;
+        update_usermeta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
+    }
 }
+
 add_action('show_user_profile', 'laskuhari_kayttajan_lisatiedot');
 add_action('edit_user_profile', 'laskuhari_kayttajan_lisatiedot');
 add_action('personal_options_update', 'laskuhari_paivita_kayttajan_lisatiedot');
 add_action('edit_user_profile_update', 'laskuhari_paivita_kayttajan_lisatiedot');
-
 
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
@@ -86,14 +101,19 @@ function laskuhari_laskutustila_sarakkeeseen( $column ) {
     global $post;
     if( 'laskuhari' === $column ) {
         $data = laskuhari_tilauksen_laskutustila( $post->ID );
-		if( $data['tila'] == "LASKUTETTU" ) {
-			$status = "processing";
-		} elseif( $data['tila'] == "LASKU LUOTU" ) {
-			$status = "on-hold";
-		} else {
-			$status = "pending";
-		}
-		echo '<span class="order-status status-'.$status.'"><span>'.$data['tila'].'</span></span>';
+        if( $data['tila'] == "LASKUTETTU" ) {
+            $status = "processing";
+        } elseif( $data['tila'] == "LASKU LUOTU" ) {
+            $status = "on-hold";
+        } else {
+            $status = "pending";
+            $laskutustapa = get_post_meta( $post->ID, '_payment_method', true );
+            if( $laskutustapa != "laskuhari" ) {
+                echo '-';
+                return;
+            }
+        }
+        echo '<span class="order-status status-'.$status.'"><span>'.$data['tila'].'</span></span>';
     }
 }
 
@@ -174,7 +194,8 @@ add_action('add_meta_boxes', 'laskuhari_metabox');
 
 function laskuhari_tilauksen_laskutustila( $order_id ) {
     $laskunumero = get_post_meta($order_id, '_laskuhari_invoice_number', true);
-    $lahetetty = get_post_meta($order_id, '_laskuhari_sent', true) == "yes";
+    $lahetetty   = get_post_meta($order_id, '_laskuhari_sent', true) == "yes";
+
     if( $laskunumero > 0 ) {
         $lasku_luotu = true;
         $tila = "LASKU LUOTU";
@@ -188,23 +209,24 @@ function laskuhari_tilauksen_laskutustila( $order_id ) {
         $tila = "EI LASKUTETTU";
         $tila_class = " ei-laskutettu";
     }
-	return [
-		"lasku_luotu" => $lasku_luotu,
-		"tila" => $tila,
-		"tila_class" => $tila_class,
-		"lahetetty" => $lahetetty,
-		"laskunumero" => $laskunumero
-	];
+
+    return [
+        "lasku_luotu" => $lasku_luotu,
+        "tila" => $tila,
+        "tila_class" => $tila_class,
+        "lahetetty" => $lahetetty,
+        "laskunumero" => $laskunumero
+    ];
 }
 
 // Luo metaboxin HTML
 
 function laskuhari_metabox_html($post) {
-	$tiladata = laskuhari_tilauksen_laskutustila($post->ID);
-	$tila = $tiladata['tila'];
-	$tila_class = $tiladata['tila_class'];
-	$lahetetty = $tiladata['lahetetty'];
-	$laskunumero = $tiladata['laskunumero'];
+    $tiladata    = laskuhari_tilauksen_laskutustila($post->ID);
+    $tila        = $tiladata['tila'];
+    $tila_class  = $tiladata['tila_class'];
+    $lahetetty   = $tiladata['lahetetty'];
+    $laskunumero = $tiladata['laskunumero'];
     $lasku_luotu = $tiladata['lasku_luotu'];
 
     $maksutapa = get_post_meta($post->ID, '_payment_method', true);
@@ -390,7 +412,7 @@ function laskuhari_go_back( $lh ) {
     } else {
         $data = $lh;
     }
-	
+    
     $remove = array('_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari', 'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite', 'laskuhari-valittaja');
 
 
@@ -872,8 +894,8 @@ function laskuhari_send_invoice($order, $massatoiminto = false) {
             $valittaja         = get_post_meta($order_id, '_laskuhari_valittaja', true);
             $ytunnus           = get_post_meta($order_id, '_laskuhari_ytunnus', true);
         } elseif( $lahetystapa == "" ) {
-			$lahetystapa = $info->lahetystapa_manuaalinen;
-		}
+            $lahetystapa = $info->lahetystapa_manuaalinen;
+        }
     }
 
     if(trim(rtrim($email_message)) == "") {
@@ -944,7 +966,7 @@ function laskuhari_send_invoice($order, $massatoiminto = false) {
         if($error_notice == "") {
             $order->add_order_note( __( 'Lasku lähetetty '.$miten, 'laskuhari' ) );
             update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
-			$order->update_status('processing');
+            $order->update_status('processing');
             $lahetetty_tilaus = $order->get_id();
         }
     } else {
