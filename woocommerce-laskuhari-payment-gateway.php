@@ -69,10 +69,93 @@ function laskuhari_paivita_kayttajan_lisatiedot( $user_id ) {
     }
 }
 
+function laskuhari_update_stock( $product ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
+        $product_id = intval( $product );
+        $product    = wc_get_product( $product_id );
+    }
+
+    if( $product === null ) {
+        error_log( "Laskuhari: Product ID '" . intval( $product_id ) . "' not found for stock update" );
+        return false;
+    }
+
+    if( $product->is_type( 'variable' ) ) {
+        $product_id   = $product->get_parent_id();
+        $variation_id = $product->get_id();
+    } else {
+        $product_id   = $product->get_id();
+        $variation_id = 0;
+    }
+
+    $stock_quantity = $product->get_stock_quantity();
+
+    $api_url = "https://testi.laskuhari.fi/rest-api/tuote/varastosaldo/";
+
+    $api_url = apply_filters( "laskuhari_stock_update_api_url", $api_url, $product );
+
+    $payload = [
+        "woocommerce" => [
+            "wc_product_id"  => $product_id,
+            "wc_variation_id" => $variation_id
+        ],
+        "varastosaldo" => [
+            "aseta" => $stock_quantity
+        ]
+    ];
+
+    $payload = apply_filters( "laskuhari_stock_update_payload", $payload, $product );
+
+    $payload = json_encode( $payload );
+
+    $curl     = laskuhari_api_request( $payload, $api_url );
+    $response = curl_exec( $curl );
+
+    $curl_errno = curl_errno( $curl );
+    $curl_error = curl_error( $curl );
+
+    if( $curl_errno ) {
+        error_log( "Laskuhari: Stock update cURL error: " . $curl_errno . ": " . $curl_error );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+    }
+
+    $response_json = json_decode( $response, true );
+
+    if( ! isset( $response_json['status'] ) ) {
+        $error_response = print_r( $response, true );
+        if( $error_response == "" ) {
+            $error_response = "Empty response";
+        }
+        error_log( "Laskuhari: Stock update response error: " . $error_response );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+        return false;
+    }
+
+    if( $response_json['status'] != "OK" ) {
+        error_log( "Laskuhari: Stock update response error: " . print_r( $response_json, true ) );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+        return false;
+    }
+
+    if( $curl_errno ) {
+        return false;
+    }
+
+    if( $response_json['varastosaldo'] != $stock_quantity ) {
+        error_log( "Laskuhari: Stock update did not work for product ID " . $product_id );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+        return false;
+    }
+
+    
+    return true;
+}
+
 add_action('show_user_profile', 'laskuhari_kayttajan_lisatiedot');
 add_action('edit_user_profile', 'laskuhari_kayttajan_lisatiedot');
 add_action('personal_options_update', 'laskuhari_paivita_kayttajan_lisatiedot');
 add_action('edit_user_profile_update', 'laskuhari_paivita_kayttajan_lisatiedot');
+add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
 
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
@@ -529,6 +612,31 @@ function laskuhari_download($invoice_number, $order_id) {
 
 function laskuhari_getpdf_fail() {
     echo '<div class="notice notice-error is-dismissible"><p>Tilauksen PDF-laskun lataaminen epäonnistui</p></div>';
+}
+
+function laskuhari_api_request( $payload, $api_url ) {
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_URL, $api_url);
+    curl_setopt($ch, CURLOPT_FAILONERROR, 1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 100);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
+    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_POST, TRUE);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    // laskunlähetyksen asetukset
+    $info = new WC_Gateway_Laskuhari(true);
+    if( $info->enforce_ssl != "yes" ) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    }
+
+    curl_setopt( $ch, CURLOPT_USERPWD, $info->uid . ":" . $info->apikey );
+    
+    return $ch;
 }
 
 function laskuhari_curl($post, $url) {
