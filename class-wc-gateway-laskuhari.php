@@ -44,6 +44,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->email_lasku_kaytossa     = $this->get_option( 'email_lasku_kaytossa', 'yes' ) === 'yes' ? true : false;
 		$this->verkkolasku_kaytossa     = $this->get_option( 'verkkolasku_kaytossa', 'yes' ) === 'yes' ? true : false;
 		$this->kirjelasku_kaytossa      = $this->get_option( 'kirjelasku_kaytossa', 'yes' ) === 'yes' ? true : false;
+		$this->synkronoi_varastosaldot  = $this->get_option( 'synkronoi_varastosaldot', 'yes' ) === 'yes' ? true : false;
 		$this->auto_gateway_enabled     = $this->get_option( 'auto_gateway_enabled', 'yes' ) === 'yes' ? true : false;
 		$this->auto_gateway_create_enabled = $this->get_option( 'auto_gateway_create_enabled', 'yes' ) === 'yes' ? true : false;
 		$this->salli_laskutus_erikseen  = $this->get_option( 'salli_laskutus_erikseen', 'no' ) === 'yes' ? true : false;
@@ -237,6 +238,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
+			),
+			'synkronoi_varastosaldot' => array(
+				'title'       => __( 'Synkronoi varastosaldot', 'woocommerce' ),
+				'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'woocommerce' ),
+				'type'        => 'checkbox',
+				'description' => '',
+				'default'     => 'no'
 			),
 			'uid' => array(
 				'title'       => __( 'UID', 'woocommerce' ),
