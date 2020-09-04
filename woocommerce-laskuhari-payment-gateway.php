@@ -628,8 +628,10 @@ function laskuhari_invoice_number_by_order( $orderid ) {
 }
 
 function laskuhari_download($invoice_number, $order_id) {
+    global $laskuhari_gateway_object;
+
     // laskunlähetyksen asetukset
-    $info = new WC_Gateway_Laskuhari(true);
+    $info = $laskuhari_gateway_object;
     $laskuhari_uid          = $info->uid;
     $laskuhari_apikey       = $info->apikey;
 
@@ -666,6 +668,7 @@ function laskuhari_getpdf_fail() {
 }
 
 function laskuhari_api_request( $payload, $api_url ) {
+    global $laskuhari_gateway_object;
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -679,7 +682,7 @@ function laskuhari_api_request( $payload, $api_url ) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
     // laskunlähetyksen asetukset
-    $info = new WC_Gateway_Laskuhari(true);
+    $info = $laskuhari_gateway_object;
     if( $info->enforce_ssl != "yes" ) {
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -691,6 +694,8 @@ function laskuhari_api_request( $payload, $api_url ) {
 }
 
 function laskuhari_curl($post, $url) {
+    global $laskuhari_gateway_object;
+    
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -701,7 +706,7 @@ function laskuhari_curl($post, $url) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
 
     // laskunlähetyksen asetukset
-    $info = new WC_Gateway_Laskuhari(true);
+    $info = $laskuhari_gateway_object;
     if( $info->enforce_ssl != "yes" ) {
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -733,6 +738,7 @@ function laskuhari_rivi( $i, $data ) {
 
 function laskuhari_process_action($order_id, $send = false, $massatoiminto = false) {
     global $wc_order_types;
+    global $laskuhari_gateway_object;
     
     $error_notice = "";
     $success      = "";
@@ -746,7 +752,7 @@ function laskuhari_process_action($order_id, $send = false, $massatoiminto = fal
     $prices_include_tax = get_post_meta($order_id, '_prices_include_tax', true) == 'yes' ? true : false;
     
     // laskunlähetyksen asetukset
-    $info = new WC_Gateway_Laskuhari(true);
+    $info = $laskuhari_gateway_object;
     $laskuhari_uid           = $info->uid;
     $laskuhari_apikey        = $info->apikey;
     $laskutuslisa            = $info->laskutuslisa;
@@ -1031,8 +1037,10 @@ function laskuhari_process_action($order_id, $send = false, $massatoiminto = fal
 }
 
 function laskuhari_send_invoice($order, $massatoiminto = false) {
+    global $laskuhari_gateway_object;
+
     // laskunlähetyksen asetukset
-    $info = new WC_Gateway_Laskuhari(true);
+    $info = $laskuhari_gateway_object;
     $laskuhari_uid          = $info->uid;
     $laskuhari_apikey       = $info->apikey;
     $sendername             = $info->laskuttaja;
