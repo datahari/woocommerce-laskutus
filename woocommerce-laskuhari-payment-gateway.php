@@ -360,6 +360,10 @@ function laskuhari_metabox() {
     }
 }
 
+function laskuhari_invoice_is_created_from_order( $order_id ) {
+    return !! get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+}
+
 // Hae tilauksen laskutustila
 
 function laskuhari_tilauksen_laskutustila( $order_id ) {
@@ -734,6 +738,10 @@ function laskuhari_process_action($order_id, $send = false, $massatoiminto = fal
     $success      = "";
 
     $order = wc_get_order($order_id);
+
+    if( $massatoiminto && laskuhari_invoice_is_created_from_order( $order_id ) && true === $send ) {
+        return laskuhari_send_invoice( $order, $massatoiminto );
+    }
 
     $prices_include_tax = get_post_meta($order_id, '_prices_include_tax', true) == 'yes' ? true : false;
     
