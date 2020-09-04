@@ -17,6 +17,56 @@ Author URI: http://shamokaldarpon.com/
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
+add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
+
+function laskuhari_payment_gateway_load() {
+    global $laskuhari_gateway_object;
+
+    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+        add_action( 'admin_notices', 'woocommerce_laskuhari_fallback_notice' );
+        return;
+    }
+
+    add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
+    add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
+    
+    require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
+
+    $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
+
+    if( $laskuhari_gateway_object->get_option( 'enabled' ) !== 'yes' ) {
+        return;
+    }
+    
+    laskuhari_actions();
+
+    if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
+        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
+    }
+
+    add_action( 'wp_footer', 'laskuhari_add_scripts' );
+    add_action( 'wp_footer', 'laskuhari_add_styles' );
+    add_action( 'admin_print_scripts', 'laskuhari_add_scripts' );
+    add_action( 'admin_print_styles', 'laskuhari_add_styles' );
+    add_action( 'woocommerce_cart_calculate_fees','wc_laskuhari_custom_surcharge', 10, 1 );
+    add_action( 'show_user_profile', 'laskuhari_kayttajan_lisatiedot' );
+    add_action( 'edit_user_profile', 'laskuhari_kayttajan_lisatiedot' );
+    add_action( 'personal_options_update', 'laskuhari_paivita_kayttajan_lisatiedot' );
+    add_action( 'edit_user_profile_update', 'laskuhari_paivita_kayttajan_lisatiedot' );
+    add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_laskutustila_sarakkeeseen' );
+    add_action( 'woocommerce_checkout_process', 'laskuhari_verkkolaskutiedot' );
+    add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
+    add_action( 'add_meta_boxes', 'laskuhari_metabox' );
+
+    add_filter( 'plugin_row_meta', 'LHPG_register_plugin_links', 10, 2 );
+    add_filter( 'manage_edit-shop_order_columns', 'laskuhari_sarake_tilauslistaan' );
+
+    if( isset($_GET['laskuhari_luotu']) || isset($_GET['laskuhari_lahetetty']) || isset($_GET['laskuhari_notice']) || isset($_GET['laskuhari_success']) ) {
+        add_action( 'admin_notices', 'laskuhari_notices' );
+    }
+    
+}
+
 function laskuhari_kayttajan_tiedot() {
     $custom_meta_fields = array();
     $custom_meta_fields['laskuhari_laskutusasiakas'] = 'Laskutusasiakas';
@@ -151,12 +201,6 @@ function laskuhari_update_stock( $product ) {
     return true;
 }
 
-add_action('show_user_profile', 'laskuhari_kayttajan_lisatiedot');
-add_action('edit_user_profile', 'laskuhari_kayttajan_lisatiedot');
-add_action('personal_options_update', 'laskuhari_paivita_kayttajan_lisatiedot');
-add_action('edit_user_profile_update', 'laskuhari_paivita_kayttajan_lisatiedot');
-add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
-
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
 function LHPG_register_plugin_links( $links, $file ) {
@@ -167,7 +211,6 @@ function LHPG_register_plugin_links( $links, $file ) {
     return $links;
 }
 
-add_filter( 'plugin_row_meta', 'LHPG_register_plugin_links', 10, 2 );
 
 // Lisää Laskuhari-sarake tilauslistaan
 
@@ -175,8 +218,6 @@ function laskuhari_sarake_tilauslistaan( $columns ) {
     $columns['laskuhari'] = 'Laskuhari';
     return $columns;
 }
-
-add_filter( 'manage_edit-shop_order_columns', 'laskuhari_sarake_tilauslistaan' );
 
 // Lisää Laskuhari-sarakkeeseen tilauksen laskutustila
 
@@ -200,15 +241,16 @@ function laskuhari_laskutustila_sarakkeeseen( $column ) {
     }
 }
 
-add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_laskutustila_sarakkeeseen' );
 
 // Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla 
 
 function laskuhari_verkkolaskutiedot() {
+    global $laskuhari_gateway_object;
+    $info = $laskuhari_gateway_object;
+
     if( $_POST['payment_method'] != "laskuhari" ) {
         return false;
     }
-    $info = new WC_Gateway_Laskuhari(true);
     if (!$_POST['laskuhari-laskutustapa']) {
         wc_add_notice(__('Ole hyvä ja valitse laskutustapa') , 'error');
     }
@@ -223,7 +265,6 @@ function laskuhari_verkkolaskutiedot() {
     }
 }
 
-add_action('woocommerce_checkout_process', 'laskuhari_verkkolaskutiedot');
 
 // Päivitä Laskuharista tuleva metadata
 
@@ -233,8 +274,6 @@ function laskuhari_checkout_update_order_meta($order_id) {
     }
     laskuhari_update_order_meta($order_id);
 }
-
-add_action('woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta');
 
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
 
@@ -271,8 +310,6 @@ function laskuhari_metabox() {
     }
 }
 
-add_action('add_meta_boxes', 'laskuhari_metabox');
-
 // Hae tilauksen laskutustila
 
 function laskuhari_tilauksen_laskutustila( $order_id ) {
@@ -305,6 +342,8 @@ function laskuhari_tilauksen_laskutustila( $order_id ) {
 // Luo metaboxin HTML
 
 function laskuhari_metabox_html($post) {
+    global $laskuhari_gateway_object;
+
     $tiladata    = laskuhari_tilauksen_laskutustila($post->ID);
     $tila        = $tiladata['tila'];
     $tila_class  = $tiladata['tila_class'];
@@ -330,7 +369,7 @@ function laskuhari_metabox_html($post) {
 
     $edit_link = get_edit_post_link( $post );
     if( $lasku_luotu ) {
-        $laskuhari = new WC_Gateway_Laskuhari(true);
+        $laskuhari = $laskuhari_gateway_object;
         echo '
         <div class="laskuhari-laskunumero">'.__('Lasku', 'laskuhari').' '.$laskunumero.'</div>
         <a class="laskuhari-nappi lataa-lasku" href="'.$edit_link.'&laskuhari_download=current" target="_blank">'.__('Lataa PDF', 'laskuhari').'</a>
@@ -357,6 +396,9 @@ function laskuhari_metabox_html($post) {
 // Lisää laskutuslisä tilaukselle
 
 function wc_laskuhari_custom_surcharge( $cart ) {
+    global $laskuhari_gateway_object;
+    $laskuhari = $laskuhari_gateway_object;
+
     if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
         return;
     }
@@ -365,7 +407,6 @@ function wc_laskuhari_custom_surcharge( $cart ) {
         return;
     }
     
-    $laskuhari = new WC_Gateway_Laskuhari(true);
     $laskutuslisa = $laskuhari->laskutuslisa;
 
     if( $laskutuslisa == 0 ) {
@@ -376,59 +417,27 @@ function wc_laskuhari_custom_surcharge( $cart ) {
     $cart->add_fee( __('Laskutuslisä', 'woocommerce'), $laskuhari->veroton_laskutuslisa($prices_include_tax), true);
 }
 
-add_action( 'woocommerce_cart_calculate_fees','wc_laskuhari_custom_surcharge', 10, 1 );
-
 /* WooCommerce fallback notice. */
 
 function woocommerce_laskuhari_fallback_notice() {
     echo '<div class="error"><p>' . sprintf( __( 'WooCommerce Laskuhari Payment Gateway depends on the last version of %s to work!', 'LHPG' ), '<a href="http://wordpress.org/extend/plugins/woocommerce/">WooCommerce</a>' ) . '</p></div>';
 }
-
-/* Load functions. */
-
-function laskuhari_payment_gateway_load() {
-    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
-        add_action( 'admin_notices', 'woocommerce_laskuhari_fallback_notice' );
-        return;
-    }
    
-    function laskuhari_add_gateway( $methods ) {
-        $methods[] = 'WC_Gateway_Laskuhari';
-        return $methods;
-    }
-
-    add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
-    
-    require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
-
-    $laskuhari = new WC_Gateway_Laskuhari(true);
-
-    if( $laskuhari->get_option('enabled') == 'yes' ) {
-        add_action( 'wp_footer', 'laskuhari_add_scripts' );
-        add_action( 'wp_footer', 'laskuhari_add_styles' );
-        add_action( 'admin_print_scripts', 'laskuhari_add_scripts' );
-        add_action( 'admin_print_styles', 'laskuhari_add_styles' );
-        laskuhari_actions();
-    }
-
-    add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
-
-    function laskuhari_plugin_action_links($links, $file) {
-        static $this_plugin;
-
-        if( ! $this_plugin ) {
-            $this_plugin = plugin_basename(__FILE__);
-        }
-
-        if( $file == $this_plugin ) {
-            $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari">Asetukset</a>';
-            array_unshift($links, $settings_link);
-        }
-        return $links;
-    }
+function laskuhari_add_gateway( $methods ) {
+    $methods[] = 'WC_Gateway_Laskuhari';
+    return $methods;
 }
 
-add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
+function laskuhari_plugin_action_links( $links, $file ) {
+    $this_plugin = plugin_basename( __FILE__ );
+
+    if( $file == $this_plugin ) {
+        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari">Asetukset</a>';
+        array_unshift( $links, $settings_link );
+    }
+
+    return $links;
+}
 
 function laskuhari_actions() {
     if( isset($_GET['action']) && $_GET['action'] == "laskuhari-batch-send") {
@@ -524,10 +533,6 @@ function laskuhari_go_back( $lh ) {
 
 
     exit;
-}
-
-if( isset($_GET['laskuhari_luotu']) || isset($_GET['laskuhari_lahetetty']) || isset($_GET['laskuhari_notice']) || isset($_GET['laskuhari_success']) ) {
-    add_action( 'admin_notices', 'laskuhari_notices' );
 }
 
 function laskuhari_notices() {
