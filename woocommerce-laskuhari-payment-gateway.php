@@ -15,6 +15,8 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
+$laskuhari_plugin_version = "0.9.46";
+
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
 add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
@@ -44,9 +46,10 @@ function laskuhari_payment_gateway_load() {
         add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
     }
 
-    add_action( 'wp_footer', 'laskuhari_add_scripts' );
+    add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
     add_action( 'wp_footer', 'laskuhari_add_styles' );
-    add_action( 'admin_print_scripts', 'laskuhari_add_scripts' );
+    add_action( 'admin_print_scripts', 'laskuhari_add_public_scripts' );
+    add_action( 'admin_print_scripts', 'laskuhari_add_admin_scripts' );
     add_action( 'admin_print_styles', 'laskuhari_add_styles' );
     add_action( 'woocommerce_cart_calculate_fees','wc_laskuhari_custom_surcharge', 10, 1 );
     add_action( 'show_user_profile', 'laskuhari_kayttajan_lisatiedot' );
@@ -58,6 +61,8 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
 
+    add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
+    add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
     add_filter( 'plugin_row_meta', 'LHPG_register_plugin_links', 10, 2 );
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_sarake_tilauslistaan' );
 
@@ -245,6 +250,46 @@ function laskuhari_laskutustila_sarakkeeseen( $column ) {
     }
 }
 
+function laskuhari_add_bulk_action_for_invoicing( $actions ) {
+    $actions['laskuhari-batch-send'] = __( 'Laskuta valitut tilaukset (Laskuhari)', 'laskuhari' );
+    return $actions;
+}
+
+function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
+    if ( $action !== 'laskuhari-batch-send' ) {
+        return $redirect_to;
+    }
+
+    $data = array();
+
+    foreach( $order_ids as $order_id ) {
+        $order = wc_get_order( $order_id );
+
+        if( ! $order ) {
+            error_log( "Laskuhari: Could not find order ID " . intval( $order_id ) . " in bulk invoice action" );
+            continue;
+        }
+
+        $order_status = $order->get_status();
+
+        if( "processing" !== $order_status ) {  
+            $data = array();
+            $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
+            return laskuhari_back_url( $data, $redirect_to );
+        }
+    }
+
+    foreach( $_GET['post'] as $order_id ) {
+        $lh     = laskuhari_process_action( $order_id, true, true );
+        $data[] = $lh;
+    }
+    
+    $back_url = laskuhari_back_url( $data, $redirect_to );
+
+    $back_url = apply_filters( "laskuhari_return_url_after_bulk_action", $back_url, $order_ids );
+
+    return $back_url;
+}
 
 // Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla 
 
@@ -446,28 +491,6 @@ function laskuhari_plugin_action_links( $links, $file ) {
 }
 
 function laskuhari_actions() {
-    if( isset( $_GET['action'] ) && $_GET['action'] == "laskuhari-batch-send") {
-        $data = array();
-
-        foreach( $_GET['post'] as $order_id ) {
-            $order = wc_get_order( $order_id );
-            if( $order && $order->get_status() != "processing" ) {  
-                $data = [];
-                $data["notice"][] = "Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.";
-                laskuhari_go_back( $data );
-                exit;
-            }
-        }
-
-        foreach( $_GET['post'] as $order_id ) {
-            $lh     = laskuhari_process_action( $order_id, true, true );
-            $data[] = $lh;
-        }
-
-        laskuhari_go_back( $data );
-
-    }
-
     if( isset($_GET['laskuhari']) ) {
         $send       = ($_GET['laskuhari'] == "send");
         $order_id   = $_GET['order_id'] ? $_GET['order_id'] : $_GET['post'];
@@ -486,13 +509,18 @@ function laskuhari_actions() {
     }
 
     if( isset($_GET['laskuhari_send_invoice']) ) {
-        $lh = laskuhari_send_invoice(wc_get_order($_GET['post']));
+        $lh = laskuhari_send_invoice( wc_get_order( $_GET['post'] ) );
         laskuhari_go_back( $lh );
         exit;
     }
 }
 
-function laskuhari_go_back( $lh ) {
+function laskuhari_go_back( $lh, $url = false ) {
+    wp_redirect( laskuhari_back_url( $lh, $url ) );
+    exit;
+}
+
+function laskuhari_back_url( $lh, $url = false ) {
 
     if( isset($lh[0]) && is_array( $lh[0] ) ) {
         $data = array(
@@ -511,19 +539,17 @@ function laskuhari_go_back( $lh ) {
         $data = $lh;
     }
     
-    $remove = array('_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari', 'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite', 'laskuhari-valittaja');
-
-
-    $back = remove_query_arg(
-        $remove
+    $remove = array( 
+        '_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari', 
+        'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 
+        'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa', 
+        'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite', 'laskuhari-valittaja' 
     );
 
-    if( stripos( $back, "laskuhari-batch-send" ) !== false ) {
-        $remove[] = "action";
-        $back = remove_query_arg(
-            $remove
-        );
-    }
+    $back = remove_query_arg(
+        $remove,
+        $url
+    );
 
     $back = add_query_arg(
         array(
@@ -535,10 +561,7 @@ function laskuhari_go_back( $lh ) {
         $back
     );
 
-    wp_redirect( $back );
-
-
-    exit;
+    return $back;
 }
 
 function laskuhari_notices() {
@@ -567,6 +590,7 @@ function laskuhari_notices() {
         }
     }
 }
+
 function laskuhari_add_styles() {
     wp_enqueue_style(
         'laskuhari-css',
@@ -574,17 +598,29 @@ function laskuhari_add_styles() {
         array()
     );
 }
-function laskuhari_add_scripts() {
+
+function laskuhari_add_public_scripts() {
+    global $laskuhari_plugin_version;
     wp_enqueue_script(
-        'laskuhari-js',
-        plugins_url('js/js.js' , __FILE__),
-        array('jquery'),
-        "0.9.40"
+        'laskuhari-js-public',
+        plugins_url( 'js/public.js' , __FILE__ ),
+        array( 'jquery' ),
+        $laskuhari_plugin_version
+    );
+}
+
+function laskuhari_add_admin_scripts() {
+    global $laskuhari_plugin_version;
+    wp_enqueue_script(
+        'laskuhari-js-admin',
+        plugins_url( 'js/admin.js' , __FILE__ ),
+        array( 'jquery' ),
+        $laskuhari_plugin_version
     );
 }
 
 function laskuhari_invoice_number_by_order( $orderid ) {
-    return get_post_meta($orderid, '_laskuhari_invoice_number', true);
+    return get_post_meta( $orderid, '_laskuhari_invoice_number', true );
 }
 
 function laskuhari_download($invoice_number, $order_id) {
