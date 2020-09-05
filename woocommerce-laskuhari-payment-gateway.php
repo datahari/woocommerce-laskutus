@@ -138,32 +138,30 @@ function laskuhari_get_vat_rate( $product = null ) {
         $taxes = WC_Tax::get_rates();
     }
 
+    $taxes = apply_filters( "laskuhari_taxes", $taxes, $product );
+
     if( null === $taxes || 0 === count( $taxes ) ) {
         return 0;
     }
 
-    error_log(print_r($taxes, true));
-    $vat_rate = 0;
-
     foreach( $taxes as $rate ) {
         $vat_rate = $rate['rate'];
-
-        if( false !== stripos( $rate['label'], "arvonlis" ) ) {
-            break;
-        }
-        if( false !== stripos( $rate['label'], "alv" ) ) {
-            break;
-        }
-        if( 24 === $rate['rate'] ) {
-            break;
-        }
-        if( 14 === $rate['rate'] ) {
-            break;
-        }
-        if( 10 === $rate['rate'] ) {
+        if( false !== stripos( $rate['label'], "arvonlis" ) || false !== stripos( $rate['label'], "alv" ) ) {
             break;
         }
     }
+
+    $common_vat_rates = [24, 14, 10];
+    $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
+
+    foreach( $taxes as $rate ) {
+        if( in_array( $rate['rate'], $common_vat_rates ) ) {
+            $vat_rate = $rate['rate'];
+            break;
+        }
+    }
+
+    $vat_rate = apply_filters( "laskuhari_get_vat_rate", $vat_rate, $product );
 
     return $vat_rate;
 }
