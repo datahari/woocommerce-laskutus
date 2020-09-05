@@ -14,10 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
-    /**
-     * Constructor for the gateway.
-     */
-	public function __construct( $notexts = false ) {
+	public function __construct( $only_settings = false ) {
 		$this->id                 		= 'laskuhari';
 		$this->icon               		= apply_filters( 'woocommerce_laskuhari_icon', '' );
 		$this->method_title       		= __( 'Laskuhari', 'woocommerce' );
@@ -25,22 +22,26 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->has_fields         		= false;
 
 		// Load the settings
-		$this->init_form_fields();
-		$this->init_settings();
+		if( ! $only_settings ) {
+			$this->init_form_fields();
+			$this->init_settings();
+		}
 
 		// Get settings
-		$this->laskutuslisa        		= preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $this->get_option( 'laskutuslisa' ));
-		$this->laskutuslisa_alv    		= preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $this->get_option( 'laskutuslisa_alv' ));
+		$this->laskutuslisa        		= $this->parse_decimal( $this->get_option( 'laskutuslisa' ) );
+		$this->laskutuslisa_alv    		= $this->parse_decimal( $this->get_option( 'laskutuslisa_alv' ) );
 		$this->title              		= $this->get_option( 'title' );
 		$this->lahetystapa_manuaalinen  = $this->get_option( 'lahetystapa_manuaalinen' );
 		$this->demotila                 = $this->get_option( 'demotila', 'yes' ) === 'yes' ? true : false;
+
 		if( $this->demotila == "yes" ) {
-			$this->uid                		= "3175";
-			$this->apikey             		= "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
+			$this->uid    = "3175";
+			$this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
 		} else {
-			$this->uid                		= $this->get_option( 'uid' );
-			$this->apikey             		= $this->get_option( 'apikey' );
+			$this->uid    = $this->get_option( 'uid' );
+			$this->apikey = $this->get_option( 'apikey' );
 		}
+
 		$this->email_lasku_kaytossa     = $this->get_option( 'email_lasku_kaytossa', 'yes' ) === 'yes' ? true : false;
 		$this->verkkolasku_kaytossa     = $this->get_option( 'verkkolasku_kaytossa', 'yes' ) === 'yes' ? true : false;
 		$this->kirjelasku_kaytossa      = $this->get_option( 'kirjelasku_kaytossa', 'yes' ) === 'yes' ? true : false;
@@ -56,12 +57,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->enable_for_customers     = $this->get_option( 'enable_for_customers', array() );
 		$this->enable_for_virtual 		= $this->get_option( 'enable_for_virtual', 'yes' ) === 'yes' ? true : false;
 
-		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-
-		if( $notexts == false ) {
-			add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
+		if( ! $only_settings ) {
+			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 	    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 		}
+	}
+
+	public function parse_decimal( $number ) {
+		return preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $number);
 	}
 
 	public function veroton_laskutuslisa( $sis_alv ) {
@@ -499,17 +502,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 			'result' 	=> 'success',
 			'redirect'	=> $this->get_return_url( $order )
 		);
-	}
-
-    /**
-     * Output for the order received page.
-     */
-	public function thankyou_page() {
-
-		if ( $this->instructions ) {
-        	echo wpautop( wptexturize( $this->instructions ) );
-		}
-		
 	}
 
     /**

@@ -695,7 +695,7 @@ function laskuhari_api_request( $payload, $api_url ) {
 
 function laskuhari_curl($post, $url) {
     global $laskuhari_gateway_object;
-    
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
