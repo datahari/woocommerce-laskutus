@@ -29,7 +29,6 @@ function laskuhari_payment_gateway_load() {
         return;
     }
 
-    add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
     
     require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
@@ -39,7 +38,9 @@ function laskuhari_payment_gateway_load() {
     if( $laskuhari_gateway_object->get_option( 'enabled' ) !== 'yes' ) {
         return;
     }
-    
+
+    add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
+
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
