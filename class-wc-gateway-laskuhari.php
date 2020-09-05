@@ -64,12 +64,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	}
 
 	public function parse_decimal( $number ) {
-		return preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $number);
+		return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
 	}
 
 	public function veroton_laskutuslisa( $sis_alv ) {
 		if( $sis_alv ) {
-			return $this->laskutuslisa / (1+$this->laskutuslisa_alv/100);
+			return $this->laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
 		}
 		return $this->laskutuslisa;
 	}
@@ -78,12 +78,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		if( $sis_alv ) {
 			return $this->laskutuslisa;
 		}
-		return $this->laskutuslisa * (1+$this->laskutuslisa_alv/100);
+		return $this->laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
 	}
 
 	public function lahetystapa_lomake( $order_id = false ) {
-		$laskutustapa = get_post_meta($order_id, '_laskuhari_laskutustapa', true);
-		$valittaja = get_post_meta($order_id, '_laskuhari_valittaja', true);
+		$laskutustapa = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
+		$valittaja = get_post_meta( $order_id, '_laskuhari_valittaja', true );
 		?>
 			<select onchange="laskuhari_tarkista_verkkolaskuosoite(jQuery);" id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
 				<option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
@@ -92,31 +92,31 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 				<?php if( $this->kirjelasku_kaytossa ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
 			</select>
 			<div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
-				<div class="laskuhari-caption"><?php echo __('Y-tunnus', 'laskuhari'); ?>:</div>
-				<input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr(get_post_meta($order_id, '_laskuhari_ytunnus', true)); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
-				<div class="laskuhari-caption"><?php echo __('Verkkolaskuosoite / OVT', 'laskuhari'); ?>:</div>
-				<input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr(get_post_meta($order_id, '_laskuhari_verkkolaskuosoite', true)); ?>" name="laskuhari-verkkolaskuosoite" /><br />
-				<div class="laskuhari-caption"><?php echo __('Verkkolaskuoperaattori', 'laskuhari'); ?>:</div>
+				<div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
+				<input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( get_post_meta( $order_id, '_laskuhari_ytunnus', true ) ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+				<div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>
+				<input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( get_post_meta( $order_id, '_laskuhari_verkkolaskuosoite', true ) ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
+				<div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
 				<select id="laskuhari-valittaja" name="laskuhari-valittaja">
-					<option value="">-- <?php echo __('Valitse verkkolaskuoperaattori', 'laskuhari'); ?> ---</option>
-					<optgroup label="<?php echo __('Operaattorit', 'laskuhari'); ?>">
-						<option value="003723327487"<?php echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
-						<option value="BAWCFI22"<?php echo ($valittaja == "BAWCFI22" ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
-						<option value="003703575029"<?php echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
+					<option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
+					<optgroup label="<?php echo __( 'Operaattorit', 'laskuhari' ); ?>">
+						<option value="003723327487"<?php    echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
+						<option value="BAWCFI22"<?php        echo ($valittaja == "BAWCFI22"     ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
+						<option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
 						<option value="885790000000418"<?php echo ($valittaja == "885790000000418" ? ' selected' : ''); ?>>HighJump AS (885790000000418)</option>
-						<option value="INEXCHANGE"<?php echo ($valittaja == "INEXCHANGE" ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
-						<option value="EXPSYS"<?php echo ($valittaja == "EXPSYS" ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
-						<option value="003708599126"<?php echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
-						<option value="003721291126"<?php echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
-						<option value="003726044706"<?php echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
-						<option value="E204503"<?php echo ($valittaja == "E204503" ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
-						<option value="003723609900"<?php echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
-						<option value="PALETTE"<?php echo ($valittaja == "PALETTE" ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
-						<option value="003710948874"<?php echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
-						<option value="003701150617"<?php echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
-						<option value="003714377140"<?php echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
-						<option value="003703575029"<?php echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
-						<option value="003701011385"<?php echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
+						<option value="INEXCHANGE"<?php      echo ($valittaja == "INEXCHANGE"   ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
+						<option value="EXPSYS"<?php          echo ($valittaja == "EXPSYS"       ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
+						<option value="003708599126"<?php    echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
+						<option value="003721291126"<?php    echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
+						<option value="003726044706"<?php    echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
+						<option value="E204503"<?php         echo ($valittaja == "E204503"      ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
+						<option value="003723609900"<?php    echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
+						<option value="PALETTE"<?php         echo ($valittaja == "PALETTE"      ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
+						<option value="003710948874"<?php    echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
+						<option value="003701150617"<?php    echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
+						<option value="003714377140"<?php    echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
+						<option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
+						<option value="003701011385"<?php    echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
 						<option value="885060259470028"<?php echo ($valittaja == "885060259470028" ? ' selected' : ''); ?>>Tradeshift (885060259470028)</option>
 					</optgroup>
 					<optgroup label="<?php echo __('Pankit', 'laskuhari'); ?>">
@@ -147,7 +147,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
 		$this->lahetystapa_lomake();
 		?>
-		<div class="laskuhari-caption"><?php echo __('Viitteenne', 'laskuhari'); ?> (<?php echo __('valinnainen', 'laskuhari'); ?>):</div>
+		<div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
 		<input type="text" id="laskuhari-viitteenne" name="laskuhari-viitteenne" />
 		<?php
 	}
@@ -363,7 +363,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	 */
 	public function is_available() {
 
-		if( $this->get_option('gateway_enabled') == 'no' ) {
+		if( $this->get_option( 'gateway_enabled' ) == 'no' ) {
 			return false;
 		} 
 
@@ -392,7 +392,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 						break;
 					}
 				}
-
 			}
 		}
 
@@ -406,7 +405,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$current_user = wp_get_current_user();
 		
 		// Tarkista käyttäjän laskutusasiakas-tieto
-		if( $this->salli_laskutus_erikseen && get_the_author_meta("laskuhari_laskutusasiakas", $current_user->ID ) != "yes" ) {
+		$can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) !== "yes";
+		$can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
+
+		if( $this->salli_laskutus_erikseen && $can_use_billing ) {
 			return false;
 		}
 		
@@ -483,19 +485,33 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	public function process_payment( $order_id ) {
 
 		if( $this->auto_gateway_create_enabled ) {	
-			$lh = laskuhari_process_action($order_id, $this->auto_gateway_enabled);
+			$lh = laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
 			$order      = $lh['order'];
 			$notice     = $lh['notice'];
 		}
 
-		$order = wc_get_order($order_id);
-		$order->update_status("processing");
+		$order = wc_get_order( $order_id );
+
+		do_action( "laskuhari_action_after_payment_completed_before_update_status" );
+
+		$status_after_payment = apply_filters( "laskuhari_status_after_payment", "processing", $order_id );
+
+		$order->update_status( $status_after_payment );
+
+		do_action( "laskuhari_action_after_payment_completed_before_reduce_stock_levels" );
 
 		// Reduce stock levels
-		wc_reduce_stock_levels( $order_id );
+		$reduce_stock_levels = apply_filters( "laskuhari_reduce_stock_levels_after_payment", true, $order_id );
+		if( $reduce_stock_levels ) {
+			wc_reduce_stock_levels( $order_id );
+		}
+
+		do_action( "laskuhari_action_after_payment_completed_before_cart_empty" );
 
 		// Remove cart
 		WC()->cart->empty_cart();
+
+		do_action( "laskuhari_action_after_payment_completed_after_cart_empty" );
 
 		// Return thankyou redirect
 		return array(
