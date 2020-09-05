@@ -44,6 +44,7 @@ function laskuhari_payment_gateway_load() {
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
         add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
+        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' ); 
     }
 
     add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
@@ -126,6 +127,162 @@ function laskuhari_paivita_kayttajan_lisatiedot( $user_id ) {
     }
 }
 
+function laskuhari_get_vat_rate( $product = null ) {
+    $taxes = null;
+
+    if( is_a( $product, 'WC_Product' ) ) {
+        $taxes = WC_Tax::get_rates( $product->get_tax_class() );
+    }
+
+    if( null === $taxes || 0 === count( $taxes ) ) {
+        $taxes = WC_Tax::get_rates();
+    }
+
+    if( null === $taxes || 0 === count( $taxes ) ) {
+        return 0;
+    }
+
+    error_log(print_r($taxes, true));
+    $vat_rate = 0;
+
+    foreach( $taxes as $rate ) {
+        $vat_rate = $rate['rate'];
+
+        if( false !== stripos( $rate['label'], "arvonlis" ) ) {
+            break;
+        }
+        if( false !== stripos( $rate['label'], "alv" ) ) {
+            break;
+        }
+        if( 24 === $rate['rate'] ) {
+            break;
+        }
+        if( 14 === $rate['rate'] ) {
+            break;
+        }
+        if( 10 === $rate['rate'] ) {
+            break;
+        }
+    }
+
+    return $vat_rate;
+}
+
+function laskuhari_create_product( $product ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
+        $product_id = intval( $product );
+        $product    = wc_get_product( $product_id );
+    }
+
+    if( $product === null ) {
+        error_log( "Laskuhari: Product ID '" . intval( $product_id ) . "' not found for product creation" );
+        return false;
+    }
+
+    if( $product->is_type( 'variation' ) ) {
+        $product_id   = $product->get_parent_id();
+        $variation_id = $product->get_id();
+    } else {
+        $product_id   = $product->get_id();
+        $variation_id = 0;
+    }
+    
+    $api_url = "https://testi.laskuhari.fi/rest-api/tuote/uusi";
+
+    $api_url = apply_filters( "laskuhari_create_product_api_url", $api_url, $product );
+
+    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) == 'yes' ? true : false;
+
+    $vat = laskuhari_get_vat_rate( $product );
+
+    $vat_multiplier = (100 + $vat) / 100;
+
+    if( $prices_include_tax ) {
+        $price_with_tax    = $product->get_regular_price();
+        $price_without_tax = $price_with_tax / $vat_multiplier;
+    } else {
+        $price_without_tax = $product->get_regular_price();
+        $price_with_tax    = $price_without_tax * $vat_multiplier;
+    }
+
+    $payload = [
+        "koodi" => $product->get_sku(),
+        "nimike" => $product->get_name(),
+        "ylatuote" => 0,
+        "viivakoodi" => [
+            "tyyppi" => "",
+            "koodi" => ""
+        ],
+        "kommentti" => "",
+        "ostohinta" => [
+            "veroton" => 0,
+            "alv" => $vat,
+            "verollinen" => 0
+        ],
+        "myyntihinta" => [
+            "veroton" => $price_without_tax,
+            "alv" => $vat,
+            "verollinen" => $price_with_tax
+        ],
+        "woocommerce" => [
+            "wc_product_id" => $product_id,
+            "wc_variation_id" => $variation_id
+        ],
+        "varastosaldo" => $product->get_stock_quantity(),
+        "varastoseuranta" => $product->get_manage_stock(),
+        "halytysraja" => 0,
+        "varasto" => "",
+        "hyllypaikka" => "",
+        "maara" => 1,
+        "yksikko" => "",
+        "toistovali" => 0,
+        "ennakko" => 0
+    ];
+
+    $payload = apply_filters( "laskuhari_create_product_payload", $payload, $product );
+
+    $payload = json_encode( $payload );
+
+    error_log(print_r($payload, true));
+
+    $curl     = laskuhari_api_request( $payload, $api_url );
+    $response = curl_exec( $curl );
+
+    $curl_errno = curl_errno( $curl );
+    $curl_error = curl_error( $curl );
+
+    if( $curl_errno ) {
+        error_log( "Laskuhari: Product creation cURL error: " . $curl_errno . ": " . $curl_error );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+    }
+
+    $response_json = json_decode( $response, true );
+
+    if( ! isset( $response_json['status'] ) ) {
+        $error_response = print_r( $response, true );
+        if( $error_response == "" ) {
+            $error_response = "Empty response";
+        }
+        error_log( "Laskuhari: Product creation response error: " . $error_response );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+        return false;
+    }
+
+    if( $response_json['status'] != "OK" ) {
+        error_log( "Laskuhari: Product creation response error: " . print_r( $response_json, true ) );
+        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+        return false;
+    }
+
+    if( $curl_errno ) {
+        return false;
+    }
+
+    error_log( "Laskuhari OK: " . print_r($response, true) );
+
+    return true;
+}
+
 function laskuhari_update_stock( $product ) {
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
@@ -137,7 +294,7 @@ function laskuhari_update_stock( $product ) {
         return false;
     }
 
-    if( $product->is_type( 'variable' ) ) {
+    if( $product->is_type( 'variation' ) ) {
         $product_id   = $product->get_parent_id();
         $variation_id = $product->get_id();
     } else {
