@@ -61,6 +61,8 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_checkout_process', 'laskuhari_verkkolaskutiedot' );
     add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
+    add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
+    add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
 
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
@@ -166,7 +168,12 @@ function laskuhari_get_vat_rate( $product = null ) {
     return $vat_rate;
 }
 
-function laskuhari_create_product( $product ) {
+function laskuhari_sync_product_on_save( $product_id ) {
+    laskuhari_product_synced( $product_id, 'no' );
+    laskuhari_create_product( $product_id, true );
+}
+
+function laskuhari_create_product( $product, $update = false ) {
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
         $product    = wc_get_product( $product_id );
@@ -174,6 +181,10 @@ function laskuhari_create_product( $product ) {
 
     if( $product === null ) {
         error_log( "Laskuhari: Product ID '" . intval( $product_id ) . "' not found for product creation" );
+        return false;
+    }
+
+    if( false === $update && laskuhari_product_synced( $product_id ) ) {
         return false;
     }
 
@@ -228,7 +239,7 @@ function laskuhari_create_product( $product ) {
         ],
         "varastosaldo" => $product->get_stock_quantity(),
         "varastoseuranta" => $product->get_manage_stock(),
-        "halytysraja" => 0,
+        "halytysraja" => $product->get_low_stock_amount(),
         "varasto" => "",
         "hyllypaikka" => "",
         "maara" => 1,
@@ -236,6 +247,10 @@ function laskuhari_create_product( $product ) {
         "toistovali" => 0,
         "ennakko" => 0
     ];
+
+    if( true === $update ) {
+        $payload['korvaa_tuotteet'] = true;
+    }
 
     $payload = apply_filters( "laskuhari_create_product_payload", $payload, $product );
 
@@ -278,7 +293,28 @@ function laskuhari_create_product( $product ) {
 
     error_log( "Laskuhari OK: " . print_r($response, true) );
 
+    laskuhari_product_synced( $product_id, "yes" );
+
     return true;
+}
+
+function laskuhari_product_synced( $product, $set = null ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
+        $product_id = intval( $product );
+        $product    = wc_get_product( $product_id );
+    }
+
+    if( $product === null ) {
+        error_log( "Laskuhari: Product ID '" . intval( $product_id ) . "' not found sync check" );
+        return false;
+    }
+
+    if( $set !== null ) {
+        update_post_meta( $product->get_id(), '_laskuhari_synced', $set );
+        return $set;
+    }
+
+    return get_post_meta( $product->get_id(), '_laskuhari_synced', true ) === "yes";
 }
 
 function laskuhari_update_stock( $product ) {
