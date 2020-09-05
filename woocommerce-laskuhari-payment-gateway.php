@@ -235,7 +235,8 @@ function laskuhari_create_product( $product, $update = false ) {
         ],
         "woocommerce" => [
             "wc_product_id" => $product_id,
-            "wc_variation_id" => $variation_id
+            "wc_variation_id" => $variation_id,
+            "prices_include_tax" => $prices_include_tax
         ],
         "varastosaldo" => $product->get_stock_quantity(),
         "varastoseuranta" => $product->get_manage_stock(),
@@ -1045,6 +1046,12 @@ function laskuhari_process_action($order_id, $send = false, $massatoiminto = fal
         }
 
         $ale = 0;
+
+        $product_id = $data['variation_id'] ? $data['variation_id'] : $data['product_id'];
+
+        if( ! laskuhari_product_synced( $product_id ) ) {
+            laskuhari_create_product( $product_id );
+        }
 
         $post .= laskuhari_rivi($i, [
             "product_id"    => $data['product_id'],
