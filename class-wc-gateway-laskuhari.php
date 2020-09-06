@@ -59,6 +59,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
 		if( ! $only_settings ) {
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+			add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
 	    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 		}
 	}
@@ -533,6 +534,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 			'redirect'	=> $this->get_return_url( $order )
 		);
 	}
+
+	/**
+     * Output for the order received page.
+     */
+    public function thankyou_page() {
+
+        if ( $this->instructions ) {
+            echo wpautop( wptexturize( $this->instructions ) );
+        }
+
+    }
 
     /**
      * Add content to the WC emails.
