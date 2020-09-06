@@ -879,7 +879,7 @@ function laskuhari_download( $order_id ) {
     exit;
 }
 
-function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json" ) {
+function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json", $silent = true ) {
     global $laskuhari_gateway_object;
 
     if( ! $laskuhari_gateway_object->uid ) {
@@ -924,13 +924,17 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
             }
             error_log( "Laskuhari: " . $action_name . " response error: " . $error_response );
             error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
-            return false;
+            if( true === $silent ) {
+                return false;
+            }
         }
 
         if( $response_json['status'] != "OK" ) {
             error_log( "Laskuhari: " . $action_name . " response error: " . print_r( $response_json, true ) );
             error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
-            return false;
+            if( true === $silent ) {
+                return false;
+            }
         }
 
         $response = $response_json;
@@ -1335,7 +1339,6 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid    = $info->uid;
-    $laskuhari_apikey = $info->apikey;
     $sendername       = $info->laskuttaja;
     $email_message    = $info->laskuviesti;
 
@@ -1345,9 +1348,8 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     $order_id = $order->get_id();
 
-    $laskuid   = get_post_meta( $order_id, '_laskuhari_invoice_id', true );
-    $laskunro  = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
-    $order_uid = get_post_meta( $order_id, '_laskuhari_uid', true );
+    $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    $order_uid  = get_post_meta( $order_id, '_laskuhari_uid', true );
 
     if( $order_uid && $laskuhari_uid != $order_uid ) {
         $error_notice = 'Virhe laskun lähetyksessä. Lasku on luotu eri UID:llä, kuin asetuksissa määritetty UID';
@@ -1387,55 +1389,66 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     // tilaajan tiedot
     $customer = $order->get_address( 'billing' );
 
-    // luodaan POST-pyyntö
-    $post = "action=send&ref=wc&site=".urlencode( $_SERVER['HTTP_HOST'] );
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/laheta";
+
+    $api_url = apply_filters( "laskuhari_send_invoice_api_url", $api_url, $order_id, $invoice_id );
 
     $can_send = false;
 
     if( $lahetystapa == "verkkolasku" ) {
-        $post .= "&invoiceType=finvoice";
-        $post .= "&ytunnus=".urlencode( $ytunnus );
-        $post .= "&toIdentifier=".urlencode( $verkkolaskuosoite );
-        $post .= "&toIntermediator=".urlencode( $valittaja );
-        $post .= "&buyerPartyIdentifier=".urlencode( $ytunnus );
         $can_send = true;
-        $miten = "verkkolaskuna";
+        $miten    = "verkkolaskuna";
+
+        $payload = [
+            "lahetystapa" => "verkkolasku",
+            "osoite"      => [
+                "ytunnus" => $ytunnus,
+                "toIdentifier" => $verkkolaskuosoite,
+                "toIntermediator" => $valittaja,
+                "buyerPartyIdentifier" => $ytunnus
+            ]
+        ];
     } else if( $lahetystapa == "email" && $customer['email'] ) {
-        $sendername      = $sendername ? $sendername : "Laskutus";
-        $post           .= "&invoiceType=email";
-        $post           .= "&eMailSenderName=".$sendername;
-        $post           .= "&receiverEmail=".urlencode( $customer['email'] );
-        $post           .= "&eMailSubject=Lasku";
-        $post           .= "&eMailMessage=".urlencode( $email_message );
-        $can_send = true;
-        $miten = "sähköpostitse";
+        $can_send   = true;
+        $miten      = "sähköpostitse";
+        $sendername = $sendername ? $sendername : "Laskutus";
+
+        $payload = [
+            "lahetystapa" => "email",
+            "osoite"      => $customer['email'],
+            "aihe"        => "Lasku",
+            "viesti"      => $email_message,
+            "lahettaja"   => $sendername
+        ];
     } else if( $lahetystapa == "kirje" ) {
-        $post .= "&invoiceType=letter";
         $can_send = true;
-        $miten = "kirjeenä";
+        $miten    = "kirjeenä";
+
+        $payload = [
+            "lahetystapa" => "kirje"
+        ];
     }
 
     $lahetetty_tilaus = "";
 
     if( $can_send ) {
 
-        // luodaan vahvistuskoodi rajapintaa varten
-        $t          = time();
-        $digest_src = $laskuhari_uid."+".$t."+".$laskuhari_apikey;
-        $dt         = hash("sha256", $digest_src);
+        $payload = apply_filters( "laskuhari_send_invoice_payload", $payload, $order_id, $invoice_id );
+    
+        $payload = json_encode( $payload );
+    
+        $response = laskuhari_api_request( $payload, $api_url, "Send invoice", "json", false );
 
-        // laskunlähetysrajapinnan URL
-        $url        = "https://" . laskuhari_domain() . "/api/invoice/".intval($laskunro)."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
+        if( isset( $response['notice'] ) ) {
+            $order->add_order_note( $response['notice'] );
+            if( function_exists( 'wc_add_notice' ) ) {
+                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
+            }
+            return $response;
+        }
 
-        // suoritetaan curl
-        $ch         = laskuhari_curl( $post, $url );
-        $response   = curl_exec( $ch );
-
-        $error_notice = "";
-
-        // tarkastetaan virheet
-        if( curl_errno( $ch ) ) {
-            $error_notice = 'Virhe laskun lähetyksessä. cURL errno. ' . curl_errno( $ch ) . ": " . curl_error( $ch );
+        if( $response === false ) {
+            $error_notice = 'Virhe laskun lähetyksessä.';
             $order->add_order_note( $error_notice );
             if( function_exists( 'wc_add_notice' ) ) {
                 wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
@@ -1445,10 +1458,14 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             );
         }
 
+        if( is_array( $response ) ) {
+            $response = json_encode( $response );
+        }
+
         if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
             $error_notice = 'Virhe laskun lähetyksessä: ' . $response;
 
-            if( $response == "KEY_ERROR" ) {
+            if( false !== stripos( $response, "KEY_ERROR" ) ) {
                 $error_notice .= ". Huomaathan, että kokeilujaksolla tai demotunnuksilla ei voi lähettää kirje- ja verkkolaskuja.";
             }
 
@@ -1462,29 +1479,25 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             );
         }
 
-        curl_close( $ch );
+        $order->add_order_note( __( 'Lasku lähetetty ' . $miten, 'laskuhari' ) );
+        update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
+        $order->update_status( 'processing' );
+        $lahetetty_tilaus = $order->get_id();
 
-        $response = json_decode( $response, true );
+        do_action( "laskuhari_invoice_sent", $lahetetty_tilaus, $invoice_id );
 
-        if( $error_notice == "" ) {
-            $order->add_order_note( __( 'Lasku lähetetty ' . $miten, 'laskuhari' ) );
-            update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
-            $order->update_status( 'processing' );
-            $lahetetty_tilaus = $order->get_id();
-        }
     } else {
         $success = "Tilauksen #" . $order->get_id() . " lasku tallennettu Laskuhariin. Laskua ei lähetetty vielä.";
         $lahetetty_tilaus = "";
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
         $order->update_status( 'processing' );
+
+        do_action( "laskuhari_invoice_created_but_not_sent", $lahetetty_tilaus, $invoice_id );
     }
 
     return array(
         "lahetetty" => $lahetetty_tilaus,
-        "notice"    => urlencode( $error_notice ),
         "success"   => urlencode( $success )
     );
 
 }
-
-?>
