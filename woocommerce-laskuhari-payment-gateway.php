@@ -196,6 +196,8 @@ function laskuhari_create_product( $product, $update = false ) {
         return false;
     }
 
+    $product_id = $product->get_id();
+
     if( false === $update && laskuhari_product_synced( $product_id ) ) {
         return false;
     }
@@ -219,10 +221,10 @@ function laskuhari_create_product( $product, $update = false ) {
     $vat_multiplier = (100 + $vat) / 100;
 
     if( $prices_include_tax ) {
-        $price_with_tax    = $product->get_regular_price();
+        $price_with_tax    = $product->get_regular_price( 'edit' );
         $price_without_tax = $price_with_tax / $vat_multiplier;
     } else {
-        $price_without_tax = $product->get_regular_price();
+        $price_without_tax = $product->get_regular_price( 'edit' );
         $price_with_tax    = $price_without_tax * $vat_multiplier;
     }
 
@@ -250,9 +252,9 @@ function laskuhari_create_product( $product, $update = false ) {
             "wc_variation_id" => $variation_id,
             "prices_include_tax" => $prices_include_tax
         ],
-        "varastosaldo" => $product->get_stock_quantity(),
+        "varastosaldo" => $product->get_stock_quantity( 'edit' ),
         "varastoseuranta" => $product->get_manage_stock(),
-        "halytysraja" => $product->get_low_stock_amount(),
+        "halytysraja" => $product->get_low_stock_amount( 'edit' ),
         "varasto" => "",
         "hyllypaikka" => "",
         "maara" => 1,
@@ -274,6 +276,8 @@ function laskuhari_create_product( $product, $update = false ) {
     if( $response === false ) {
         return false;
     }
+
+    $product_id = $product->get_id();
 
     laskuhari_product_synced( $product_id, "yes" );
 
@@ -310,15 +314,19 @@ function laskuhari_update_stock( $product ) {
         return false;
     }
 
+    $product_id   = $product->get_id();
+    $variation_id = 0;
+
+    if( ! laskuhari_product_synced( $product_id ) ) {
+        return false;
+    }
+
     if( $product->is_type( 'variation' ) ) {
         $product_id   = $product->get_parent_id();
         $variation_id = $product->get_id();
-    } else {
-        $product_id   = $product->get_id();
-        $variation_id = 0;
     }
 
-    $stock_quantity = $product->get_stock_quantity();
+    $stock_quantity = $product->get_stock_quantity( 'edit' );
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/tuote/varastosaldo/";
 
