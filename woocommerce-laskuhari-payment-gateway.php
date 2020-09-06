@@ -221,11 +221,17 @@ function laskuhari_create_product( $product, $update = false ) {
     $vat_multiplier = (100 + $vat) / 100;
 
     if( $prices_include_tax ) {
-        $price_with_tax    = $product->get_regular_price( 'edit' );
+        $price_with_tax = $product->get_regular_price( 'edit' );
+        if( ! $price_with_tax ) {
+            $price_with_tax = 0;
+        }
         $price_without_tax = $price_with_tax / $vat_multiplier;
     } else {
         $price_without_tax = $product->get_regular_price( 'edit' );
-        $price_with_tax    = $price_without_tax * $vat_multiplier;
+        if( ! $price_without_tax ) {
+            $price_without_tax = 0;
+        }
+        $price_with_tax = $price_without_tax * $vat_multiplier;
     }
 
     $payload = [
