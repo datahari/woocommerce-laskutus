@@ -149,6 +149,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		?>
 		<div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
 		<input type="text" id="laskuhari-viitteenne" name="laskuhari-viitteenne" />
+		<script>
+		(function($) {
+			$(".verkkolasku-pakollinen").bind("keyup change", function(){
+				laskuhari_tarkista_laskutustapa($);
+			});
+			$("#payment_method_laskuhari, #payment").on("change click", function() {
+				laskuhari_tarkista_laskutustapa($);
+				if( $("#payment_method_laskuhari").prop("checked") != laskuhari_viime_maksutapa ) {
+					$('body').trigger('update_checkout');
+					laskuhari_viime_maksutapa = $("#payment_method_laskuhari").prop("checked");
+				}
+			});
+		})(jQuery);
+		</script>
 		<?php
 	}
 
