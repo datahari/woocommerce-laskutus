@@ -39,6 +39,10 @@ function laskuhari_payment_gateway_load() {
         return;
     }
 
+    if ( $laskuhari_gateway_object->demotila ) {
+        add_action( 'admin_notices', 'laskuhari_demo_notice' );
+    }
+
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
 
     laskuhari_actions();
@@ -74,6 +78,10 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_notices' );
     }
     
+}
+
+function laskuhari_domain() {
+    return "oma.laskuhari.fi";
 }
 
 function laskuhari_user_meta() {
@@ -200,7 +208,7 @@ function laskuhari_create_product( $product, $update = false ) {
         $variation_id = 0;
     }
     
-    $api_url = "https://testi.laskuhari.fi/rest-api/tuote/uusi";
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/tuote/uusi";
 
     $api_url = apply_filters( "laskuhari_create_product_api_url", $api_url, $product );
 
@@ -312,7 +320,7 @@ function laskuhari_update_stock( $product ) {
 
     $stock_quantity = $product->get_stock_quantity();
 
-    $api_url = "https://testi.laskuhari.fi/rest-api/tuote/varastosaldo/";
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/tuote/varastosaldo/";
 
     $api_url = apply_filters( "laskuhari_stock_update_api_url", $api_url, $product );
 
@@ -351,7 +359,7 @@ function laskuhari_register_plugin_links( $links, $file ) {
     $base = plugin_basename( __FILE__ );
     
     if( $file == $base ) {
-        $links[] = '<a href="https://oma.laskuhari.fi/" target="_blank">' . __( 'Kirjaudu Laskuhariin', 'laskuhari' ) . '</a>';
+        $links[] = '<a href="https://' . laskuhari_domain() . '/" target="_blank">' . __( 'Kirjaudu Laskuhariin', 'laskuhari' ) . '</a>';
     }
 
     return $links;
@@ -562,6 +570,14 @@ function laskuhari_metabox_html( $post ) {
     $edit_link = get_edit_post_link( $post );
     if( $lasku_luotu ) {
         $laskuhari = $laskuhari_gateway_object;
+
+        $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
+        if( $invoice_id ) {
+            $open_link = '#/lasku/' . $invoice_id;
+        } else {
+            $open_link = '#/laskunro/' . $laskunumero;
+        }
+
         echo '
         <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
         <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
@@ -573,7 +589,7 @@ function laskuhari_metabox_html( $post ) {
             echo '<input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_lahetys(); return false;" />
         </div>
         <a class="laskuhari-nappi uusi-lasku" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\''.__( 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?', 'laskuhari' ).'\')) return false;">Tee uusi lasku</a>
-        <a class="laskuhari-nappi avaa-laskuharissa" href="https://oma.laskuhari.fi/#/laskunro/' . $laskunumero . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
+        <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
     } else {
         echo '
         <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\'' . __( 'Haluatko varmasti luoda laskun? Laskua ei vielä lähetetä.', 'laskuhari' ) . '\')) return false;">' . __( 'Tee lasku', 'laskuhari' ) . '</a>
@@ -618,11 +634,15 @@ function laskuhari_add_gateway( $methods ) {
     return $methods;
 }
 
+function laskuhari_settings_link() {
+    return get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari';
+}
+
 function laskuhari_plugin_action_links( $links, $file ) {
     $this_plugin = plugin_basename( __FILE__ );
 
     if( $file == $this_plugin ) {
-        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari">Asetukset</a>';
+        $settings_link = '<a href="' . laskuhari_settings_link() . '">Asetukset</a>';
         array_unshift( $links, $settings_link );
     }
 
@@ -640,10 +660,12 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari_download'] ) ) {
         if( $_GET['laskuhari_download'] === "current" ) {
-            laskuhari_download( false, $_GET['post'] );
+            $lh = laskuhari_download( false, $_GET['post'] );
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            laskuhari_download( $_GET['laskuhari_download'], $_GET['order_id'] );
+            $lh = laskuhari_download( $_GET['laskuhari_download'], $_GET['order_id'] );
         }
+
+        laskuhari_go_back( $lh );
         exit;
     }
 
@@ -703,6 +725,13 @@ function laskuhari_back_url( $lh, $url = false ) {
     return $back;
 }
 
+function laskuhari_demo_notice() {
+    echo '
+    <div class="notice is-dismissible">
+        <p>HUOM! Laskuhari-lisäosan demotila on käytössä! Voit poistaa sen käytöstä <a href="' . laskuhari_settings_link() . '">asetuksista</a></p>
+    </div>';
+}
+
 function laskuhari_notices() {
     $notices   = is_array($_GET['laskuhari_notice'])    ? $_GET['laskuhari_notice']    : array($_GET['laskuhari_notice']);
     $successes = is_array($_GET['laskuhari_success'])   ? $_GET['laskuhari_success']   : array($_GET['laskuhari_success']);
@@ -711,7 +740,9 @@ function laskuhari_notices() {
 
     foreach ( $notices as $key => $notice ) {
         if( $notice != "" ) {
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $notice ) . '</p></div>';
+            $notice_html = esc_html( $notice );
+            $notice_html = str_replace( "__asetuksiin__", '<a href="' . laskuhari_settings_link() . '">asetuksiin</a>', $notice_html );
+            echo '<div class="notice notice-error is-dismissible"><p>' . $notice_html . '</p></div>';
         }
     }
 
@@ -766,14 +797,39 @@ function laskuhari_invoice_number_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_invoice_number', true );
 }
 
-function laskuhari_download( $invoice_number, $order_id ) {
+function laskuhari_invoice_id_by_order( $orderid ) {
+    return get_post_meta( $orderid, '_laskuhari_invoice_id', true );
+}
+
+function laskuhari_uid_by_order( $orderid ) {
+    return get_post_meta( $orderid, '_laskuhari_uid', true );
+}
+
+function laskuhari_download( $invoice_number, $order_id, $invoice_id = false ) {
     global $laskuhari_gateway_object;
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
     $laskuhari_apikey = $laskuhari_gateway_object->apikey;
 
+    if( ! $laskuhari_uid ) {
+        return laskuhari_uid_error();
+    }
+
     if( $invoice_number === false ) {
         $invoice_number = laskuhari_invoice_number_by_order( $order_id );
+    }
+
+    if( $invoice_id === false ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    $order_uid = laskuhari_uid_by_order( $order_id );
+
+    if( $order_uid && $laskuhari_uid != $order_uid ) {
+        $error_notice = __( "Virhe laskun latauksessa. Lasku on luotu eri UID:llä, kuin asetuksissa määritetty UID", "laskuhari" );
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
     }
 
     // luodaan vahvistuskoodi rajapintaa varten
@@ -782,30 +838,31 @@ function laskuhari_download( $invoice_number, $order_id ) {
     $dt = hash("sha256", $digest_src);
 
     // laskunluontirajapinnan URL
-    $url         =  "https://oma.laskuhari.fi/api/invoice/".$invoice_number."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
+    $url         =  "https://" . laskuhari_domain() . "/api/invoice/".$invoice_number."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
     $post        =  "action=getpdf";
     // suoritetaan curl
     $ch       = laskuhari_curl($post, $url);
     $response = curl_exec($ch);
 
     // tarkastetaan virheet
-    if( curl_errno( $ch ) || stripos( $response, "error" ) !== false ) {
-        update_post_meta( $order_id, '_laskuhari_invoice_number', '' );
-        add_action( 'admin_notices', 'laskuhari_getpdf_fail' );
-        return;
+    if( curl_errno( $ch ) || stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
+        $error_notice = __( "Tilauksen PDF-laskun lataaminen epäonnistui", "laskuhari" );
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
     }
 
-    //ohjataan PDF-tiedostoon jos ei ollut virheitä
+    // ohjataan PDF-tiedostoon jos ei ollut virheitä
     wp_redirect( $response );
     exit;
 }
 
-function laskuhari_getpdf_fail() {
-    echo '<div class="notice notice-error is-dismissible"><p>Tilauksen PDF-laskun lataaminen epäonnistui</p></div>';
-}
-
 function laskuhari_api_request( $payload, $api_url, $action_name = "API request" ) {
     global $laskuhari_gateway_object;
+
+    if( ! $laskuhari_gateway_object->uid ) {
+        return laskuhari_uid_error();
+    }
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -903,13 +960,20 @@ function laskuhari_rivi( $i, $data ) {
             "&laskurivi[".$i."][toistoale]=0";
 }
 
+function laskuhari_uid_error() {
+    $error_notice = 'Ole hyvä ja syötä Laskuharin UID ja API-koodi lisäosan __asetuksiin__ tai käytä demotilaa.';
+    return array(
+        "notice" => urlencode( $error_notice )
+    );
+}
+
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
     global $laskuhari_gateway_object;
     
     $error_notice = "";
     $success      = "";
 
-    $order = wc_get_order($order_id);
+    $order = wc_get_order( $order_id );
 
     // if we are using bulk action to send, don't create invoice again if it is already created, only send it
     if( $bulk_action && laskuhari_invoice_is_created_from_order( $order_id ) && true === $send ) {
@@ -926,6 +990,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $laskutuslisa_alv        = $info->laskutuslisa_alv;
     $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax );
     $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax );
+
+    if( ! $laskuhari_uid ) {
+        return laskuhari_uid_error();
+    }
 
     // tilaajan tiedot
     $customer               = $order->get_address( 'billing' );
@@ -970,7 +1038,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
     // laskunluontirajapinnan URL
-    $url         =  "https://oma.laskuhari.fi/api/invoice?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
+    $url         =  "https://" . laskuhari_domain() . "/api/invoice?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
     $post        =  "action=create&ref=wc";
 
     $post       .=  '&maksuehto='.
@@ -1168,43 +1236,52 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     $error_notice = "";
+    $success = "";
 
     // suoritetaan curl
-    if( ! $_GET['laskuhari_invoice_number'] ) {
-        $ch       = laskuhari_curl( $post, $url );
-        $response = curl_exec( $ch );
+    $ch       = laskuhari_curl( $post, $url );
+    $response = curl_exec( $ch );
 
-        // tarkastetaan virheet
-        if( curl_errno( $ch ) ) {
-            $error_notice = 'Virhe laskun lähetyksessä. cURL errno. ' . curl_errno( $ch ) . ": " . curl_error( $ch );
-            $order->add_order_note( $error_notice );
-            if( function_exists( 'wc_add_notice' ) ) {
-                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-            }
+    // tarkastetaan virheet
+    if( curl_errno( $ch ) ) {
+        $error_notice = 'Virhe laskun luomisessa. cURL errno. ' . curl_errno( $ch ) . ": " . curl_error( $ch );
+        $order->add_order_note( $error_notice );
+        if( function_exists( 'wc_add_notice' ) ) {
+            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
         }
 
-        if( stripos( $response, "error") !== false ) {
-            $error_notice = 'Virhe laskun lähetyksessä: ' . $response;
-            $order->add_order_note( $error_notice );
-            if( function_exists( 'wc_add_notice' ) ) {
-                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-            }
-        }
-
-        $response = json_decode( $response, true );
-        $laskunro = $response['new_invoice_number'];
-
-        curl_close( $ch );
-    } else {
-        $laskunro = $_GET['laskuhari_invoice_number'];
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
     }
 
+    if( stripos( $response, "error") !== false ) {
+        $error_notice = 'Virhe laskun luomisessa: ' . $response;
+
+        $order->add_order_note( $error_notice );
+        if( function_exists( 'wc_add_notice' ) ) {
+            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
+        }
+
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
+    }
+
+    $response = json_decode( $response, true );
+    $laskunro = $response['new_invoice_number'];
+    $laskuid  = $response['new_invoice_id'];
+
+    curl_close( $ch );
+
     // jatketaan vain, jos ei ollut virheitä
-    if( $error_notice == "" ) {
+    if( $error_notice == "" && intval( $laskuid ) > 0 ) {
 
         update_post_meta( $order->get_id(), '_laskuhari_invoice_number', $laskunro );
+        update_post_meta( $order->get_id(), '_laskuhari_invoice_id', $laskuid );
+        update_post_meta( $order->get_id(), '_laskuhari_uid', $laskuhari_uid );
         
-        $order->add_order_note( __( 'Lasku #'.$laskunro.' luotu Laskuhariin', 'laskuhari' ) );
+        $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
         $order->update_status( 'processing' );
 
         if( $send ) {
@@ -1213,11 +1290,15 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     } else {
         $order->add_order_note( __( 'Laskun luominen Laskuhariin epäonnistui', 'laskuhari' ) );
+
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
     }
 
     return array(
-        "luotu" => $order->get_id(),
-        "notice" => urlencode( $error_notice ),
+        "luotu"   => $order->get_id(),
+        "notice"  => urlencode( $error_notice ),
         "success" => urlencode( $success )
     );
 }
@@ -1232,9 +1313,27 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     $sendername       = $info->laskuttaja;
     $email_message    = $info->laskuviesti;
 
+    if( ! $laskuhari_uid ) {
+        return laskuhari_uid_error();
+    }
+
     $order_id = $order->get_id();
 
-    $laskunro = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+    $laskuid   = get_post_meta( $order_id, '_laskuhari_invoice_id', true );
+    $laskunro  = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+    $order_uid = get_post_meta( $order_id, '_laskuhari_uid', true );
+
+    if( $order_uid && $laskuhari_uid != $order_uid ) {
+        $error_notice = 'Virhe laskun lähetyksessä. Lasku on luotu eri UID:llä, kuin asetuksissa määritetty UID';
+        $order->add_order_note( $error_notice );
+        if( function_exists( 'wc_add_notice' ) ) {
+            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
+        }
+
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
+    }
 
     $lahetystapa = "auto";
 
@@ -1300,7 +1399,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $dt         = hash("sha256", $digest_src);
 
         // laskunlähetysrajapinnan URL
-        $url        = "https://oma.laskuhari.fi/api/invoice/".intval($laskunro)."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
+        $url        = "https://" . laskuhari_domain() . "/api/invoice/".intval($laskunro)."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
 
         // suoritetaan curl
         $ch         = laskuhari_curl( $post, $url );
@@ -1315,13 +1414,26 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             if( function_exists( 'wc_add_notice' ) ) {
                 wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
             }
+            return array(
+                "notice" => urlencode( $error_notice )
+            );
         }
-        if( stripos( $response, "error" ) !== false ) {
+
+        if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
             $error_notice = 'Virhe laskun lähetyksessä: ' . $response;
+
+            if( $response == "KEY_ERROR" ) {
+                $error_notice .= ". Huomaathan, että kokeilujaksolla tai demotunnuksilla ei voi lähettää kirje- ja verkkolaskuja.";
+            }
+
             $order->add_order_note( $error_notice );
             if( function_exists( 'wc_add_notice' ) ) {
                 wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
             }
+
+            return array(
+                "notice" => urlencode( $error_notice )
+            );
         }
 
         curl_close( $ch );
