@@ -947,47 +947,35 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     return $response;
 }
 
-function laskuhari_curl($post, $url) {
-    global $laskuhari_gateway_object;
+function laskuhari_invoice_row( $data ) {
+    $row_payload = [
+        "koodi" => $data['product_sku'],
+        "tyyppi" => "",
+        "woocommerce" => [
+            "wc_product_id" => $data['product_id'],
+            "wc_variation_id" => $data['variation_id']
+        ],
+        "nimike" => $data['nimike'],
+        "maara" => $data['maara'],
+        "yks" => "",
+        "veroton" => $data['veroton'],
+        "alv" => $data['alv'],
+        "ale" => $data['ale'],
+        "verollinen" => $data['verollinen'],
+        "yhtveroton" => $data['yhtveroton'],
+        "yhtverollinen" => $data['yhtverollinen'],
+        "toistuvuus" => [
+            "toistovali" => 0,
+            "ennakko" => 0,
+            "jatkuvuus" => false,
+            "automaatio" => false,
+            "toistoale" => 0
+        ]
+    ];
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_FAILONERROR, 1);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 100);
-    curl_setopt($ch, CURLOPT_POST, TRUE);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+    $row_payload = apply_filters( "laskuhari_invoice_row_payload", $row_payload );
 
-    // laskunlähetyksen asetukset
-    $info = $laskuhari_gateway_object;
-    if( $info->enforce_ssl != "yes" ) {
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-    }
-    
-    return $ch;
-}
-
-function laskuhari_rivi( $i, $data ) {
-    return  "&laskurivi[".$i."][tyyppi]=0".
-            "&laskurivi[".$i."][koodi]=".
-            "&laskurivi[".$i."][wc_product_id]=".urlencode( $data['product_id'] ).
-            "&laskurivi[".$i."][wc_variation_id]=".urlencode( $data['variation_id'] ).
-            "&laskurivi[".$i."][nimike]=".urlencode( $data['nimike'] ).
-            "&laskurivi[".$i."][maara]=".urlencode( $data['maara'] ).
-            "&laskurivi[".$i."][yks]=".
-            "&laskurivi[".$i."][veroton]=".urlencode( $data['veroton'] ).
-            "&laskurivi[".$i."][alv]=".urlencode( $data['alv'] ).
-            "&laskurivi[".$i."][verollinen]=".$data['verollinen'].
-            "&laskurivi[".$i."][ale]=".urlencode( $data['ale'] ).
-            "&laskurivi[".$i."][yhtveroton]=".urlencode( $data['yhtveroton'] ).
-            "&laskurivi[".$i."][yhtverollinen]=".urlencode( $data['yhtverollinen'] ).
-            "&laskurivi[".$i."][toistovali]=0".
-            "&laskurivi[".$i."][ennakko]=0".
-            "&laskurivi[".$i."][jatkuvuus]=0".
-            "&laskurivi[".$i."][automaatio]=0".
-            "&laskurivi[".$i."][toistoale]=0";
+    return $row_payload;
 }
 
 function laskuhari_uid_error() {
@@ -1015,7 +1003,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid           = $info->uid;
-    $laskuhari_apikey        = $info->apikey;
     $laskutuslisa            = $info->laskutuslisa;
     $laskutuslisa_alv        = $info->laskutuslisa_alv;
     $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax );
@@ -1060,41 +1047,62 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $verkkolaskuosoite = get_post_meta( $order->get_id(), '_laskuhari_verkkolaskuosoite', true );
     $valittaja         = get_post_meta( $order->get_id(), '_laskuhari_valittaja', true );
 
-    // luodaan vahvistuskoodi rajapintaa varten
-    $t          = time();
-    $digest_src = $laskuhari_uid."+".$t."+".$laskuhari_apikey;
-    $dt         = hash("sha256", $digest_src);
-
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
-    // laskunluontirajapinnan URL
-    $url         =  "https://" . laskuhari_domain() . "/api/invoice?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
-    $post        =  "action=create&ref=wc";
+    $payload = [
+        "ref" => "wc",
+        "site" => $_SERVER['HTTP_HOST'],
+        "tyyppi" => 0,
+        "laskunro" => false,
+        "pvm" => date( 'd.m.Y' ),
+        "viitteenne" => $viitteenne,
+        "viitteemme" => "",
+        "tilausnumero" => $order->get_order_number(),
+        "metatiedot" => [
+          "lahetetty" => false,
+          "toimitettu" => false,
+          "maksupvm" => false
+        ],
+        "laskutusosoite" => [
+            "yritys" => $customer['company'],
+            "ytunnus" => $ytunnus,
+            "henkilo" => $customer['first_name'].' '.$customer['last_name'],
+            "lahiosoite" => [
+                $customer['address_1'],
+                $customer['address_2']
+            ],
+            "postinumero" => $customer['postcode'],
+            "postitoimipaikka" => $customer['city'],
+            "email" => $customer['email'],
+            "puhelin" => $customer['phone']
+        ],
+        "toimitusosoite" => [
+            "yritys" => $shippingdata['company'],
+            "henkilo" => $shippingdata['first_name'].' '.$shippingdata['last_name'],
+            "lahiosoite" => [
+                $shippingdata['address_1'],
+                $shippingdata['address_2']
+            ],
+            "postinumero" => $shippingdata['postcode'],
+            "postitoimipaikka" => $shippingdata['city']
+        ],
+        "verkkolasku" => [
+            "toIdentifier" => $verkkolaskuosoite,
+            "toIntermediator" => $valittaja,
+            "buyerPartyIdentifier" => $ytunnus
+        ],
+        "maksuehto" => [
+            "id" => "",
+            "maksuaika" => "",
+            "nimi" => ""
+        ],
+        "woocommerce" => [
+            "wc_order_id" => $order->get_id()
+        ]
+    ];
 
-    $post       .=  '&maksuehto='.
-                    '&pvm='.date( 'd.m.Y' ).
-                    '&lahetetty=0'.
-                    '&viitteenne='.urlencode( $viitteenne ).
-                    '&wc_order_id='.urlencode( $order->get_id() ).
-                    '&tilausnumero='.urlencode( $order->get_order_number() ).
-                    '&yritys='.urlencode( $customer['company'] ).
-                    '&henkilo='.urlencode( $customer['first_name'].' '.$customer['last_name'] ).
-                    '&lahiosoite='.urlencode( trim( $customer['address_1'].' '.$customer['address_2'] ) ).
-                    '&postinumero='.urlencode( $customer['postcode'] ).
-                    '&postitoimipaikka='.urlencode( $customer['city'] ).
-                    '&toimitus_yritys='.urlencode( $shippingdata['company'] ).
-                    '&toimitus_henkilo='.urlencode( $shippingdata['first_name'].' '.$shippingdata['last_name'] ).
-                    '&toimitus_lahiosoite='.urlencode( trim( $shippingdata['address_1'].' '.$shippingdata['address_2'] ) ).
-                    '&toimitus_postinumero='.urlencode( $shippingdata['postcode'] ).
-                    '&toimitus_postitoimipaikka='.urlencode( $shippingdata['city'] ).
-                    '&email='.urlencode( $customer['email'] ).
-                    '&ytunnus='.urlencode( $ytunnus ).
-                    '&puhelin='.urlencode( $customer['phone'] ).
-                    '&toIdentifier='.urlencode( $verkkolaskuosoite ).
-                    '&toIntermediator='.urlencode( $valittaja ).
-                    '&buyerPartyIdentifier='.urlencode( $ytunnus );
+    $laskurivit = [];
 
-    $i = 1;
     $laskettu_summa = 0;
     foreach( $products as $item ) {
         
@@ -1126,10 +1134,17 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             laskuhari_create_product( $product_id );
         }
 
-        $post .= laskuhari_rivi( $i, [
+        $product_sku = "";
+        if( $product_id ) {
+            $product = wc_get_product( $product_id );
+            $product_sku = $product->get_sku();
+        }
+
+        $laskurivit[] = laskuhari_invoice_row( [
+            "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
-            "nimike"        => utf8_decode($data['name']),
+            "nimike"        => utf8_decode( $data['name'] ),
             "maara"         => $data['quantity'],
             "veroton"       => $yks_veroton,
             "alv"           => $alv,
@@ -1139,14 +1154,13 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => $yht_verollinen
         ] );
         
-        $i++;
         $laskettu_summa += $yht_verollinen;
     }
 
 
     // lisätään toimitusmaksu
     if( $toimitusmaksu > 0 ) {
-        $post .= laskuhari_rivi( $i, [
+        $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => "Toimitustapa: " . $toimitustapa,
             "maara"         => 1,
             "veroton"       => $toimitusmaksu,
@@ -1157,13 +1171,12 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => $toimitusmaksu + $toimitus_vero
         ]);
 
-        $i++;
         $laskettu_summa += $toimitusmaksu + $toimitus_vero;
     }
 
     // lisätään alennus
     if( $cart_discount ) {
-        $post .= laskuhari_rivi( $i, [
+        $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => "Alennus",
             "maara"         => 1,
             "veroton"       => $cart_discount * -1,
@@ -1174,7 +1187,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => ( $cart_discount + $cart_discount_tax ) * -1
         ] );
 
-        $i++;
         $laskettu_summa += ( $cart_discount + $cart_discount_tax ) * -1;
     }
     
@@ -1210,7 +1222,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $ale = 0;
 
-        $post .= laskuhari_rivi( $i, [
+        $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => utf8_decode( $fee_name ),
             "maara"         => 1,
             "veroton"       => $yks_veroton,
@@ -1221,13 +1233,12 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => $fee_total
         ] );
         
-        $i++;
         $laskettu_summa += $fee_total_including_tax;
     }
 
     // lisätään laskutuslisä
     if( $laskutuslisa ) {
-        $post .= laskuhari_rivi( $i, [
+        $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => "Laskutuslisä",
             "maara"         => 1,
             "veroton"       => $laskutuslisa_veroton,
@@ -1237,11 +1248,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtveroton"    => $laskutuslisa_veroton,
             "yhtverollinen" => $laskutuslisa_verollinen
         ] );
-        $i++;
     }
 
     if( abs( $loppusumma-$laskettu_summa ) > 0.05 ) {
-        $error_notice = $error_notice = 'Pyöristysvirhe liian suuri ('.$loppusumma.' - '.$laskettu_summa.' = ' . round( $loppusumma-$laskettu_summa, 2 ) . ')! Laskua ei luotu';
+        $error_notice = 'Pyöristysvirhe liian suuri ('.$loppusumma.' - '.$laskettu_summa.' = ' . round( $loppusumma-$laskettu_summa, 2 ) . ')! Laskua ei luotu';
         $order->add_order_note( $error_notice );
         if( function_exists( 'wc_add_notice' ) ) {
             wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
@@ -1253,7 +1263,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     if( round( $loppusumma, 2 ) != round( $laskettu_summa, 2 ) ) {
-        $post .= laskuhari_rivi($i, [
+        $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => "Pyöristys",
             "maara"         => 1,
             "veroton"       => ($loppusumma-$laskettu_summa),
@@ -1264,34 +1274,40 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => ($loppusumma-$laskettu_summa)
         ]);
     }
+    $payload['laskurivit'] = $laskurivit;
+
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
+    $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
+
+    $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order_id );
+    $payload = json_encode( $payload );
+    
+    $response = laskuhari_api_request( $payload, $api_url, "Create invoice", "json", false );
 
     $error_notice = "";
     $success = "";
 
-    // suoritetaan curl
-    $ch       = laskuhari_curl( $post, $url );
-    $response = curl_exec( $ch );
+    if( isset( $response['notice'] ) ) {
+        $order->add_order_note( $response['notice'] );
+        return $response;
+    }
 
-    // tarkastetaan virheet
-    if( curl_errno( $ch ) ) {
-        $error_notice = 'Virhe laskun luomisessa. cURL errno. ' . curl_errno( $ch ) . ": " . curl_error( $ch );
+    if( $response === false ) {
+        $error_notice = 'Virhe laskun luomisessa.';
         $order->add_order_note( $error_notice );
-        if( function_exists( 'wc_add_notice' ) ) {
-            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-        }
-
         return array(
             "notice" => urlencode( $error_notice )
         );
     }
 
-    if( stripos( $response, "error") !== false ) {
+    if( is_array( $response ) ) {
+        $response = json_encode( $response );
+    }
+
+    if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
         $error_notice = 'Virhe laskun luomisessa: ' . $response;
 
         $order->add_order_note( $error_notice );
-        if( function_exists( 'wc_add_notice' ) ) {
-            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-        }
 
         return array(
             "notice" => urlencode( $error_notice )
@@ -1299,13 +1315,11 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     $response = json_decode( $response, true );
-    $laskunro = $response['new_invoice_number'];
-    $laskuid  = $response['new_invoice_id'];
-
-    curl_close( $ch );
+    $laskunro = $response['vastaus']['laskunro'];
+    $laskuid  = $response['vastaus']['lasku_id'];
 
     // jatketaan vain, jos ei ollut virheitä
-    if( $error_notice == "" && intval( $laskuid ) > 0 ) {
+    if( intval( $laskuid ) > 0 ) {
 
         update_post_meta( $order->get_id(), '_laskuhari_invoice_number', $laskunro );
         update_post_meta( $order->get_id(), '_laskuhari_invoice_id', $laskuid );
@@ -1319,7 +1333,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         }
 
     } else {
-        $order->add_order_note( __( 'Laskun luominen Laskuhariin epäonnistui', 'laskuhari' ) );
+        $error_notice = 'Laskun luominen Laskuhariin epäonnistui: ' . json_encode( $response );
+        $order->add_order_note( $error_notice );
 
         return array(
             "notice" => urlencode( $error_notice )
