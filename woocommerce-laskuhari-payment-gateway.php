@@ -170,8 +170,11 @@ function laskuhari_get_vat_rate( $product = null ) {
 }
 
 function laskuhari_sync_product_on_save( $product_id ) {
-    laskuhari_product_synced( $product_id, 'no' );
-    laskuhari_create_product( $product_id, true );
+    global $laskuhari_gateway_object;
+    if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
+        laskuhari_product_synced( $product_id, 'no' );
+        laskuhari_create_product( $product_id, true );
+    }
 }
 
 function laskuhari_create_product( $product, $update = false ) {
@@ -1021,7 +1024,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $product_id = $data['variation_id'] ? $data['variation_id'] : $data['product_id'];
 
-        if( ! laskuhari_product_synced( $product_id ) ) {
+        if( $laskuhari_gateway_object->synkronoi_varastosaldot && ! laskuhari_product_synced( $product_id ) ) {
             laskuhari_create_product( $product_id );
         }
 
