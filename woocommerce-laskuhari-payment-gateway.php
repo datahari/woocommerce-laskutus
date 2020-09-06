@@ -674,9 +674,9 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari_download'] ) ) {
         if( $_GET['laskuhari_download'] === "current" ) {
-            $lh = laskuhari_download( false, $_GET['post'] );
+            $lh = laskuhari_download( $_GET['post'] );
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            $lh = laskuhari_download( $_GET['laskuhari_download'], $_GET['order_id'] );
+            $lh = laskuhari_download( $_GET['order_id'] );
         }
 
         laskuhari_go_back( $lh );
@@ -811,30 +811,44 @@ function laskuhari_invoice_number_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_invoice_number', true );
 }
 
+function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_number . "/get-id-by-number";
+    $response = laskuhari_api_request( array(), $api_url, "Get ID by number" );
+    return intval( $response['invoice_id'] );
+}
+
 function laskuhari_invoice_id_by_order( $orderid ) {
-    return get_post_meta( $orderid, '_laskuhari_invoice_id', true );
+    $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );
+
+    if( ! $invoice_id ) {
+        $invoice_number = laskuhari_invoice_number_by_order( $orderid );
+        $invoice_id = laskuhari_invoice_id_by_invoice_number( $invoice_number );
+        update_post_meta( $orderid, '_laskuhari_invoice_id', $invoice_id );
+    }
+
+    return $invoice_id;
 }
 
 function laskuhari_uid_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_uid', true );
 }
 
-function laskuhari_download( $invoice_number, $order_id, $invoice_id = false ) {
+function laskuhari_download( $order_id ) {
     global $laskuhari_gateway_object;
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
-    $laskuhari_apikey = $laskuhari_gateway_object->apikey;
 
     if( ! $laskuhari_uid ) {
         return laskuhari_uid_error();
     }
 
-    if( $invoice_number === false ) {
-        $invoice_number = laskuhari_invoice_number_by_order( $order_id );
-    }
+    $invoice_id = laskuhari_invoice_id_by_order( $order_id );
 
-    if( $invoice_id === false ) {
-        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    if( ! $invoice_id ) {
+        $error_notice = __( "Virhe laskun latauksessa. Laskua ei löytynyt numerolla", "laskuhari" );
+        return array(
+            "notice" => urlencode( $error_notice )
+        );
     }
 
     $order_uid = laskuhari_uid_by_order( $order_id );
@@ -845,21 +859,15 @@ function laskuhari_download( $invoice_number, $order_id, $invoice_id = false ) {
             "notice" => urlencode( $error_notice )
         );
     }
+    
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/pdf-link";
 
-    // luodaan vahvistuskoodi rajapintaa varten
-    $t              = time();
-    $digest_src     = $laskuhari_uid."+".$t."+".$laskuhari_apikey;
-    $dt = hash("sha256", $digest_src);
+    $api_url = apply_filters( "laskuhari_get_pdf_url", $api_url, $order_id );
 
-    // laskunluontirajapinnan URL
-    $url         =  "https://" . laskuhari_domain() . "/api/invoice/".$invoice_number."?uid=".$laskuhari_uid."&t=".$t."&dt=".$dt;
-    $post        =  "action=getpdf";
-    // suoritetaan curl
-    $ch       = laskuhari_curl($post, $url);
-    $response = curl_exec($ch);
+    $response = laskuhari_api_request( array(), $api_url, "Get PDF", "url" );
 
     // tarkastetaan virheet
-    if( curl_errno( $ch ) || stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
+    if( stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
         $error_notice = __( "Tilauksen PDF-laskun lataaminen epäonnistui", "laskuhari" );
         return array(
             "notice" => urlencode( $error_notice )
@@ -871,7 +879,7 @@ function laskuhari_download( $invoice_number, $order_id, $invoice_id = false ) {
     exit;
 }
 
-function laskuhari_api_request( $payload, $api_url, $action_name = "API request" ) {
+function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json" ) {
     global $laskuhari_gateway_object;
 
     if( ! $laskuhari_gateway_object->uid ) {
@@ -906,29 +914,33 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
     }
 
-    $response_json = json_decode( $response, true );
+    if( "json" === $format ) {
+        $response_json = json_decode( $response, true );
 
-    if( ! isset( $response_json['status'] ) ) {
-        $error_response = print_r( $response, true );
-        if( $error_response == "" ) {
-            $error_response = "Empty response";
+        if( ! isset( $response_json['status'] ) ) {
+            $error_response = print_r( $response, true );
+            if( $error_response == "" ) {
+                $error_response = "Empty response";
+            }
+            error_log( "Laskuhari: " . $action_name . " response error: " . $error_response );
+            error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+            return false;
         }
-        error_log( "Laskuhari: " . $action_name . " response error: " . $error_response );
-        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
-        return false;
-    }
 
-    if( $response_json['status'] != "OK" ) {
-        error_log( "Laskuhari: " . $action_name . " response error: " . print_r( $response_json, true ) );
-        error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
-        return false;
+        if( $response_json['status'] != "OK" ) {
+            error_log( "Laskuhari: " . $action_name . " response error: " . print_r( $response_json, true ) );
+            error_log( "Laskuhari: Payload was: " . print_r( $payload, true ) );
+            return false;
+        }
+
+        $response = $response_json;
     }
 
     if( $curl_errno ) {
         return false;
     }
     
-    return $response_json;
+    return $response;
 }
 
 function laskuhari_curl($post, $url) {
