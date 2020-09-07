@@ -42,7 +42,7 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
     add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
 
-    if( $laskuhari_gateway_object->get_option( 'enabled', 'yes' ) !== 'yes' ) {
+    if( $laskuhari_gateway_object->lh_get_option( 'enabled' ) !== 'yes' ) {
         return;
     }
 
