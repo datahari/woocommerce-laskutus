@@ -1315,7 +1315,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         ]);
     }
     $payload['laskurivit'] = $laskurivit;
-    $payload['wc-api-version'] = 3;
+    $payload['wc_api_version'] = 3;
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
