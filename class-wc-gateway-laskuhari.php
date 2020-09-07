@@ -23,45 +23,53 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
 		// Load the settings
 		if( ! $only_settings ) {
-			$this->init_form_fields();
 			$this->init_settings();
 		}
 
+		$this->init_form_fields();
+
 		// Get settings
-		$this->laskutuslisa        		= $this->parse_decimal( $this->get_option( 'laskutuslisa' ) );
-		$this->laskutuslisa_alv    		= $this->parse_decimal( $this->get_option( 'laskutuslisa_alv' ) );
-		$this->title              		= $this->get_option( 'title' );
-		$this->send_method_fallback     = $this->get_option( 'send_method_fallback' );
-		$this->demotila                 = $this->get_option( 'demotila', 'yes' ) === 'yes' ? true : false;
+		$this->laskutuslisa        		= $this->parse_decimal( $this->lh_get_option( 'laskutuslisa' ) );
+		$this->laskutuslisa_alv    		= $this->parse_decimal( $this->lh_get_option( 'laskutuslisa_alv' ) );
+		$this->title              		= $this->lh_get_option( 'title' );
+		$this->send_method_fallback     = $this->lh_get_option( 'send_method_fallback' );
+		$this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
 
 		if( $this->demotila == "yes" ) {
 			$this->uid    = "3175";
 			$this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
 		} else {
-			$this->uid    = $this->get_option( 'uid' );
-			$this->apikey = $this->get_option( 'apikey' );
+			$this->uid    = $this->lh_get_option( 'uid' );
+			$this->apikey = $this->lh_get_option( 'apikey' );
 		}
 
-		$this->email_lasku_kaytossa     = $this->get_option( 'email_lasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->verkkolasku_kaytossa     = $this->get_option( 'verkkolasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->kirjelasku_kaytossa      = $this->get_option( 'kirjelasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->synkronoi_varastosaldot  = $this->get_option( 'synkronoi_varastosaldot', 'yes' ) === 'yes' ? true : false;
-		$this->auto_gateway_enabled     = $this->get_option( 'auto_gateway_enabled', 'yes' ) === 'yes' ? true : false;
-		$this->auto_gateway_create_enabled = $this->get_option( 'auto_gateway_create_enabled', 'yes' ) === 'yes' ? true : false;
-		$this->salli_laskutus_erikseen  = $this->get_option( 'salli_laskutus_erikseen', 'no' ) === 'yes' ? true : false;
-		$this->laskuviesti        		= trim(rtrim($this->get_option( 'laskuviesti' )));
-		$this->laskuttaja         		= $this->get_option( 'laskuttaja' );
-		$this->description        		= $this->get_option( 'description' );
-		$this->instructions       		= $this->get_option( 'instructions', $this->description );
-		$this->enable_for_methods 		= $this->get_option( 'enable_for_methods', array() );
-		$this->enable_for_customers     = $this->get_option( 'enable_for_customers', array() );
-		$this->enable_for_virtual 		= $this->get_option( 'enable_for_virtual', 'yes' ) === 'yes' ? true : false;
+		$this->email_lasku_kaytossa     = $this->lh_get_option( 'email_lasku_kaytossa' ) === 'yes' ? true : false;
+		$this->verkkolasku_kaytossa     = $this->lh_get_option( 'verkkolasku_kaytossa' ) === 'yes' ? true : false;
+		$this->kirjelasku_kaytossa      = $this->lh_get_option( 'kirjelasku_kaytossa' ) === 'yes' ? true : false;
+		$this->synkronoi_varastosaldot  = $this->lh_get_option( 'synkronoi_varastosaldot' ) === 'yes' ? true : false;
+		$this->auto_gateway_enabled     = $this->lh_get_option( 'auto_gateway_enabled' ) === 'yes' ? true : false;
+		$this->auto_gateway_create_enabled = $this->lh_get_option( 'auto_gateway_create_enabled' ) === 'yes' ? true : false;
+		$this->salli_laskutus_erikseen  = $this->lh_get_option( 'salli_laskutus_erikseen' ) === 'yes' ? true : false;
+		$this->laskuviesti        		= trim(rtrim($this->lh_get_option( 'laskuviesti' )));
+		$this->laskuttaja         		= $this->lh_get_option( 'laskuttaja' );
+		$this->description        		= $this->lh_get_option( 'description' );
+		$this->instructions       		= $this->lh_get_option( 'instructions', $this->description );
+		$this->enable_for_methods 		= $this->lh_get_option( 'enable_for_methods', array() );
+		$this->enable_for_customers     = $this->lh_get_option( 'enable_for_customers', array() );
+		$this->enable_for_virtual 		= $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
 
 		if( ! $only_settings ) {
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 			add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
 	    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 		}
+	}
+
+	public function lh_get_option( $option, $default = null ) {
+		if( null === $default && isset( $this->form_fields[$option]['default'] ) ) {
+			$default = $this->form_fields[$option]['default'];
+		}
+		return $this->get_option( $option, $default );
 	}
 
 	public function parse_decimal( $number ) {
@@ -260,7 +268,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 				'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
 				'type'        => 'select',
 				'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut ja laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
-				'default'     => $this->get_option( 'lahetystapa_manuaalinen', 'ei' ),
+				'default'     => $this->lh_get_option( 'lahetystapa_manuaalinen', 'ei' ),
 				'options'     => array(
 					'email' => __( 'Sähköpostilasku', 'laskuhari' ),
 					'kirje' => __( 'Kirjelasku', 'laskuhari' ),
@@ -359,7 +367,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	 */
 	public function is_available() {
 
-		if( $this->get_option( 'gateway_enabled' ) == 'no' ) {
+		if( $this->lh_get_option( 'gateway_enabled' ) == 'no' ) {
 			return false;
 		} 
 
