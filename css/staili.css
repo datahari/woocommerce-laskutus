@@ -68,10 +68,20 @@ a.button.tips.laskuhari-invoice img {
     box-sizing: border-box;
     text-decoration: none;
     text-align: center;
+    transition: all 0.2s ease-in-out;
+}
+
+.laskuhari-nappi:hover {
+    background: #2259c5;
+    color: #fff;
 }
 
 .laskuhari-caption {
     margin-top: 5px;
+}
+
+#laskuhari_metabox .inside {
+    margin-top: 13px;
 }
 
 #laskuhari-laheta-lasku-lomake {

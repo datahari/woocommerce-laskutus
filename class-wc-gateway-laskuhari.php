@@ -14,58 +14,71 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
-    /**
-     * Constructor for the gateway.
-     */
-	public function __construct( $notexts = false ) {
-		$this->id                 		= 'laskuhari';
-		$this->icon               		= apply_filters( 'woocommerce_laskuhari_icon', '' );
-		$this->method_title       		= __( 'Laskuhari', 'woocommerce' );
-		$this->method_description 		= __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen<img src="https://www.laskuhari.fi/lh-wc.png" alt="." />', 'woocommerce' );
-		$this->has_fields         		= false;
+	public function __construct( $only_settings = false ) {
+		$this->id                 = 'laskuhari';
+		$this->icon               = apply_filters( 'woocommerce_laskuhari_icon', '' );
+		$this->method_title       = __( 'Laskuhari', 'laskuhari' );
+		$this->method_description = __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen.', 'laskuhari' );
+		$this->has_fields         = false;
 
 		// Load the settings
+		if( ! $only_settings ) {
+			$this->init_settings();
+		}
+
 		$this->init_form_fields();
-		$this->init_settings();
 
 		// Get settings
-		$this->laskutuslisa        		= preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $this->get_option( 'laskutuslisa' ));
-		$this->laskutuslisa_alv    		= preg_replace(['/,/', '/[^0-9\.,]+/'], ['.', ''], $this->get_option( 'laskutuslisa_alv' ));
-		$this->title              		= $this->get_option( 'title' );
-		$this->lahetystapa_manuaalinen  = $this->get_option( 'lahetystapa_manuaalinen' );
-		$this->demotila                 = $this->get_option( 'demotila', 'yes' ) === 'yes' ? true : false;
+		$this->laskutuslisa        		= $this->parse_decimal( $this->lh_get_option( 'laskutuslisa' ) );
+		$this->laskutuslisa_alv    		= $this->parse_decimal( $this->lh_get_option( 'laskutuslisa_alv' ) );
+		$this->title              		= $this->lh_get_option( 'title' );
+		$this->send_method_fallback     = $this->lh_get_option( 'send_method_fallback' );
+		$this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
+
 		if( $this->demotila == "yes" ) {
-			$this->uid                		= "3175";
-			$this->apikey             		= "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
+			$this->uid    = "3175";
+			$this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
 		} else {
-			$this->uid                		= $this->get_option( 'uid' );
-			$this->apikey             		= $this->get_option( 'apikey' );
+			$this->uid    = $this->lh_get_option( 'uid' );
+			$this->apikey = $this->lh_get_option( 'apikey' );
 		}
-		$this->email_lasku_kaytossa     = $this->get_option( 'email_lasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->verkkolasku_kaytossa     = $this->get_option( 'verkkolasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->kirjelasku_kaytossa      = $this->get_option( 'kirjelasku_kaytossa', 'yes' ) === 'yes' ? true : false;
-		$this->auto_gateway_enabled     = $this->get_option( 'auto_gateway_enabled', 'yes' ) === 'yes' ? true : false;
-		$this->auto_gateway_create_enabled = $this->get_option( 'auto_gateway_create_enabled', 'yes' ) === 'yes' ? true : false;
-		$this->salli_laskutus_erikseen  = $this->get_option( 'salli_laskutus_erikseen', 'no' ) === 'yes' ? true : false;
-		$this->laskuviesti        		= $this->get_option( 'laskuviesti' );
-		$this->laskuttaja         		= $this->get_option( 'laskuttaja' );
-		$this->description        		= $this->get_option( 'description' );
-		$this->instructions       		= $this->get_option( 'instructions', $this->description );
-		$this->enable_for_methods 		= $this->get_option( 'enable_for_methods', array() );
-		$this->enable_for_customers     = $this->get_option( 'enable_for_customers', array() );
-		$this->enable_for_virtual 		= $this->get_option( 'enable_for_virtual', 'yes' ) === 'yes' ? true : false;
 
-		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+		$this->email_lasku_kaytossa     = $this->lh_get_option( 'email_lasku_kaytossa' ) === 'yes' ? true : false;
+		$this->verkkolasku_kaytossa     = $this->lh_get_option( 'verkkolasku_kaytossa' ) === 'yes' ? true : false;
+		$this->kirjelasku_kaytossa      = $this->lh_get_option( 'kirjelasku_kaytossa' ) === 'yes' ? true : false;
+		$this->synkronoi_varastosaldot  = $this->lh_get_option( 'synkronoi_varastosaldot' ) === 'yes' ? true : false;
+		$this->auto_gateway_enabled     = $this->lh_get_option( 'auto_gateway_enabled' ) === 'yes' ? true : false;
+		$this->auto_gateway_create_enabled = $this->lh_get_option( 'auto_gateway_create_enabled' ) === 'yes' ? true : false;
+		$this->salli_laskutus_erikseen  = $this->lh_get_option( 'salli_laskutus_erikseen' ) === 'yes' ? true : false;
+		$this->laskuviesti        		= trim(rtrim($this->lh_get_option( 'laskuviesti' )));
+		$this->laskuttaja         		= $this->lh_get_option( 'laskuttaja' );
+		$this->description        		= $this->lh_get_option( 'description' );
+		$this->instructions       		= $this->lh_get_option( 'instructions', $this->description );
+		$this->enable_for_methods 		= $this->lh_get_option( 'enable_for_methods', array() );
+		$this->enable_for_customers     = $this->lh_get_option( 'enable_for_customers', array() );
+		$this->enable_for_virtual 		= $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
 
-		if( $notexts == false ) {
+		if( ! $only_settings ) {
+			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 			add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
 	    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 		}
 	}
 
+	public function lh_get_option( $option, $default = null ) {
+		if( null === $default && isset( $this->form_fields[$option]['default'] ) ) {
+			$default = $this->form_fields[$option]['default'];
+		}
+		return $this->get_option( $option, $default );
+	}
+
+	public function parse_decimal( $number ) {
+		return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
+	}
+
 	public function veroton_laskutuslisa( $sis_alv ) {
 		if( $sis_alv ) {
-			return $this->laskutuslisa / (1+$this->laskutuslisa_alv/100);
+			return $this->laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
 		}
 		return $this->laskutuslisa;
 	}
@@ -74,45 +87,45 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		if( $sis_alv ) {
 			return $this->laskutuslisa;
 		}
-		return $this->laskutuslisa * (1+$this->laskutuslisa_alv/100);
+		return $this->laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
 	}
 
 	public function lahetystapa_lomake( $order_id = false ) {
-		$laskutustapa = get_post_meta($order_id, '_laskuhari_laskutustapa', true);
-		$valittaja = get_post_meta($order_id, '_laskuhari_valittaja', true);
+		$laskutustapa = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
+		$valittaja = get_post_meta( $order_id, '_laskuhari_valittaja', true );
 		?>
-			<select onchange="tarkista_verkkolaskuosoite(jQuery);" id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
+			<select onchange="laskuhari_tarkista_verkkolaskuosoite(jQuery);" id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
 				<option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
 				<?php if( $this->email_lasku_kaytossa ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
 				<?php if( $this->verkkolasku_kaytossa ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
 				<?php if( $this->kirjelasku_kaytossa ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
 			</select>
 			<div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
-				<div class="laskuhari-caption"><?php echo __('Y-tunnus', 'laskuhari'); ?>:</div>
-				<input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr(get_post_meta($order_id, '_laskuhari_ytunnus', true)); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
-				<div class="laskuhari-caption"><?php echo __('Verkkolaskuosoite / OVT', 'laskuhari'); ?>:</div>
-				<input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr(get_post_meta($order_id, '_laskuhari_verkkolaskuosoite', true)); ?>" name="laskuhari-verkkolaskuosoite" /><br />
-				<div class="laskuhari-caption"><?php echo __('Verkkolaskuoperaattori', 'laskuhari'); ?>:</div>
+				<div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
+				<input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( get_post_meta( $order_id, '_laskuhari_ytunnus', true ) ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+				<div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>
+				<input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( get_post_meta( $order_id, '_laskuhari_verkkolaskuosoite', true ) ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
+				<div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
 				<select id="laskuhari-valittaja" name="laskuhari-valittaja">
-					<option value="">-- <?php echo __('Valitse verkkolaskuoperaattori', 'laskuhari'); ?> ---</option>
-					<optgroup label="<?php echo __('Operaattorit', 'laskuhari'); ?>">
-						<option value="003723327487"<?php echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
-						<option value="BAWCFI22"<?php echo ($valittaja == "BAWCFI22" ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
-						<option value="003703575029"<?php echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
+					<option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
+					<optgroup label="<?php echo __( 'Operaattorit', 'laskuhari' ); ?>">
+						<option value="003723327487"<?php    echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
+						<option value="BAWCFI22"<?php        echo ($valittaja == "BAWCFI22"     ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
+						<option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
 						<option value="885790000000418"<?php echo ($valittaja == "885790000000418" ? ' selected' : ''); ?>>HighJump AS (885790000000418)</option>
-						<option value="INEXCHANGE"<?php echo ($valittaja == "INEXCHANGE" ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
-						<option value="EXPSYS"<?php echo ($valittaja == "EXPSYS" ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
-						<option value="003708599126"<?php echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
-						<option value="003721291126"<?php echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
-						<option value="003726044706"<?php echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
-						<option value="E204503"<?php echo ($valittaja == "E204503" ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
-						<option value="003723609900"<?php echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
-						<option value="PALETTE"<?php echo ($valittaja == "PALETTE" ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
-						<option value="003710948874"<?php echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
-						<option value="003701150617"<?php echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
-						<option value="003714377140"<?php echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
-						<option value="003703575029"<?php echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
-						<option value="003701011385"<?php echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
+						<option value="INEXCHANGE"<?php      echo ($valittaja == "INEXCHANGE"   ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
+						<option value="EXPSYS"<?php          echo ($valittaja == "EXPSYS"       ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
+						<option value="003708599126"<?php    echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
+						<option value="003721291126"<?php    echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
+						<option value="003726044706"<?php    echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
+						<option value="E204503"<?php         echo ($valittaja == "E204503"      ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
+						<option value="003723609900"<?php    echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
+						<option value="PALETTE"<?php         echo ($valittaja == "PALETTE"      ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
+						<option value="003710948874"<?php    echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
+						<option value="003701150617"<?php    echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
+						<option value="003714377140"<?php    echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
+						<option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
+						<option value="003701011385"<?php    echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
 						<option value="885060259470028"<?php echo ($valittaja == "885060259470028" ? ' selected' : ''); ?>>Tradeshift (885060259470028)</option>
 					</optgroup>
 					<optgroup label="<?php echo __('Pankit', 'laskuhari'); ?>">
@@ -143,29 +156,21 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
 		$this->lahetystapa_lomake();
 		?>
-		<div class="laskuhari-caption"><?php echo __('Viitteenne', 'laskuhari'); ?> (<?php echo __('valinnainen', 'laskuhari'); ?>):</div>
+		<div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
 		<input type="text" id="laskuhari-viitteenne" name="laskuhari-viitteenne" />
-		<script type="text/javascript">
-			function tarkista_laskutustapa($){
-				if( $("#payment_method_laskuhari").is(":checked") ) {
-					if( $("#laskuhari-laskutustapa").val() == "" || ($("#laskuhari-laskutustapa").val() == "verkkolasku" && $("#laskuhari-ytunnus").val() == "")) {
-						$("#place_order").prop("disabled", true);
-					} else {
-						$("#place_order").prop("disabled", false);
-					}
+		<script>
+		(function($) {
+			$(".verkkolasku-pakollinen").bind("keyup change", function(){
+				laskuhari_tarkista_laskutustapa($);
+			});
+			$("#payment_method_laskuhari, #payment").on("change click", function() {
+				laskuhari_tarkista_laskutustapa($);
+				if( $("#payment_method_laskuhari").prop("checked") != laskuhari_viime_maksutapa ) {
+					$('body').trigger('update_checkout');
+					laskuhari_viime_maksutapa = $("#payment_method_laskuhari").prop("checked");
 				}
-			}
-			(function($) {
-				$(".verkkolasku-pakollinen").bind("keyup change", function(){
-					tarkista_laskutustapa($);
-				});
-				$("#payment_method_laskuhari, #payment").on("change click", function() {
-					if( $("#payment_method_laskuhari").prop("checked") != viime_maksutapa ) {
-						$('body').trigger('update_checkout');
-						viime_maksutapa = $("#payment_method_laskuhari").prop("checked");
-					}
-				});
-			})(jQuery);
+			});
+		})(jQuery);
 		</script>
 		<?php
 	}
@@ -175,191 +180,179 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function init_form_fields() {
     	$shipping_methods = array();
-    	$asiakkaat = array();
 
     	if ( is_admin() ) {
 	    	foreach ( WC()->shipping()->load_shipping_methods() as $method ) {
-		    	$shipping_methods[ $method->id ] = $method->get_title();
+		    	$shipping_methods[$method->id] = $method->get_title();
 			}
-			/*$customers = get_users();
-	    	foreach ( $customers as $customer ) {
-				$user = get_userdata( $customer->ID );
-		    	$asiakkaat[ $customer->ID ] = sanitize_text_field($user->user_login." / ".$user->user_email." (".$customer->first_name." ".$customer->last_name).")";
-	    	}*/
 		}
 
     	$this->form_fields = array(
 			'enabled' => array(
-				'title'       => __( 'Käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön Laskuhari-lisäosa', 'woocommerce' ),
+				'title'       => __( 'Käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön Laskuhari-lisäosa', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
-				'default'     => 'yes'
+				'default'     => 'no'
 			),
 			'gateway_enabled' => array(
-				'title'       => __( 'Maksutapa', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön Laskutus-maksutapa', 'woocommerce' ),
+				'title'       => __( 'Maksutapa', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön Laskutus-maksutapa', 'laskuhari' ),
 				'type'        => 'checkbox',
-				'description' => 'Lisää verkkokauppaan Laskutus-maksutavan, joka lähettää asiakkaalle tilauksesta laskun.',
+				'description' => 'Lisää verkkokaupan kassalle Laskutus-maksutavan.',
 				'default'     => 'yes'
 			),
 			'auto_gateway_create_enabled' => array(
-				'title'       => __( 'Automaattinen luonti', 'woocommerce' ),
-				'label'       => __( 'Luo laskut automaattisesti', 'woocommerce' ),
+				'title'       => __( 'Automaattinen luonti', 'laskuhari' ),
+				'label'       => __( 'Luo laskut automaattisesti', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Luodaanko laskut automaattisesti Laskuhariin, kun asiakas tekee tilauksen?',
 				'default'     => 'yes'
 			),
 			'auto_gateway_enabled' => array(
-				'title'       => __( 'Automaattinen lähetys', 'woocommerce' ),
-				'label'       => __( 'Lähetä laskut automaattisesti', 'woocommerce' ),
+				'title'       => __( 'Automaattinen lähetys', 'laskuhari' ),
+				'label'       => __( 'Lähetä laskut automaattisesti', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Lähetetäänkö laskut automaattisesti, kun asiakas tekee tilauksen?',
 				'default'     => 'yes'
 			),
 			'email_lasku_kaytossa' => array(
-				'title'       => __( 'Sähköpostilaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön sähköpostilaskut', 'woocommerce' ),
+				'title'       => __( 'Sähköpostilaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön sähköpostilaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'verkkolasku_kaytossa' => array(
-				'title'       => __( 'Verkkolaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön verkkolaskut', 'woocommerce' ),
+				'title'       => __( 'Verkkolaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön verkkolaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'kirjelasku_kaytossa' => array(
-				'title'       => __( 'Kirjelaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön kirjelaskut', 'woocommerce' ),
+				'title'       => __( 'Kirjelaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön kirjelaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
+			'synkronoi_varastosaldot' => array(
+				'title'       => __( 'Synkronoi varastosaldot', 'laskuhari' ),
+				'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'laskuhari' ),
+				'type'        => 'checkbox',
+				'description' => '',
+				'default'     => 'no'
+			),
 			'uid' => array(
-				'title'       => __( 'UID', 'woocommerce' ),
+				'title'       => __( 'UID', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskuhari-tunnuksesi UID (kysy asiakaspalvelusta)', 'woocommerce' ),
-				'default'     => __( '', 'woocommerce' ),
+				'description' => __( 'Laskuhari-tunnuksesi UID (kysy asiakaspalvelusta)', 'laskuhari' ),
+				'default'     => __( '', 'laskuhari' ),
 			),
 			'apikey' => array(
-				'title'       => __( 'API-koodi', 'woocommerce' ),
+				'title'       => __( 'API-koodi', 'laskuhari' ),
 				'type'        => 'text',
 				'description' => 'Laskuhari-tunnuksesi API-koodi (kysy asiakaspalvelusta)',
-				'default'     => __( '', 'woocommerce' ),
+				'default'     => __( '', 'laskuhari' ),
 			),
 			'demotila' => array(
-				'title'       => __( 'Demotila', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön demotila', 'woocommerce' ),
+				'title'       => __( 'Demotila', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön demotila', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Demotilassa et tarvitse UID- tai API-koodia. Voit lähettää vain sähköpostilaskuja, ja ne lähetetään testiyrityksen tiedoilla. Jos haluat oman yrityksesi tiedot laskulle, luo tunnukset <a href="https://www.laskuhari.fi" target="_blank">Laskuhari.fi</a>-palveluun ja liitä UID ja API-koodi lisäosan asetuksiin sekä poista demotila käytöstä.',
 				'default'     => 'yes'
 			),
-			'lahetystapa_manuaalinen' => array(
-				'title'       => __( 'Lähetystapa (massalaskutus)', 'woocommerce' ),
-				'label'       => __( 'Valitse laskujen lähetystapa', 'woocommerce' ),
+			'send_method_fallback' => array(
+				'title'       => __( 'Lähetystapa (fallback)', 'laskuhari' ),
+				'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
 				'type'        => 'select',
-				'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut. Koskee myös "Luo ja lähetä" -toimintoa', 'woocommerce' ),
-				'default'     => 'ei',
+				'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut ja laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
+				'default'     => $this->lh_get_option( 'lahetystapa_manuaalinen', 'ei' ),
 				'options'     => array(
-					'email' => __( 'Sähköpostilasku', 'woocommerce' ),
-					'kirje' => __( 'Kirjelasku', 'woocommerce' ),
-					'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'woocommerce' )
+					'email' => __( 'Sähköpostilasku', 'laskuhari' ),
+					'kirje' => __( 'Kirjelasku', 'laskuhari' ),
+					'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'laskuhari' )
 				)
 			),
 			'laskuviesti' => array(
-				'title'       => __( 'Laskuviesti', 'woocommerce' ),
+				'title'       => __( 'Laskuviesti', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa', 'woocommerce' ),
-				'default'     => __( 'Kiitos tilauksestasi. Liitteenä lasku tilaamistasi tuotteista.', 'woocommerce' ),
+				'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa', 'laskuhari' ),
+				'default'     => __( 'Kiitos tilauksestasi. Liitteenä lasku tilaamistasi tuotteista.', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskuttaja' => array(
-				'title'       => __( 'Laskuttaja', 'woocommerce' ),
+				'title'       => __( 'Laskuttaja', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'woocommerce' ),
-				'default'     => __( '', 'woocommerce' ),
+				'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'laskuhari' ),
+				'default'     => __( '', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'title' => array(
-				'title'       => __( 'Maksutavan nimi', 'woocommerce' ),
+				'title'       => __( 'Maksutavan nimi', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Tämä näkyy maksutavan nimenä asiakkaalle', 'woocommerce' ),
-				'default'     => __( 'Laskutus', 'woocommerce' ),
+				'description' => __( 'Tämä näkyy maksutavan nimenä asiakkaalle', 'laskuhari' ),
+				'default'     => __( 'Laskutus', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'description' => array(
-				'title'       => __( 'Kuvaus', 'woocommerce' ),
+				'title'       => __( 'Kuvaus', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Kuvaus, joka näytetään maksutavan yhteydessä', 'woocommerce' ),
-				'default'     => __( 'Maksa tilauksesi kätevästi laskulla', 'woocommerce' ),
+				'description' => __( 'Kuvaus, joka näytetään maksutavan yhteydessä', 'laskuhari' ),
+				'default'     => __( 'Maksa tilauksesi kätevästi laskulla', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'instructions' => array(
-				'title'       => __( 'Ohjeet', 'woocommerce' ),
+				'title'       => __( 'Ohjeet', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Ohjeet, jotka näkyvät tilausvahvistussivulla', 'woocommerce' ),
-				'default'     => __( 'Lähetämme sinulle laskun tilauksestasi.', 'woocommerce' ),
+				'description' => __( 'Ohjeet, jotka näkyvät tilausvahvistussivulla ja tilausvahvistusviestissä', 'laskuhari' ),
+				'default'     => __( 'Lähetämme sinulle laskun tilauksestasi.', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskutuslisa' => array(
-				'title'       => __( 'Laskutuslisä', 'woocommerce' ),
+				'title'       => __( 'Laskutuslisä', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'woocommerce' ),
-				'default'     => __( '0', 'woocommerce' ),
+				'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'laskuhari' ),
+				'default'     => __( '0', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskutuslisa_alv' => array(
-				'title'       => __( 'Laskutuslisän ALV-%', 'woocommerce' ),
+				'title'       => __( 'Laskutuslisän ALV-%', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'woocommerce' ),
-				'default'     => __( '24', 'woocommerce' ),
+				'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'laskuhari' ),
+				'default'     => __( '24', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'enable_for_methods' => array(
-				'title'             => __( 'Käytössä näille toimitustavoille', 'woocommerce' ),
+				'title'             => __( 'Käytössä näille toimitustavoille', 'laskuhari' ),
 				'type'              => 'multiselect',
 				'class'             => 'wc-enhanced-select',
 				'css'               => 'width: 450px;',
 				'default'           => '',
-				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille toimitustavoille', 'woocommerce' ),
+				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille toimitustavoille', 'laskuhari' ),
 				'options'           => $shipping_methods,
 				'desc_tip'          => true,
 				'custom_attributes' => array(
-					'data-placeholder' => __( 'Valitse toimitustavat', 'woocommerce' )
+					'data-placeholder' => __( 'Valitse toimitustavat', 'laskuhari' )
 				)
 			),
-			/*'enable_for_customers' => array(
-				'title'             => __( 'Käytössä näille asiakkaille', 'woocommerce' ),
-				'type'              => 'multiselect',
-				'class'             => 'wc-enhanced-select',
-				'css'               => 'width: 450px;',
-				'default'           => '',
-				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille asiakkaille', 'woocommerce' ),
-				'options'           => $asiakkaat,
-				'desc_tip'          => true,
-				'custom_attributes' => array(
-					'data-placeholder' => __( 'Valitse asiakkaat', 'woocommerce' )
-				)
-			),*/
 			'salli_laskutus_erikseen' => array(
-				'title'       => __( 'Salli vain laskutusasiakkaille', 'woocommerce' ),
-				'label'       => __( 'Salli laskutus-maksutavan valinta vain tietyille asiakkaille', 'woocommerce' ),
+				'title'       => __( 'Salli vain laskutusasiakkaille', 'laskuhari' ),
+				'label'       => __( 'Salli laskutus-maksutavan valinta vain tietyille asiakkaille', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Salli vain niiden asiakkaiden valita laskutus-maksutapa, joilla on käyttäjätiedoissa laskutusasiakas-rasti',
 				'default'     => 'no'
 			),
 			'enable_for_virtual' => array(
-				'title'             => __( 'Virtuaalituotteet', 'woocommerce' ),
-				'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'woocommerce' ),
+				'title'             => __( 'Virtuaalituotteet', 'laskuhari' ),
+				'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'laskuhari' ),
 				'type'              => 'checkbox',
 				'default'           => 'yes'
 			),
 			'enforce_ssl' => array(
-				'title'       => __( 'Vahvista SSL', 'woocommerce' ),
-				'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'woocommerce' ),
+				'title'       => __( 'Vahvista SSL', 'laskuhari' ),
+				'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Mikäli pois käytöstä SSL_VERIFYHOST = 0, SSL_VERIFYPEER = FALSE',
 				'default'     => 'yes'
@@ -374,7 +367,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	 */
 	public function is_available() {
 
-		if( $this->get_option('gateway_enabled') == 'no' ) {
+		if( $this->lh_get_option( 'gateway_enabled' ) == 'no' ) {
 			return false;
 		} 
 
@@ -403,7 +396,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 						break;
 					}
 				}
-
 			}
 		}
 
@@ -417,26 +409,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$current_user = wp_get_current_user();
 		
 		// Tarkista käyttäjän laskutusasiakas-tieto
-		if( $this->salli_laskutus_erikseen && get_the_author_meta("laskuhari_laskutusasiakas", $current_user->ID ) != "yes" ) {
+		$can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) !== "yes";
+		$can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
+
+		if( $this->salli_laskutus_erikseen && $can_use_billing ) {
 			return false;
 		}
-		
-		// Check allowed users
-		/*if ( ! empty( $this->enable_for_customers ) ) {
-
-			$found = false;
-
-			foreach ( $this->enable_for_customers as $user_id ) {
-				if ( $current_user->ID == $user_id ) {
-					$found = true;
-					break;
-				}
-			}
-
-			if ( ! $found ) {
-				return false;
-			}	
-		}*/
 		
 		// Check methods
 		if ( ! empty( $this->enable_for_methods ) && $needs_shipping ) {
@@ -494,19 +472,33 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 	public function process_payment( $order_id ) {
 
 		if( $this->auto_gateway_create_enabled ) {	
-			$lh = laskuhari_process_action($order_id, $this->auto_gateway_enabled);
+			$lh = laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
 			$order      = $lh['order'];
 			$notice     = $lh['notice'];
 		}
 
-		$order = wc_get_order($order_id);
-		$order->update_status("processing");
+		$order = wc_get_order( $order_id );
+
+		do_action( "laskuhari_action_after_payment_completed_before_update_status" );
+
+		$status_after_payment = apply_filters( "laskuhari_status_after_payment", "processing", $order_id );
+
+		$order->update_status( $status_after_payment );
+
+		do_action( "laskuhari_action_after_payment_completed_before_reduce_stock_levels" );
 
 		// Reduce stock levels
-		wc_reduce_stock_levels( $order_id );
+		$reduce_stock_levels = apply_filters( "laskuhari_reduce_stock_levels_after_payment", true, $order_id );
+		if( $reduce_stock_levels ) {
+			wc_reduce_stock_levels( $order_id );
+		}
+
+		do_action( "laskuhari_action_after_payment_completed_before_cart_empty" );
 
 		// Remove cart
 		WC()->cart->empty_cart();
+
+		do_action( "laskuhari_action_after_payment_completed_after_cart_empty" );
 
 		// Return thankyou redirect
 		return array(
@@ -515,16 +507,16 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		);
 	}
 
-    /**
+	/**
      * Output for the order received page.
      */
-	public function thankyou_page() {
+    public function thankyou_page() {
 
-		if ( $this->instructions ) {
-        	echo wpautop( wptexturize( $this->instructions ) );
-		}
-		
-	}
+        if ( $this->instructions ) {
+            echo wpautop( wptexturize( $this->instructions ) );
+        }
+
+    }
 
     /**
      * Add content to the WC emails.
