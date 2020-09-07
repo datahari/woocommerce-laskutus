@@ -362,8 +362,6 @@ function laskuhari_update_stock( $product ) {
     if( ! laskuhari_product_synced( $product_id ) ) {
         return false;
     }
-    
-    set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
 
     if( $product->is_type( 'variation' ) ) {
         $product_id   = $product->get_parent_id();
