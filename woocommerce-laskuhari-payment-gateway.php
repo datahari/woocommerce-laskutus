@@ -177,7 +177,40 @@ function laskuhari_get_vat_rate( $product = null ) {
     return $vat_rate;
 }
 
+function laskuhari_continue_only_on_actions( $hooks ) {
+    if( ! is_array( $hooks ) ) {
+        return true;
+    }
+
+    if( isset( $_POST['action'] ) && in_array( $_POST['action'], $hooks ) ) {
+        return true;
+    }
+
+    foreach( $hooks as $hook ) {
+        if( doing_action( $hook ) ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function laskuhari_sync_product_on_save( $product_id ) {
+    $hooks = [
+        'save_post',
+        'woocommerce_ajax_save_product_variations',
+        'woocommerce_add_variation',
+        'woocommerce_save_variations',
+        'woocommerce_bulk_edit_variations',
+        'inline-save'
+    ];
+
+    $hooks = apply_filters( "laskuhari_which_hooks_to_sync_product", $hooks, $product_id );
+
+    if( ! laskuhari_continue_only_on_actions( $hooks ) ) {
+        return false;
+    }
+
     global $laskuhari_gateway_object;
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
         $updating_product_id = 'laskuhari_update_product_' . $product_id;
