@@ -35,15 +35,14 @@ function laskuhari_payment_gateway_load() {
 
     $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
 
-    if ( $laskuhari_gateway_object->demotila ) {
-        add_action( 'admin_notices', 'laskuhari_demo_notice' );
-    }
-
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
     add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
 
     if( $laskuhari_gateway_object->lh_get_option( 'enabled' ) !== 'yes' ) {
+        add_action( 'admin_notices', 'laskuhari_not_activated' );
         return;
+    } elseif ( $laskuhari_gateway_object->demotila ) {
+        add_action( 'admin_notices', 'laskuhari_demo_notice' );
     }
 
     laskuhari_actions();
@@ -679,7 +678,10 @@ function laskuhari_add_invoice_surcharge( $cart ) {
 }
 
 function laskuhari_fallback_notice() {
-    echo '<div class="error"><p>' . sprintf( __( 'Laskuhari for Woocommerce vaatii %s viimeisimmän version toimiakseen.', 'laskuhari' ), '<a href="http://wordpress.org/extend/plugins/woocommerce/">WooCommercen</a>' ) . '</p></div>';
+    echo '
+    <div class="notice notice-error is-dismissible">
+        <p>Laskuhari for WooCommerce vaatii WooCommerce-lisäosan asennuksen.</p>
+    </div>';
 }
    
 function laskuhari_add_gateway( $methods ) {
@@ -782,6 +784,13 @@ function laskuhari_demo_notice() {
     echo '
     <div class="notice is-dismissible">
         <p>HUOM! Laskuhari-lisäosan demotila on käytössä! Voit poistaa sen käytöstä <a href="' . laskuhari_settings_link() . '">asetuksista</a></p>
+    </div>';
+}
+
+function laskuhari_not_activated() {
+    echo '
+    <div class="notice notice-error is-dismissible">
+        <p>HUOM! Laskuhari-lisäosaa ei ole otettu käyttöön. Ota se käyttöön <a href="' . laskuhari_settings_link() . '">asetuksista</a></p>
     </div>';
 }
 
