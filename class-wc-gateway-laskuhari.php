@@ -193,7 +193,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 				'label'       => __( 'Ota käyttöön Laskuhari-lisäosa', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
-				'default'     => 'yes'
+				'default'     => 'no'
 			),
 			'gateway_enabled' => array(
 				'title'       => __( 'Maksutapa', 'laskuhari' ),
