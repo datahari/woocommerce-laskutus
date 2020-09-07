@@ -35,15 +35,16 @@ function laskuhari_payment_gateway_load() {
 
     $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
 
-    if( $laskuhari_gateway_object->get_option( 'enabled' ) !== 'yes' ) {
-        return;
-    }
-
     if ( $laskuhari_gateway_object->demotila ) {
         add_action( 'admin_notices', 'laskuhari_demo_notice' );
     }
 
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
+    add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
+
+    if( $laskuhari_gateway_object->get_option( 'enabled', 'yes' ) !== 'yes' ) {
+        return;
+    }
 
     laskuhari_actions();
 
@@ -71,7 +72,6 @@ function laskuhari_payment_gateway_load() {
 
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
-    add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
 
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
