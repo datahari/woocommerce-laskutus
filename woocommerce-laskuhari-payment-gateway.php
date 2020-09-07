@@ -312,7 +312,7 @@ function laskuhari_create_product( $product, $update = false ) {
 
     $payload = apply_filters( "laskuhari_create_product_payload", $payload, $product );
 
-    $payload = json_encode( $payload );
+    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
 
     $response = laskuhari_api_request( $payload, $api_url, "Product creation" );
 
@@ -389,7 +389,7 @@ function laskuhari_update_stock( $product ) {
 
     $payload = apply_filters( "laskuhari_stock_update_payload", $payload, $product );
 
-    $payload = json_encode( $payload );
+    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
 
     $response = laskuhari_api_request( $payload, $api_url, "Stock update" );
 
@@ -1075,7 +1075,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     // summat
     $loppusumma         = $order->get_total();
-    $toimitustapa       = utf8_decode( $order->get_shipping_method() );
+    $toimitustapa       = $order->get_shipping_method();
     $toimitusmaksu      = $order->get_total_shipping();
     $toimitus_vero      = $order->get_shipping_tax();
     $cart_discount      = $order->get_discount_total();
@@ -1184,7 +1184,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
-            "nimike"        => utf8_decode( $data['name'] ),
+            "nimike"        => $data['name'],
             "maara"         => $data['quantity'],
             "veroton"       => $yks_veroton,
             "alv"           => $alv,
@@ -1263,7 +1263,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $ale = 0;
 
         $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => utf8_decode( $fee_name ),
+            "nimike"        => $fee_name,
             "maara"         => 1,
             "veroton"       => $yks_veroton,
             "alv"           => $alv,
@@ -1320,7 +1320,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
 
     $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order_id );
-    $payload = json_encode( $payload );
+    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
     
     $response = laskuhari_api_request( $payload, $api_url, "Create invoice", "json", false );
 
@@ -1341,7 +1341,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     if( is_array( $response ) ) {
-        $response = json_encode( $response );
+        $response = json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
     }
 
     if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
@@ -1373,7 +1373,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         }
 
     } else {
-        $error_notice = 'Laskun luominen Laskuhariin epäonnistui: ' . json_encode( $response );
+        $error_notice = 'Laskun luominen Laskuhariin epäonnistui: ' . json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
         $order->add_order_note( $error_notice );
 
         return array(
@@ -1500,7 +1500,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $payload = apply_filters( "laskuhari_send_invoice_payload", $payload, $order_id, $invoice_id );
     
-        $payload = json_encode( $payload );
+        $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
     
         $response = laskuhari_api_request( $payload, $api_url, "Send invoice", "json", false );
 
@@ -1524,7 +1524,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         }
 
         if( is_array( $response ) ) {
-            $response = json_encode( $response );
+            $response = json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
         }
 
         if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
