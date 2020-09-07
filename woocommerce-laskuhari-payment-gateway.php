@@ -180,8 +180,12 @@ function laskuhari_get_vat_rate( $product = null ) {
 function laskuhari_sync_product_on_save( $product_id ) {
     global $laskuhari_gateway_object;
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
-        laskuhari_product_synced( $product_id, 'no' );
-        laskuhari_create_product( $product_id, true );
+        $updating_product_id = 'laskuhari_update_product_' . $product_id;
+        if ( false === get_transient( $updating_product_id ) ) {
+            set_transient( $updating_product_id, $product_id, 2 );
+            laskuhari_product_synced( $product_id, 'no' );
+            laskuhari_create_product( $product_id, true );
+        }
     }
 }
 
@@ -326,6 +330,8 @@ function laskuhari_update_stock( $product ) {
     if( ! laskuhari_product_synced( $product_id ) ) {
         return false;
     }
+    
+    set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
 
     if( $product->is_type( 'variation' ) ) {
         $product_id   = $product->get_parent_id();
@@ -1136,6 +1142,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $product_sku = "";
         if( $product_id ) {
+            set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
             $product = wc_get_product( $product_id );
             $product_sku = $product->get_sku();
         }
@@ -1378,28 +1385,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         );
     }
 
-    $lahetystapa = "auto";
-
-    if( $bulk_action === true ) {
-       $lahetystapa = $info->lahetystapa_manuaalinen;
-    }
-
     laskuhari_update_order_meta( $order_id );
-
-    if( $lahetystapa == "auto" ) {
-        $lahetystapa = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
-        if( $lahetystapa == "verkkolasku" ) {
-            $verkkolaskuosoite = get_post_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
-            $valittaja         = get_post_meta( $order_id, '_laskuhari_valittaja', true );
-            $ytunnus           = get_post_meta( $order_id, '_laskuhari_ytunnus', true );
-        } elseif( $lahetystapa == "" ) {
-            $lahetystapa = $info->lahetystapa_manuaalinen;
-        }
-    }
-
-    if( trim(rtrim( $email_message )) == "" ) {
-        $email_message = "Liitteenä lasku.";
-    }
 
     // tilaajan tiedot
     $customer = $order->get_address( 'billing' );
@@ -1410,7 +1396,23 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     $can_send = false;
 
-    if( $lahetystapa == "verkkolasku" ) {
+    $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
+
+    $send_methods = array(
+        "verkkolasku",
+        "email",
+        "kirje"
+    );
+
+    if( ! in_array( $send_method, $send_methods ) ) {
+        $send_method = $info->send_method_fallback;
+    }
+
+    if( $send_method == "verkkolasku" ) {
+        $verkkolaskuosoite = get_post_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
+        $valittaja         = get_post_meta( $order_id, '_laskuhari_valittaja', true );
+        $ytunnus           = get_post_meta( $order_id, '_laskuhari_ytunnus', true );
+
         $can_send = true;
         $miten    = "verkkolaskuna";
 
@@ -1423,10 +1425,25 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
                 "buyerPartyIdentifier" => $ytunnus
             ]
         ];
-    } else if( $lahetystapa == "email" && $customer['email'] ) {
+    } else if( $send_method == "email" ) {
+        if( stripos( $customer['email'] , "@" ) === false ) {
+            $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';
+            $order->add_order_note( $error_notice );
+            if( function_exists( 'wc_add_notice' ) ) {
+                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
+            }
+            return array(
+                "notice" => urlencode( $error_notice )
+            );
+        }
+
         $can_send   = true;
         $miten      = "sähköpostitse";
         $sendername = $sendername ? $sendername : "Laskutus";
+
+        if( $email_message == "" ) {
+            $email_message = "Liitteenä lasku.";
+        }
 
         $payload = [
             "lahetystapa" => "email",
@@ -1435,7 +1452,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             "viesti"      => $email_message,
             "lahettaja"   => $sendername
         ];
-    } else if( $lahetystapa == "kirje" ) {
+    } else if( $send_method == "kirje" ) {
         $can_send = true;
         $miten    = "kirjeenä";
 
@@ -1444,7 +1461,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ];
     }
 
-    $lahetetty_tilaus = "";
+    $sent_order = "";
 
     if( $can_send ) {
 
@@ -1497,21 +1514,21 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $order->add_order_note( __( 'Lasku lähetetty ' . $miten, 'laskuhari' ) );
         update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
         $order->update_status( 'processing' );
-        $lahetetty_tilaus = $order->get_id();
+        $sent_order = $order->get_id();
 
-        do_action( "laskuhari_invoice_sent", $lahetetty_tilaus, $invoice_id );
+        do_action( "laskuhari_invoice_sent", $sent_order, $invoice_id );
 
     } else {
-        $success = "Tilauksen #" . $order->get_id() . " lasku tallennettu Laskuhariin. Laskua ei lähetetty vielä.";
-        $lahetetty_tilaus = "";
+        $success = "Tilauksen #" . $order->get_order_number() . " lasku tallennettu Laskuhariin. Laskua ei lähetetty vielä.";
+        $sent_order = "";
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
         $order->update_status( 'processing' );
 
-        do_action( "laskuhari_invoice_created_but_not_sent", $lahetetty_tilaus, $invoice_id );
+        do_action( "laskuhari_invoice_created_but_not_sent", $sent_order, $invoice_id );
     }
 
     return array(
-        "lahetetty" => $lahetetty_tilaus,
+        "lahetetty" => $sent_order,
         "success"   => urlencode( $success )
     );
 

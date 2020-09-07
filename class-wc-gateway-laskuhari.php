@@ -15,11 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
 	public function __construct( $only_settings = false ) {
-		$this->id                 		= 'laskuhari';
-		$this->icon               		= apply_filters( 'woocommerce_laskuhari_icon', '' );
-		$this->method_title       		= __( 'Laskuhari', 'woocommerce' );
-		$this->method_description 		= __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen<img src="https://www.laskuhari.fi/lh-wc.png" alt="." />', 'woocommerce' );
-		$this->has_fields         		= false;
+		$this->id                 = 'laskuhari';
+		$this->icon               = apply_filters( 'woocommerce_laskuhari_icon', '' );
+		$this->method_title       = __( 'Laskuhari', 'laskuhari' );
+		$this->method_description = __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen.', 'laskuhari' );
+		$this->has_fields         = false;
 
 		// Load the settings
 		if( ! $only_settings ) {
@@ -31,7 +31,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->laskutuslisa        		= $this->parse_decimal( $this->get_option( 'laskutuslisa' ) );
 		$this->laskutuslisa_alv    		= $this->parse_decimal( $this->get_option( 'laskutuslisa_alv' ) );
 		$this->title              		= $this->get_option( 'title' );
-		$this->lahetystapa_manuaalinen  = $this->get_option( 'lahetystapa_manuaalinen' );
+		$this->send_method_fallback     = $this->get_option( 'send_method_fallback' );
 		$this->demotila                 = $this->get_option( 'demotila', 'yes' ) === 'yes' ? true : false;
 
 		if( $this->demotila == "yes" ) {
@@ -49,7 +49,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->auto_gateway_enabled     = $this->get_option( 'auto_gateway_enabled', 'yes' ) === 'yes' ? true : false;
 		$this->auto_gateway_create_enabled = $this->get_option( 'auto_gateway_create_enabled', 'yes' ) === 'yes' ? true : false;
 		$this->salli_laskutus_erikseen  = $this->get_option( 'salli_laskutus_erikseen', 'no' ) === 'yes' ? true : false;
-		$this->laskuviesti        		= $this->get_option( 'laskuviesti' );
+		$this->laskuviesti        		= trim(rtrim($this->get_option( 'laskuviesti' )));
 		$this->laskuttaja         		= $this->get_option( 'laskuttaja' );
 		$this->description        		= $this->get_option( 'description' );
 		$this->instructions       		= $this->get_option( 'instructions', $this->description );
@@ -172,198 +172,179 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function init_form_fields() {
     	$shipping_methods = array();
-    	$asiakkaat = array();
 
     	if ( is_admin() ) {
 	    	foreach ( WC()->shipping()->load_shipping_methods() as $method ) {
-		    	$shipping_methods[ $method->id ] = $method->get_title();
+		    	$shipping_methods[$method->id] = $method->get_title();
 			}
-			/*$customers = get_users();
-	    	foreach ( $customers as $customer ) {
-				$user = get_userdata( $customer->ID );
-		    	$asiakkaat[ $customer->ID ] = sanitize_text_field($user->user_login." / ".$user->user_email." (".$customer->first_name." ".$customer->last_name).")";
-	    	}*/
 		}
 
     	$this->form_fields = array(
 			'enabled' => array(
-				'title'       => __( 'Käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön Laskuhari-lisäosa', 'woocommerce' ),
+				'title'       => __( 'Käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön Laskuhari-lisäosa', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'gateway_enabled' => array(
-				'title'       => __( 'Maksutapa', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön Laskutus-maksutapa', 'woocommerce' ),
+				'title'       => __( 'Maksutapa', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön Laskutus-maksutapa', 'laskuhari' ),
 				'type'        => 'checkbox',
-				'description' => 'Lisää verkkokauppaan Laskutus-maksutavan, joka lähettää asiakkaalle tilauksesta laskun.',
+				'description' => 'Lisää verkkokaupan kassalle Laskutus-maksutavan.',
 				'default'     => 'yes'
 			),
 			'auto_gateway_create_enabled' => array(
-				'title'       => __( 'Automaattinen luonti', 'woocommerce' ),
-				'label'       => __( 'Luo laskut automaattisesti', 'woocommerce' ),
+				'title'       => __( 'Automaattinen luonti', 'laskuhari' ),
+				'label'       => __( 'Luo laskut automaattisesti', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Luodaanko laskut automaattisesti Laskuhariin, kun asiakas tekee tilauksen?',
 				'default'     => 'yes'
 			),
 			'auto_gateway_enabled' => array(
-				'title'       => __( 'Automaattinen lähetys', 'woocommerce' ),
-				'label'       => __( 'Lähetä laskut automaattisesti', 'woocommerce' ),
+				'title'       => __( 'Automaattinen lähetys', 'laskuhari' ),
+				'label'       => __( 'Lähetä laskut automaattisesti', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Lähetetäänkö laskut automaattisesti, kun asiakas tekee tilauksen?',
 				'default'     => 'yes'
 			),
 			'email_lasku_kaytossa' => array(
-				'title'       => __( 'Sähköpostilaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön sähköpostilaskut', 'woocommerce' ),
+				'title'       => __( 'Sähköpostilaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön sähköpostilaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'verkkolasku_kaytossa' => array(
-				'title'       => __( 'Verkkolaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön verkkolaskut', 'woocommerce' ),
+				'title'       => __( 'Verkkolaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön verkkolaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'kirjelasku_kaytossa' => array(
-				'title'       => __( 'Kirjelaskut käytössä', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön kirjelaskut', 'woocommerce' ),
+				'title'       => __( 'Kirjelaskut käytössä', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön kirjelaskut', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'yes'
 			),
 			'synkronoi_varastosaldot' => array(
-				'title'       => __( 'Synkronoi varastosaldot', 'woocommerce' ),
-				'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'woocommerce' ),
+				'title'       => __( 'Synkronoi varastosaldot', 'laskuhari' ),
+				'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'no'
 			),
 			'uid' => array(
-				'title'       => __( 'UID', 'woocommerce' ),
+				'title'       => __( 'UID', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskuhari-tunnuksesi UID (kysy asiakaspalvelusta)', 'woocommerce' ),
-				'default'     => __( '', 'woocommerce' ),
+				'description' => __( 'Laskuhari-tunnuksesi UID (kysy asiakaspalvelusta)', 'laskuhari' ),
+				'default'     => __( '', 'laskuhari' ),
 			),
 			'apikey' => array(
-				'title'       => __( 'API-koodi', 'woocommerce' ),
+				'title'       => __( 'API-koodi', 'laskuhari' ),
 				'type'        => 'text',
 				'description' => 'Laskuhari-tunnuksesi API-koodi (kysy asiakaspalvelusta)',
-				'default'     => __( '', 'woocommerce' ),
+				'default'     => __( '', 'laskuhari' ),
 			),
 			'demotila' => array(
-				'title'       => __( 'Demotila', 'woocommerce' ),
-				'label'       => __( 'Ota käyttöön demotila', 'woocommerce' ),
+				'title'       => __( 'Demotila', 'laskuhari' ),
+				'label'       => __( 'Ota käyttöön demotila', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Demotilassa et tarvitse UID- tai API-koodia. Voit lähettää vain sähköpostilaskuja, ja ne lähetetään testiyrityksen tiedoilla. Jos haluat oman yrityksesi tiedot laskulle, luo tunnukset <a href="https://www.laskuhari.fi" target="_blank">Laskuhari.fi</a>-palveluun ja liitä UID ja API-koodi lisäosan asetuksiin sekä poista demotila käytöstä.',
 				'default'     => 'yes'
 			),
-			'lahetystapa_manuaalinen' => array(
-				'title'       => __( 'Lähetystapa (massalaskutus)', 'woocommerce' ),
-				'label'       => __( 'Valitse laskujen lähetystapa', 'woocommerce' ),
+			'send_method_fallback' => array(
+				'title'       => __( 'Lähetystapa (fallback)', 'laskuhari' ),
+				'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
 				'type'        => 'select',
-				'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut. Koskee myös "Luo ja lähetä" -toimintoa', 'woocommerce' ),
-				'default'     => 'ei',
+				'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut ja laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
+				'default'     => $this->get_option( 'lahetystapa_manuaalinen', 'ei' ),
 				'options'     => array(
-					'email' => __( 'Sähköpostilasku', 'woocommerce' ),
-					'kirje' => __( 'Kirjelasku', 'woocommerce' ),
-					'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'woocommerce' )
+					'email' => __( 'Sähköpostilasku', 'laskuhari' ),
+					'kirje' => __( 'Kirjelasku', 'laskuhari' ),
+					'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'laskuhari' )
 				)
 			),
 			'laskuviesti' => array(
-				'title'       => __( 'Laskuviesti', 'woocommerce' ),
+				'title'       => __( 'Laskuviesti', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa', 'woocommerce' ),
-				'default'     => __( 'Kiitos tilauksestasi. Liitteenä lasku tilaamistasi tuotteista.', 'woocommerce' ),
+				'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa', 'laskuhari' ),
+				'default'     => __( 'Kiitos tilauksestasi. Liitteenä lasku tilaamistasi tuotteista.', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskuttaja' => array(
-				'title'       => __( 'Laskuttaja', 'woocommerce' ),
+				'title'       => __( 'Laskuttaja', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'woocommerce' ),
-				'default'     => __( '', 'woocommerce' ),
+				'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'laskuhari' ),
+				'default'     => __( '', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'title' => array(
-				'title'       => __( 'Maksutavan nimi', 'woocommerce' ),
+				'title'       => __( 'Maksutavan nimi', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Tämä näkyy maksutavan nimenä asiakkaalle', 'woocommerce' ),
-				'default'     => __( 'Laskutus', 'woocommerce' ),
+				'description' => __( 'Tämä näkyy maksutavan nimenä asiakkaalle', 'laskuhari' ),
+				'default'     => __( 'Laskutus', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'description' => array(
-				'title'       => __( 'Kuvaus', 'woocommerce' ),
+				'title'       => __( 'Kuvaus', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Kuvaus, joka näytetään maksutavan yhteydessä', 'woocommerce' ),
-				'default'     => __( 'Maksa tilauksesi kätevästi laskulla', 'woocommerce' ),
+				'description' => __( 'Kuvaus, joka näytetään maksutavan yhteydessä', 'laskuhari' ),
+				'default'     => __( 'Maksa tilauksesi kätevästi laskulla', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'instructions' => array(
-				'title'       => __( 'Ohjeet', 'woocommerce' ),
+				'title'       => __( 'Ohjeet', 'laskuhari' ),
 				'type'        => 'textarea',
-				'description' => __( 'Ohjeet, jotka näkyvät tilausvahvistussivulla', 'woocommerce' ),
-				'default'     => __( 'Lähetämme sinulle laskun tilauksestasi.', 'woocommerce' ),
+				'description' => __( 'Ohjeet, jotka näkyvät tilausvahvistussivulla ja tilausvahvistusviestissä', 'laskuhari' ),
+				'default'     => __( 'Lähetämme sinulle laskun tilauksestasi.', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskutuslisa' => array(
-				'title'       => __( 'Laskutuslisä', 'woocommerce' ),
+				'title'       => __( 'Laskutuslisä', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'woocommerce' ),
-				'default'     => __( '0', 'woocommerce' ),
+				'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'laskuhari' ),
+				'default'     => __( '0', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'laskutuslisa_alv' => array(
-				'title'       => __( 'Laskutuslisän ALV-%', 'woocommerce' ),
+				'title'       => __( 'Laskutuslisän ALV-%', 'laskuhari' ),
 				'type'        => 'text',
-				'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'woocommerce' ),
-				'default'     => __( '24', 'woocommerce' ),
+				'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'laskuhari' ),
+				'default'     => __( '24', 'laskuhari' ),
 				'desc_tip'    => true,
 			),
 			'enable_for_methods' => array(
-				'title'             => __( 'Käytössä näille toimitustavoille', 'woocommerce' ),
+				'title'             => __( 'Käytössä näille toimitustavoille', 'laskuhari' ),
 				'type'              => 'multiselect',
 				'class'             => 'wc-enhanced-select',
 				'css'               => 'width: 450px;',
 				'default'           => '',
-				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille toimitustavoille', 'woocommerce' ),
+				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille toimitustavoille', 'laskuhari' ),
 				'options'           => $shipping_methods,
 				'desc_tip'          => true,
 				'custom_attributes' => array(
-					'data-placeholder' => __( 'Valitse toimitustavat', 'woocommerce' )
+					'data-placeholder' => __( 'Valitse toimitustavat', 'laskuhari' )
 				)
 			),
-			/*'enable_for_customers' => array(
-				'title'             => __( 'Käytössä näille asiakkaille', 'woocommerce' ),
-				'type'              => 'multiselect',
-				'class'             => 'wc-enhanced-select',
-				'css'               => 'width: 450px;',
-				'default'           => '',
-				'description'       => __( 'Jätä tyhjäksi, jos haluat laskutuksen käyttöön kaikille asiakkaille', 'woocommerce' ),
-				'options'           => $asiakkaat,
-				'desc_tip'          => true,
-				'custom_attributes' => array(
-					'data-placeholder' => __( 'Valitse asiakkaat', 'woocommerce' )
-				)
-			),*/
 			'salli_laskutus_erikseen' => array(
-				'title'       => __( 'Salli vain laskutusasiakkaille', 'woocommerce' ),
-				'label'       => __( 'Salli laskutus-maksutavan valinta vain tietyille asiakkaille', 'woocommerce' ),
+				'title'       => __( 'Salli vain laskutusasiakkaille', 'laskuhari' ),
+				'label'       => __( 'Salli laskutus-maksutavan valinta vain tietyille asiakkaille', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Salli vain niiden asiakkaiden valita laskutus-maksutapa, joilla on käyttäjätiedoissa laskutusasiakas-rasti',
 				'default'     => 'no'
 			),
 			'enable_for_virtual' => array(
-				'title'             => __( 'Virtuaalituotteet', 'woocommerce' ),
-				'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'woocommerce' ),
+				'title'             => __( 'Virtuaalituotteet', 'laskuhari' ),
+				'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'laskuhari' ),
 				'type'              => 'checkbox',
 				'default'           => 'yes'
 			),
 			'enforce_ssl' => array(
-				'title'       => __( 'Vahvista SSL', 'woocommerce' ),
-				'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'woocommerce' ),
+				'title'       => __( 'Vahvista SSL', 'laskuhari' ),
+				'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => 'Mikäli pois käytöstä SSL_VERIFYHOST = 0, SSL_VERIFYPEER = FALSE',
 				'default'     => 'yes'
@@ -426,23 +407,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		if( $this->salli_laskutus_erikseen && $can_use_billing ) {
 			return false;
 		}
-		
-		// Check allowed users
-		/*if ( ! empty( $this->enable_for_customers ) ) {
-
-			$found = false;
-
-			foreach ( $this->enable_for_customers as $user_id ) {
-				if ( $current_user->ID == $user_id ) {
-					$found = true;
-					break;
-				}
-			}
-
-			if ( ! $found ) {
-				return false;
-			}	
-		}*/
 		
 		// Check methods
 		if ( ! empty( $this->enable_for_methods ) && $needs_shipping ) {
