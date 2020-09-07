@@ -453,6 +453,10 @@ function laskuhari_add_bulk_action_for_invoicing( $actions ) {
 }
 
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
+    if( ! is_admin() ) {
+        return false;
+    }
+    
     if ( $action !== 'laskuhari-batch-send' ) {
         return $redirect_to;
     }
@@ -545,6 +549,10 @@ function laskuhari_update_order_meta( $order_id)  {
 // Luo meta-laatikko Laskuharin toiminnoille tilauksen sivulle
 
 function laskuhari_metabox() {
+    if( ! is_admin() ) {
+        return false;
+    }
+    
     if( $_GET['action'] == "edit" ) {
         add_meta_box(
             'laskuhari_metabox',       // Unique ID
@@ -594,6 +602,10 @@ function laskuhari_invoice_status( $order_id ) {
 // Luo metaboxin HTML
 
 function laskuhari_metabox_html( $post ) {
+    if( ! is_admin() ) {
+        return false;
+    }
+    
     global $laskuhari_gateway_object;
 
     $tiladata    = laskuhari_invoice_status( $post->ID );
@@ -705,6 +717,10 @@ function laskuhari_plugin_action_links( $links, $file ) {
 }
 
 function laskuhari_actions() {
+    if( ! is_admin() ) {
+        return false;
+    }
+    
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
         $order_id   = $_GET['order_id'] ? $_GET['order_id'] : $_GET['post'];
