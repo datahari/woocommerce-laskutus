@@ -51,6 +51,8 @@ function laskuhari_payment_gateway_load() {
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
         add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
         add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' ); 
+        add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
+        add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
 
     add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
@@ -67,8 +69,6 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_checkout_process', 'laskuhari_einvoice_notices' );
     add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
-    add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
-    add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
 
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
