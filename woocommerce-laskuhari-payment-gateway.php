@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.0.1
+Version: 1.0.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -15,7 +15,7 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-$laskuhari_plugin_version = "1.0.1";
+$laskuhari_plugin_version = "1.0.2";
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
@@ -81,6 +81,16 @@ function laskuhari_payment_gateway_load() {
 
 function laskuhari_domain() {
     return "oma.laskuhari.fi";
+}
+
+function laskuhari_json_flag() {
+    if( ! defined( JSON_INVALID_UTF8_SUBSTITUTE ) ) {
+        if( ! defined( JSON_PARTIAL_OUTPUT_ON_ERROR ) ) {
+            return 0;
+        }
+        return JSON_PARTIAL_OUTPUT_ON_ERROR;
+    }
+    return JSON_INVALID_UTF8_SUBSTITUTE;
 }
 
 function laskuhari_user_meta() {
@@ -311,7 +321,7 @@ function laskuhari_create_product( $product, $update = false ) {
 
     $payload = apply_filters( "laskuhari_create_product_payload", $payload, $product );
 
-    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
+    $payload = json_encode( $payload, laskuhari_json_flag() );
 
     $response = laskuhari_api_request( $payload, $api_url, "Product creation" );
 
@@ -386,7 +396,7 @@ function laskuhari_update_stock( $product ) {
 
     $payload = apply_filters( "laskuhari_stock_update_payload", $payload, $product );
 
-    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
+    $payload = json_encode( $payload, laskuhari_json_flag() );
 
     $response = laskuhari_api_request( $payload, $api_url, "Stock update" );
 
@@ -1344,7 +1354,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
 
     $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order_id );
-    $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
+    $payload = json_encode( $payload, laskuhari_json_flag() );
     
     $response = laskuhari_api_request( $payload, $api_url, "Create invoice", "json", false );
 
@@ -1365,7 +1375,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     if( is_array( $response ) ) {
-        $response = json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
+        $response = json_encode( $response, laskuhari_json_flag() );
     }
 
     if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
@@ -1397,7 +1407,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         }
 
     } else {
-        $error_notice = 'Laskun luominen Laskuhariin epäonnistui: ' . json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
+        $error_notice = 'Laskun luominen Laskuhariin epäonnistui: ' . json_encode( $response, laskuhari_json_flag() );
         $order->add_order_note( $error_notice );
 
         return array(
@@ -1524,7 +1534,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $payload = apply_filters( "laskuhari_send_invoice_payload", $payload, $order_id, $invoice_id );
     
-        $payload = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
+        $payload = json_encode( $payload, laskuhari_json_flag() );
     
         $response = laskuhari_api_request( $payload, $api_url, "Send invoice", "json", false );
 
@@ -1548,7 +1558,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         }
 
         if( is_array( $response ) ) {
-            $response = json_encode( $response, JSON_INVALID_UTF8_SUBSTITUTE );
+            $response = json_encode( $response, laskuhari_json_flag() );
         }
 
         if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
