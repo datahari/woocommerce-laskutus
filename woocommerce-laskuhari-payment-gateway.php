@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.0.2
+Version: 1.0.3
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -15,7 +15,7 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-$laskuhari_plugin_version = "1.0.2";
+$laskuhari_plugin_version = "1.0.3";
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
@@ -624,8 +624,9 @@ function laskuhari_metabox_html( $post ) {
     $lasku_luotu = $tiladata['lasku_luotu'];
 
     $maksutapa = get_post_meta( $post->ID, '_payment_method', true );
+    $maksutapa_ei_laskuhari = $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU";
 
-    if( $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU" ) {
+    if( $maksutapa_ei_laskuhari ) {
         echo '<b>' . __( 'HUOM! Tämän tilauksen maksutapa ei ole Laskuhari.', 'laskuhari' ) . '</b><br />';
         echo '<a class="laskuhari-nappi" href="#" onclick="if(confirm(\'HUOM! Tämän tilauksen maksutapa ei ole Laskuhari! Haluatko jatkaa?\')) {jQuery(\'.laskuhari-laskutoiminnot\').show(); jQuery(this).hide();} return false;">Näytä laskutoiminnot</a>';
         echo '<div class="laskuhari-laskutoiminnot" style="display: none">';
@@ -636,39 +637,38 @@ function laskuhari_metabox_html( $post ) {
     $order = wc_get_order( $post->ID );
     if( $order && $order->get_status() != "processing" ) {
         echo __( 'Vaihda tilauksen status Käsittelyssä-tilaan, jotta voit laskuttaa sen.', 'laskuhari' );
-        return false;
-    }
-
-    $edit_link = get_edit_post_link( $post );
-    if( $lasku_luotu ) {
-        $laskuhari = $laskuhari_gateway_object;
-
-        $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
-        if( $invoice_id ) {
-            $open_link = '#/lasku/' . $invoice_id;
-        } else {
-            $open_link = '#/laskunro/' . $laskunumero;
-        }
-
-        echo '
-        <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
-        <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
-        <a class="laskuhari-nappi laheta-lasku" href="#" onclick="jQuery(\'#laskuhari-laheta-lasku-lomake\').slideToggle(); return false;">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
-        <div id="laskuhari-laheta-lasku-lomake" style="display: none;">';
-
-            $laskuhari->lahetystapa_lomake( $post->ID );
-
-            echo '<input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_lahetys(); return false;" />
-        </div>
-        <a class="laskuhari-nappi uusi-lasku" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\''.__( 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?', 'laskuhari' ).'\')) return false;">Tee uusi lasku</a>
-        <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
     } else {
-        echo '
-        <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\'' . __( 'Haluatko varmasti luoda laskun? Laskua ei vielä lähetetä.', 'laskuhari' ) . '\')) return false;">' . __( 'Tee lasku', 'laskuhari' ) . '</a>
-        <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=send" onclick="if(!confirm(\'' . __( 'Haluatko varmasti laskuttaa tämän tilauksen?', 'laskuhari' ) . '\')) return false;">' . __( 'Tee ja lähetä lasku', 'laskuhari' ) . '</a>';
+        $edit_link = get_edit_post_link( $post );
+        if( $lasku_luotu ) {
+            $laskuhari = $laskuhari_gateway_object;
+    
+            $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
+            if( $invoice_id ) {
+                $open_link = '#/lasku/' . $invoice_id;
+            } else {
+                $open_link = '#/laskunro/' . $laskunumero;
+            }
+    
+            echo '
+            <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
+            <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi laheta-lasku" href="#" onclick="jQuery(\'#laskuhari-laheta-lasku-lomake\').slideToggle(); return false;">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
+            <div id="laskuhari-laheta-lasku-lomake" style="display: none;">';
+    
+                $laskuhari->lahetystapa_lomake( $post->ID );
+    
+                echo '<input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_lahetys(); return false;" />
+            </div>
+            <a class="laskuhari-nappi uusi-lasku" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\''.__( 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?', 'laskuhari' ).'\')) return false;">Tee uusi lasku</a>
+            <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
+        } else {
+            echo '
+            <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\'' . __( 'Haluatko varmasti luoda laskun? Laskua ei vielä lähetetä.', 'laskuhari' ) . '\')) return false;">' . __( 'Tee lasku', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=send" onclick="if(!confirm(\'' . __( 'Haluatko varmasti laskuttaa tämän tilauksen?', 'laskuhari' ) . '\')) return false;">' . __( 'Tee ja lähetä lasku', 'laskuhari' ) . '</a>';
+        }
     }
 
-    if( $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU" ) {
+    if( $maksutapa_ei_laskuhari ) {
         echo '</div>';
     }
 }
