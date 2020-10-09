@@ -688,11 +688,11 @@ function laskuhari_metabox_html( $post ) {
     
             $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
             if( $invoice_id ) {
-                $open_link = '#/lasku/' . $invoice_id;
+                $open_link = '?avaa=' . $invoice_id;
                 $status = laskuhari_order_payment_status( $order->get_id(), $invoice_id );
                 echo '<div class="laskuhari-payment-status '.$status['payment_status_class'].'">'.esc_html( $status['payment_status_name'] ).'</div>';
             } else {
-                $open_link = '#/laskunro/' . $laskunumero;
+                $open_link = '?avaanro=' . $laskunumero;
                 $status = false;
             }
     
