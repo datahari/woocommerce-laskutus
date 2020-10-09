@@ -451,7 +451,16 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
                 return;
             }
         }
-        echo '<span class="order-status status-'.$status.'"><span>' . __( $data['tila'], 'laskuhari' ) . '</span></span>';
+
+        $status_name = $data['tila'];
+
+        $payment_status = laskuhari_order_payment_status( $post->ID );
+
+        if( "laskuhari-paid" === $payment_status['payment_status_class'] ) {
+            $status_name = strtoupper( $payment_status['payment_status_name'] );
+        }
+
+        echo '<span class="order-status status-'.$status.' '.$payment_status['payment_status_class'].'"><span>' . __( $status_name, 'laskuhari' ) . '</span></span>';
     }
 }
 
@@ -607,6 +616,41 @@ function laskuhari_invoice_status( $order_id ) {
     ];
 }
 
+function laskuhari_order_payment_status( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    $last_updated = get_post_meta( $order_id, '_laskuhari_payment_status_checked', true );
+
+    $time_now = time();
+
+    if ( $time_now > $last_updated + 30 ) {
+        $status = laskuhari_get_invoice_payment_status( $invoice_id );
+        if ( isset( $status['maksustatus']['koodi'] ) ) {
+            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_checked', $time_now );
+        }
+    }
+
+    $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
+    $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
+
+    if ( "1" === $payment_status ) {
+        $payment_status_class = "laskuhari-paid";
+    } else {
+        $payment_status_class = "laskuhari-not-paid";
+    }
+
+    return array(
+        "payment_status_class" => $payment_status_class,
+        "payment_status_name"  => $payment_status_name,
+    );
+}
+
+
 // Luo metaboxin HTML
 
 function laskuhari_metabox_html( $post ) {
@@ -645,8 +689,11 @@ function laskuhari_metabox_html( $post ) {
             $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
             if( $invoice_id ) {
                 $open_link = '#/lasku/' . $invoice_id;
+                $status = laskuhari_order_payment_status( $order->get_id(), $invoice_id );
+                echo '<div class="laskuhari-payment-status '.$status['payment_status_class'].'">'.esc_html( $status['payment_status_name'] ).'</div>';
             } else {
                 $open_link = '#/laskunro/' . $laskunumero;
+                $status = false;
             }
     
             echo '
@@ -887,6 +934,17 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_number . "/get-id-by-number";
     $response = laskuhari_api_request( array(), $api_url, "Get ID by number" );
     return intval( $response['invoice_id'] );
+}
+
+function laskuhari_get_invoice_payment_status( $invoice_id ) {
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
+    $response = laskuhari_api_request( array(), $api_url, "Get status" );
+
+    if( $response['status'] === "OK" ) {
+        return $response['vastaus'];
+    }
+
+    return false;
 }
 
 function laskuhari_invoice_id_by_order( $orderid ) {
