@@ -29,6 +29,7 @@ a.button.tips.laskuhari-invoice img {
 }
 
 .laskuhari-payment-status,
+.laskuhari-payment-terms-name,
 .laskuhari-tila {
     background: #ccc;
     color: #656565;
@@ -58,10 +59,15 @@ a.button.tips.laskuhari-invoice img {
     color: #fff;
 }
 
-.laskuhari-payment-status {
+.laskuhari-payment-status,
+.laskuhari-payment-terms-name {
     font-size: 0.8em;
     text-transform: uppercase;
     font-weight: bold;
+}
+
+.laskuhari-payment-terms-name {
+    background: #d2d2d2;
 }
 
 .laskuhari-payment-status.laskuhari-paid {
@@ -105,7 +111,7 @@ a.button.tips.laskuhari-invoice img {
     margin-top: 13px;
 }
 
-#laskuhari-laheta-lasku-lomake {
+.laskuhari-pikkulomake {
     margin: 5px;
     padding: 5px;
     border-radius: 5px;
@@ -114,8 +120,9 @@ a.button.tips.laskuhari-invoice img {
     width: calc(100% - 10px);
 }
 
-#laskuhari-laheta-lasku-lomake input,
-#laskuhari-laheta-lasku-lomake select {
+.laskuhari-pikkulomake input,
+.laskuhari-pikkulomake select {
     width: 100%;
     box-sizing: border-box;
+    margin-bottom: 5px;
 }

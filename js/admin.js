@@ -38,12 +38,14 @@ function laskuhari_admin_lahetys() {
 	}
 
 	var laskutustapa      = $('#laskuhari-laskutustapa').val();
+	var maksuehto         = $('#laskuhari-maksuehto').val();
 	var ytunnus           = $('#laskuhari-ytunnus').val();
 	var verkkolaskuosoite = $('#laskuhari-verkkolaskuosoite').val();
 	var valittajatunnus   = $('#laskuhari-valittaja').val();
 
 	window.location.href = urli+
 		'laskuhari_send_invoice=current&laskuhari-laskutustapa='+encodeURIComponent(laskutustapa)+
+		'&laskuhari-maksuehto='+encodeURIComponent(maksuehto)+
 		'&laskuhari-ytunnus='+encodeURIComponent(ytunnus)+
 		'&laskuhari-verkkolaskuosoite='+encodeURIComponent(verkkolaskuosoite)+
 		'&laskuhari-valittaja='+encodeURIComponent(valittajatunnus);
