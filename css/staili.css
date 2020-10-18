@@ -126,3 +126,8 @@ a.button.tips.laskuhari-invoice img {
     box-sizing: border-box;
     margin-bottom: 5px;
 }
+
+#place_order.laskuhari-place-order-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }

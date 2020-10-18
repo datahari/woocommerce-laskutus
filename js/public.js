@@ -13,9 +13,9 @@ var laskuhari_viime_maksutapa = false;
     function laskuhari_tarkista_laskutustapa(){
         if( $("#payment_method_laskuhari").is(":checked") ) {
             if( $("#laskuhari-laskutustapa").val() == "" || ($("#laskuhari-laskutustapa").val() == "verkkolasku" && $("#laskuhari-ytunnus").val() == "")) {
-                $("#place_order:enabled").prop("disabled", true).addClass("laskuhari-place-order-disabled");
+                $("#place_order").addClass("laskuhari-place-order-disabled");
             } else {
-                $("#place_order.laskuhari-place-order-disabled").prop("disabled", false).removeClass("laskuhari-place-order-disabled");
+                $("#place_order").removeClass("laskuhari-place-order-disabled");
             }
         }
     }
@@ -25,6 +25,16 @@ var laskuhari_viime_maksutapa = false;
         });
         $("body").bind("updated_checkout", function(){
             laskuhari_tarkista_laskutustapa();
+        });
+        $(".woocommerce-checkout").on("checkout_place_order", function() {
+            if( $(".laskuhari-place-order-disabled").length ) {
+                if( $("#laskuhari-laskutustapa").val() == "" ) {
+                    alert("Valitse laskutustapa");
+                } else if( $("#laskuhari-laskutustapa").val() == "verkkolasku" && $("#laskuhari-ytunnus").val() == "" ) {
+                    alert("Syötä vähintään Y-tunnus verkkolaskun lähetystä varten");
+                }
+                return false;
+            }
         });
         $("body").on("change click", "#payment_method_laskuhari, #payment", function() {
             laskuhari_tarkista_laskutustapa();
