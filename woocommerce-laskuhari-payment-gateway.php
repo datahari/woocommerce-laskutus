@@ -1000,8 +1000,10 @@ function laskuhari_get_payment_terms() {
     return false;
 }
 
-function laskuhari_get_payment_terms_name( $term_id ) {
-    $terms = laskuhari_get_payment_terms();
+function laskuhari_get_payment_terms_name( $term_id, $terms = null ) {
+    if( null === $terms ) {
+        $terms = laskuhari_get_payment_terms();
+    }
 
     if ( is_array( $terms ) ) {
         foreach ( $terms as $term ) {
