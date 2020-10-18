@@ -752,7 +752,7 @@ function laskuhari_metabox_html( $post ) {
         <a class="laskuhari-nappi uusi-lasku" href="#" onclick="jQuery(\'#laskuhari-tee-lasku-lomake\').slideToggle(); return false;">'.__( $luo_teksti, 'laskuhari' ).'</a>
         <div id="laskuhari-tee-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;">
             '.$payment_terms_select.'
-            <input type="button" value="'.__( $luo_teksti, 'laskuhari' ).'" onclick="if(!confirm(\''.__( $luo_varoitus, 'laskuhari' ).'\')) {return false;} window.location.href=\'' . $edit_link . '&laskuhari=create&laskuhari-maksuehto=\'+jQuery(\'#laskuhari-maksuehto\').val();" />
+            <input type="button" value="'.__( $luo_teksti, 'laskuhari' ).'" onclick="if(!confirm(\''.__( $luo_varoitus, 'laskuhari' ).'\')) {return false;} laskuhari_loading(); window.location.href=\'' . $edit_link . '&laskuhari=create&laskuhari-maksuehto=\'+jQuery(\'#laskuhari-maksuehto\').val();" />
         </div>';
     }
 
