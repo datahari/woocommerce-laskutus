@@ -94,7 +94,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$laskutustapa = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
 		$valittaja = get_post_meta( $order_id, '_laskuhari_valittaja', true );
 		?>
-			<select onchange="laskuhari_tarkista_verkkolaskuosoite(jQuery);" id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
+			<select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
 				<option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
 				<?php if( $this->email_lasku_kaytossa ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
 				<?php if( $this->verkkolasku_kaytossa ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
@@ -158,20 +158,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		?>
 		<div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
 		<input type="text" id="laskuhari-viitteenne" name="laskuhari-viitteenne" />
-		<script>
-		(function($) {
-			$(".verkkolasku-pakollinen").bind("keyup change", function(){
-				laskuhari_tarkista_laskutustapa($);
-			});
-			$("#payment_method_laskuhari, #payment").on("change click", function() {
-				laskuhari_tarkista_laskutustapa($);
-				if( $("#payment_method_laskuhari").prop("checked") != laskuhari_viime_maksutapa ) {
-					$('body').trigger('update_checkout');
-					laskuhari_viime_maksutapa = $("#payment_method_laskuhari").prop("checked");
-				}
-			});
-		})(jQuery);
-		</script>
 		<?php
 	}
 
