@@ -17,6 +17,9 @@ Author URI: http://shamokaldarpon.com/
 
 $laskuhari_plugin_version = "1.0.3";
 
+$__laskuhari_api_query_count = 0;
+$__laskuhari_api_query_limit = 2;
+
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
 add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
@@ -631,18 +634,12 @@ function laskuhari_order_payment_status( $order_id, $invoice_id = null ) {
         $invoice_id = laskuhari_invoice_id_by_order( $order_id );
     }
 
-    $last_updated = get_post_meta( $order_id, '_laskuhari_payment_status_checked', true );
+    $status = laskuhari_get_invoice_payment_status( $invoice_id );
 
-    $time_now = time();
-
-    if ( $time_now > $last_updated + 30 ) {
-        $status = laskuhari_get_invoice_payment_status( $invoice_id );
-        if ( isset( $status['maksustatus']['koodi'] ) ) {
-            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_checked', $time_now );
-        }
+    if ( isset( $status['maksustatus']['koodi'] ) ) {
+        update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
+        update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
+        update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
     }
 
     $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
@@ -979,10 +976,34 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
 }
 
 function laskuhari_get_invoice_payment_status( $invoice_id ) {
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
+    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
+
+    // get saved payment status for invoice
+    $saved_status = get_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status" );
+    if( $saved_status ) {
+        $saved_time = get_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked" );
+        // return saved payment status only if it was checked today
+        if( $saved_time >= date( "Y-m-d" ) ) {
+            return $saved_status;
+        }
+    }
+
+    // don't make too many api queries on one page load as it slows execution time
+    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
+        return $saved_status ? $saved_status : false;
+    }
+
+    // get invoice payment status from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
     $response = laskuhari_api_request( array(), $api_url, "Get status" );
+    $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
+        // save payment status and status check time to database
+        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status", $response['vastaus'] );
+        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked", date( "Y-m-d H:i:s" ) );
+
+        // return payment status
         return $response['vastaus'];
     }
 
@@ -990,11 +1011,25 @@ function laskuhari_get_invoice_payment_status( $invoice_id ) {
 }
 
 function laskuhari_get_payment_terms() {
+    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
+
+    $saved_terms = get_option( "_laskuhari_payment_terms" );
+    if( $saved_terms ) {
+        return apply_filters( "laskuhari_payment_terms", $saved_terms );
+    }
+
+    // don't make too many api queries on one page load as it slows execution time
+    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
+        return false;
+    }
+
     $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
     $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
+    $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
-        return $response['vastaus'];
+        update_option( "_laskuhari_payment_terms", $response['vastaus'] );
+        return apply_filters( "laskuhari_payment_terms", $response['vastaus'] );
     }
 
     return false;
