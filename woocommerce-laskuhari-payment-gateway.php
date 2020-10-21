@@ -1000,8 +1000,8 @@ function laskuhari_get_invoice_payment_status( $invoice_id ) {
 
     if( $response['status'] === "OK" ) {
         // save payment status and status check time to database
-        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status", $response['vastaus'] );
-        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked", date( "Y-m-d H:i:s" ) );
+        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status", $response['vastaus'], false );
+        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked", date( "Y-m-d H:i:s" , false) );
 
         // return payment status
         return $response['vastaus'];
@@ -1028,7 +1028,7 @@ function laskuhari_get_payment_terms() {
     $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
-        update_option( "_laskuhari_payment_terms", $response['vastaus'] );
+        update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
         return apply_filters( "laskuhari_payment_terms", $response['vastaus'] );
     }
 
