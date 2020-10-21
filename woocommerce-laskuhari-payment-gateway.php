@@ -98,9 +98,32 @@ function laskuhari_json_flag() {
 
 function laskuhari_user_meta() {
     $custom_meta_fields = array();
-    $custom_meta_fields['laskuhari_laskutusasiakas'] = 'Laskutusasiakas';
+    $custom_meta_fields = array(
+        array(
+            "name"  => "laskuhari_laskutusasiakas",
+            "title" => __( 'Laskutusasiakas', 'laskuhari' ),
+            "type"  => "checkbox"
+        ),
+        array(
+            "name"    => "laskuhari_payment_terms_default",
+            "title"   => __( 'Maksuehto', 'laskuhari' ),
+            "type"    => "select",
+            "options" => apply_filters( "laskuhari_payment_terms_select_box", laskuhari_get_payment_terms() )
+        )
+    );
 
     return $custom_meta_fields;
+}
+
+add_filter( "laskuhari_payment_terms_select_box", "laskuhari_payment_terms_select_box" );
+function laskuhari_payment_terms_select_box( $terms ) {
+    $output = array(
+        "" => __( "Oletus", "laskuhari" )
+    );
+    foreach( $terms as $term ) {
+        $output[$term['id']] = $term['nimi'];
+    }
+    return $output;
 }
 
 function laskuhari_user_profile_additional_info( $user ) {
@@ -110,26 +133,51 @@ function laskuhari_user_profile_additional_info( $user ) {
     $meta_number = 0;
     $custom_meta_fields = laskuhari_user_meta();
 
-    foreach ( $custom_meta_fields as $meta_field_name => $meta_disp_name ) {
+    foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
 
-        if ( get_the_author_meta( $meta_field_name, $user->ID ) == "yes" ) {
-            $author_meta_checked = "checked";
-        } else {
-            $author_meta_checked = "";
-        }
+        $meta_disp_name  = $meta_field['title'];
+        $meta_field_name = $meta_field['name'];
 
-        echo '
-        <tr>
-            <th>' . $meta_disp_name . '</th>
-            <td>
-                <input type="checkbox" name="' . $meta_field_name . '" 
-                       id="' . $meta_field_name . '" 
-                       value="yes" ' . $author_meta_checked . ' /> 
-                <label for="' . $meta_field_name . '">Kyllä</label><br />
-                <span class="description"></span>
-            </td>
-        </tr>';
+        $current_value = get_the_author_meta( $meta_field_name, $user->ID );
+
+        if( "checkbox" === $meta_field['type'] ) {
+            if ( "yes" === $current_value ) {
+                $author_meta_checked = "checked";
+            } else {
+                $author_meta_checked = "";
+            }
+    
+            echo '
+            <tr>
+                <th>' . $meta_disp_name . '</th>
+                <td>
+                    <input type="checkbox" name="' . $meta_field_name . '" 
+                           id="' . $meta_field_name . '" 
+                           value="yes" ' . $author_meta_checked . ' /> 
+                    <label for="' . $meta_field_name . '">Kyllä</label><br />
+                    <span class="description"></span>
+                </td>
+            </tr>';
+        } elseif( "select" === $meta_field['type'] ) {
+            $options = '';
+            foreach( $meta_field['options'] as $id => $value ) {
+                $selected = ($id == $current_value ? ' selected' : '');
+                $options .= '<option value="' . esc_attr( $id ) . '"' . $selected . '>' . esc_html( $value ) . '</option>';
+            }
+
+            echo '
+            <tr>
+                <th>' . $meta_disp_name . '</th>
+                <td>
+                    <select name="' . $meta_field_name . '" 
+                            id="' . $meta_field_name . '">
+                        '.$options.'
+                    </select><br />
+                    <span class="description"></span>
+                </td>
+            </tr>';
+        }
     }
 
     echo '</table>';
@@ -144,10 +192,16 @@ function laskuhari_update_user_meta( $user_id ) {
     $meta_number = 0;
     $custom_meta_fields = laskuhari_user_meta();
 
-    foreach ( $custom_meta_fields as $meta_field_name => $meta_disp_name ) {
+    foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
-        update_usermeta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
+        $meta_field_name = $meta_field['name'];
+
+        update_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
     }
+}
+
+function laskuhari_get_customer_payment_terms_default( $customerID ) {
+    return get_the_author_meta( "laskuhari_payment_terms_default", $customerID );
 }
 
 function laskuhari_get_vat_rate( $product = null ) {
@@ -693,10 +747,17 @@ function laskuhari_metabox_html( $post ) {
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
             $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).'</b><br />'.
                                     '<select name="laskuhari-maksuehto" id="laskuhari-maksuehto"><option value="">-- Valitse maksuehto --</option>';
+
+            $payment_terms_default = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
+
+            if( ! $payment_terms_default ) {
+                $payment_terms_default = $maksuehto;
+            }
+
             foreach( $payment_terms as $term ) {
-                if( $term['oletus'] && ! $maksuehto ) {
+                if( $term['oletus'] && ! $payment_terms_default ) {
                     $default = ' selected';
-                } elseif( $term['id'] == $maksuehto ) {
+                } elseif( $term['id'] == $payment_terms_default ) {
                     $default = ' selected';
                 } else {
                     $default = '';
