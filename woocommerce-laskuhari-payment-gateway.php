@@ -629,12 +629,9 @@ function laskuhari_invoice_status( $order_id ) {
     ];
 }
 
-function laskuhari_order_payment_status( $order_id, $invoice_id = null ) {
-    if ( null === $invoice_id ) {
-        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
-    }
+function laskuhari_order_payment_status( $order_id ) {
 
-    $status = laskuhari_get_invoice_payment_status( $invoice_id );
+    $status = laskuhari_get_invoice_payment_status( $order_id );
 
     if ( isset( $status['maksustatus']['koodi'] ) ) {
         update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
@@ -975,13 +972,17 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
     return intval( $response['invoice_id'] );
 }
 
-function laskuhari_get_invoice_payment_status( $invoice_id ) {
+function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
 
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
     // get saved payment status for invoice
-    $saved_status = get_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status" );
-    if( $saved_status ) {
-        $saved_time = get_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked" );
+    $saved_status = get_post_meta( $order_id, "_laskuhari_payment_status", true );
+    if( false !== $saved_status ) {
+        $saved_time = get_post_meta( $order_id, "_laskuhari_payment_status_checked", true );
         // return saved payment status only if it was checked today
         if( $saved_time >= date( "Y-m-d" ) ) {
             return $saved_status;
@@ -1000,8 +1001,8 @@ function laskuhari_get_invoice_payment_status( $invoice_id ) {
 
     if( $response['status'] === "OK" ) {
         // save payment status and status check time to database
-        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status", $response['vastaus'], false );
-        update_option( "_laskuhari_invoice_" . $invoice_id . "_payment_status_checked", date( "Y-m-d H:i:s" , false) );
+        update_post_meta( $order_id, "_laskuhari_payment_status", $response['vastaus'] );
+        update_post_meta( $order_id, "_laskuhari_payment_status_checked", date( "Y-m-d H:i:s" ) );
 
         // return payment status
         return $response['vastaus'];
