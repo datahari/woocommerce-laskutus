@@ -548,9 +548,9 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
 
 function laskuhari_update_payment_terms_meta( $order_id ) {
     if ( is_admin() && isset( $_REQUEST['laskuhari-maksuehto'] ) ) {
-        update_post_meta( $order_id, '_laskuhari_maksuehto', sanitize_text_field( $_REQUEST['laskuhari-maksuehto'] ) );
+        update_post_meta( $order_id, '_laskuhari_payment_terms', sanitize_text_field( $_REQUEST['laskuhari-maksuehto'] ) );
         $payment_terms_name = laskuhari_get_payment_terms_name( $_REQUEST['laskuhari-maksuehto'] );
-        update_post_meta( $order_id, '_laskuhari_maksuehto_nimi', sanitize_text_field( $payment_terms_name ) );
+        update_post_meta( $order_id, '_laskuhari_payment_terms_name', sanitize_text_field( $payment_terms_name ) );
     }
 }
 
@@ -675,8 +675,8 @@ function laskuhari_metabox_html( $post ) {
     $lasku_luotu = $tiladata['lasku_luotu'];
 
     $maksutapa     = get_post_meta( $post->ID, '_payment_method', true );
-    $maksuehto     = get_post_meta( $post->ID, '_laskuhari_maksuehto', true );
-    $maksuehtonimi = get_post_meta( $post->ID, '_laskuhari_maksuehto_nimi', true );
+    $maksuehto     = get_post_meta( $post->ID, '_laskuhari_payment_terms', true );
+    $maksuehtonimi = get_post_meta( $post->ID, '_laskuhari_payment_terms_name', true );
     $maksutapa_ei_laskuhari = $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU";
 
     if( $maksutapa_ei_laskuhari ) {
@@ -1285,7 +1285,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
         $maksuehto = $_REQUEST['laskuhari-maksuehto'];
     } else {
-        $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_maksuehto', true );
+        $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
     }
 
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
