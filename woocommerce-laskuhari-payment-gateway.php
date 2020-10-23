@@ -777,7 +777,13 @@ function laskuhari_metabox_html( $post ) {
             if( $invoice_id ) {
                 $open_link = '?avaa=' . $invoice_id;
                 $status = laskuhari_order_payment_status( $order->get_id(), $invoice_id );
-                echo '<div class="laskuhari-payment-status '.$status['payment_status_class'].'">'.esc_html( $status['payment_status_name'] ).'</div>';
+
+                $update_title = __( 'Päivitä', 'laskuhari' );
+                $update_link  = '<a href="'.$edit_link.'&laskuhari_action=update_metadata"
+                                    class="laskuhari-update-payment-status"
+                                    title="'.$update_title.'">&#8635;</a>';
+
+                echo '<div class="laskuhari-payment-status '.$status['payment_status_class'].'">'.esc_html( $status['payment_status_name'] ).$update_link.'</div>';
             } else {
                 $open_link = '?avaanro=' . $laskunumero;
                 $status = false;
@@ -896,16 +902,30 @@ function laskuhari_actions() {
         laskuhari_go_back( $lh );
         exit;
     }
+
+    // update saved metadata retrieved through the API
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "update_metadata" ) {
+        // reset payment status metadata
+        update_post_meta( $_GET['post'], "_laskuhari_payment_status", "" );
+        update_post_meta( $_GET['post'], "_laskuhari_payment_status_checked", "" );
+
+        // update payment status metadata
+        laskuhari_get_invoice_payment_status( $_GET['post'] );
+
+        // redirect back
+        laskuhari_go_back();
+        exit;
+    }
 }
 
-function laskuhari_go_back( $lh, $url = false ) {
+function laskuhari_go_back( $lh = false, $url = false ) {
     wp_redirect( laskuhari_back_url( $lh, $url ) );
     exit;
 }
 
-function laskuhari_back_url( $lh, $url = false ) {
+function laskuhari_back_url( $lh = false, $url = false ) {
 
-    if( isset($lh[0]) && is_array( $lh[0] ) ) {
+    if( is_array( $lh )&& isset( $lh[0] ) && is_array( $lh[0] ) ) {
         $data = array(
             "lahetetty" => array(),
             "luotu"     => array(),
@@ -927,7 +947,7 @@ function laskuhari_back_url( $lh, $url = false ) {
         'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 
         'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa',
         'laskuhari-maksuehto', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite',
-        'laskuhari-valittaja' 
+        'laskuhari-valittaja', 'laskuhari_action'
     );
 
     $back = remove_query_arg(
@@ -935,15 +955,17 @@ function laskuhari_back_url( $lh, $url = false ) {
         $url
     );
 
-    $back = add_query_arg(
-        array(
-            'laskuhari_luotu'     => $data["luotu"],
-            'laskuhari_lahetetty' => $data["lahetetty"],
-            'laskuhari_notice'    => $data["notice"],
-            'laskuhari_success'   => $data["success"]
-        ),
-        $back
-    );
+    if( is_array( $data ) ) {
+        $back = add_query_arg(
+            array(
+                'laskuhari_luotu'     => $data["luotu"],
+                'laskuhari_lahetetty' => $data["lahetetty"],
+                'laskuhari_notice'    => $data["notice"],
+                'laskuhari_success'   => $data["success"]
+            ),
+            $back
+        );
+    }
 
     return $back;
 }
