@@ -1372,6 +1372,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
     }
 
+    if( ! $maksuehto ) {
+        $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
+    }
+
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
     laskuhari_update_payment_terms_meta( $order->get_id() );
@@ -1385,9 +1389,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         "viitteenne" => $viitteenne,
         "viitteemme" => "",
         "tilausnumero" => $order->get_order_number(),
-        "maksuehto" => [
-            "id" => $maksuehto
-        ],
         "metatiedot" => [
           "lahetetty" => false,
           "toimitettu" => false,
@@ -1425,6 +1426,12 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "wc_order_id" => $order->get_id()
         ]
     ];
+
+    if( $maksuehto ) {
+        $payload["maksuehto"] = [
+            "id" => $maksuehto
+        ];
+    }
 
     $laskurivit = [];
 
