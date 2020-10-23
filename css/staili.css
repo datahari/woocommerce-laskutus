@@ -37,6 +37,16 @@ a.button.tips.laskuhari-invoice img {
     box-sizing: border-box;
     margin-bottom: 5px;
     text-align: center;
+    position: relative;
+}
+
+.laskuhari-update-payment-status {
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 1.5em;
+    position: absolute;
+    top: 2px;
+    right: 5px;
 }
 
 .laskuhari-laskunumero {
@@ -130,4 +140,4 @@ a.button.tips.laskuhari-invoice img {
 #place_order.laskuhari-place-order-disabled {
     cursor: not-allowed;
     opacity: 0.6;
-  }
+}
