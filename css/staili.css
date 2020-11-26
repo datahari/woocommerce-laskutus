@@ -69,6 +69,20 @@ a.button.tips.laskuhari-invoice img {
     color: #fff;
 }
 
+#laskuhari-create-and-send-method {
+    display: none;
+}
+
+#laskuhari-send-check {
+    width: auto !important;
+    margin: 3px 3px 8px 1px;
+}
+
+#laskuhari-send-check-label {
+    position: relative;
+    top: -2px;
+}
+
 .laskuhari-payment-status,
 .laskuhari-payment-terms-name {
     font-size: 0.8em;
