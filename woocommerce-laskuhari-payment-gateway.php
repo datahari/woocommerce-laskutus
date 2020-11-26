@@ -623,7 +623,7 @@ function laskuhari_reset_metadata( $order_id ) {
 
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
 
-function laskuhari_update_order_meta( $order_id)  {
+function laskuhari_update_order_meta( $order_id )  {
     laskuhari_update_payment_terms_meta( $order_id );
 
     if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
