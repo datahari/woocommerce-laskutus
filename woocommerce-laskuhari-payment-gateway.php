@@ -780,11 +780,14 @@ function laskuhari_metabox_html( $post ) {
             $payment_terms_select .= '</select>';
         }
         
-        $edit_link = get_edit_post_link( $post );
-        $luo_teksti = "Tee lasku";
-        $luo_varoitus = 'Haluatko varmasti luoda laskun tästä tilauksesta?';
+        $edit_link           = get_edit_post_link( $post );
+        $luo_teksti          = "Luo lasku";
+        $luo_varoitus        = 'Haluatko varmasti luoda laskun tästä tilauksesta?';
+        $luo_ja_laheta       = __( "Luo ja lähetä lasku", "laskuhari" );
+        $luo_laheta_varoitus = __( "Haluatko varmasti laskuttaa tämän tilauksen?", "laskuhari" );
+
+        $laskuhari = $laskuhari_gateway_object;
         if( $lasku_luotu ) {
-            $laskuhari = $laskuhari_gateway_object;
     
             $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
             if( $invoice_id ) {
@@ -809,24 +812,28 @@ function laskuhari_metabox_html( $post ) {
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
             <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
-            <a class="laskuhari-nappi laheta-lasku" href="#" onclick="jQuery(\'#laskuhari-laheta-lasku-lomake\').slideToggle(); return false;">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
-            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;">';
-    
-                $laskuhari->lahetystapa_lomake( $post->ID );
-    
-                echo '<input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_lahetys(); return false;" />
+            <a class="laskuhari-nappi laheta-lasku" href="#">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
+            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'send\'); return false;" />
             </div>
             <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
 
-            $luo_teksti = "Tee uusi lasku";
+            $luo_teksti = "Luo uusi lasku";
             $luo_varoitus = 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?';
+            $luo_laheta_varoitus = __( "Haluatko varmasti luoda uuden laskun uudella laskunumerolla?", "laskuhari" );
         }
 
         echo '
-        <a class="laskuhari-nappi uusi-lasku" href="#" onclick="jQuery(\'#laskuhari-tee-lasku-lomake\').slideToggle(); return false;">'.__( $luo_teksti, 'laskuhari' ).'</a>
+        <a class="laskuhari-nappi uusi-lasku" href="#">'.__( $luo_teksti, 'laskuhari' ).'</a>
         <div id="laskuhari-tee-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;">
             '.$payment_terms_select.'
-            <input type="button" value="'.__( $luo_teksti, 'laskuhari' ).'" onclick="if(!confirm(\''.__( $luo_varoitus, 'laskuhari' ).'\')) {return false;} laskuhari_loading(); window.location.href=\'' . $edit_link . '&laskuhari=create&laskuhari-maksuehto=\'+jQuery(\'#laskuhari-maksuehto\').val();" />
+            <input type="checkbox" id="laskuhari-send-check" /> <label for="laskuhari-send-check" id="laskuhari-send-check-label">Lähetä</label><br />
+            <div id="laskuhari-create-and-send-method">
+                <div id="lahetystapa-lomake2">';
+                $laskuhari->lahetystapa_lomake( $post->ID );
+        echo '</div>
+                <input type="button" value="'.$luo_ja_laheta.'" id="laskuhari-create-and-send" onclick="if(!confirm(\''.$luo_laheta_varoitus.'\')) {return false;} laskuhari_admin_action(\'send\');" />         
+            </div>
+            <input type="button" id="laskuhari-create-only" value="'.__( $luo_teksti, 'laskuhari' ).'" onclick="if(!confirm(\''.__( $luo_varoitus, 'laskuhari' ).'\')) {return false;} laskuhari_admin_action(\'create\');" />
         </div>';
     }
 

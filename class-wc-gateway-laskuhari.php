@@ -94,6 +94,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$laskutustapa = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
 		$valittaja = get_post_meta( $order_id, '_laskuhari_valittaja', true );
 		?>
+			<div id="laskuhari-lahetystapa-lomake">
 			<select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
 				<option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
 				<?php if( $this->email_lasku_kaytossa ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
@@ -144,6 +145,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 						<option value="AABAFI22"<?php echo ($valittaja == "AABAFI22" ? ' selected' : ''); ?>>Ålandsbanken (AABAFI22)</option>
 					</optgroup>
 				</select>
+			</div>
 			</div>
 		<?php
 	}
