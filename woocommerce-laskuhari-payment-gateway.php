@@ -86,6 +86,8 @@ function laskuhari_payment_gateway_load() {
     
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'laskuhari-api.php';
+
 function laskuhari_domain() {
     return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
 }
