@@ -15,6 +15,10 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly
+}
+
 $laskuhari_plugin_version = "1.0.3";
 
 $__laskuhari_api_query_count = 0;
