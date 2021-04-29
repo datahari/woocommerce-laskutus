@@ -48,8 +48,8 @@ function laskuhari_api_handle_request() {
     }
 	
 	// dont parse large requests
-	if( $_SERVER['CONTENT_LENGTH'] > 256 ) {
-		http_response_code( 400 );
+	if( $_SERVER['CONTENT_LENGTH'] > 2560 ) {
+		http_response_code( 413 );
 
 		echo json_encode([
 			"status"  => "ERROR",
