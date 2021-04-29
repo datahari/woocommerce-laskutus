@@ -476,6 +476,29 @@ function laskuhari_update_stock( $product ) {
     return true;
 }
 
+function laskuhari_add_webhook( $event, $url ) {
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/webhooks/";
+
+    $api_url = apply_filters( "laskuhari_webhooks_api_url", $api_url, $event, $url );
+
+    $payload = [
+        "event" => $event,
+		"url" => $url
+    ];
+
+    $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
+
+    $payload = json_encode( $payload, laskuhari_json_flag() );
+
+    $response = laskuhari_api_request( $payload, $api_url, "Add webhook" );
+
+    if( $response === false ) {
+        return false;
+    }
+
+    return true;
+}
+
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
 function laskuhari_register_plugin_links( $links, $file ) {
