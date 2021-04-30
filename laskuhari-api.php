@@ -5,6 +5,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_action( "init", "laskuhari_api_handle_request" );
 
+function laskuhari_api_generate_hash( $uid, $apikey, $request ) {
+    return hash( "sha256", implode( "+", [
+        $uid,
+        $apikey,
+        $request
+    ]) );
+}
+
 function laskuhari_api_handle_request() {
     // check if Laskuhari API is being called
     if( ! isset( $_GET['__laskuhari_api'] ) || $_GET['__laskuhari_api'] !== "true" ) {
@@ -27,18 +35,14 @@ function laskuhari_api_handle_request() {
         exit;
     }
 
-    // check that Api-Key and UID are correct
     $headers = getallheaders();
+    $hash = laskuhari_api_generate_hash( $laskuhari->uid, $laskuhari->apikey, $request );
 
-    if( 
-        ! isset( $headers['X-Api-Key'] ) ||
-        ! isset( $headers['X-UID'] ) ||
-        $headers['X-Api-Key'] !== $laskuhari->apikey ||
-        $headers['X-UID'] !== (string)$laskuhari->uid
-    ) {
-	    http_response_code( 401 );
-		
+    // check that Auth-Key matches
+    if( ! isset( $headers['X-Auth-Key'] ) || $headers['X-Auth-Key'] !== $hash ) {
 		do_action( "laskuhari_unauthorized_api_request" );
+
+	    http_response_code( 401 );
 
         echo json_encode([
             "status"  => "ERROR",
@@ -46,20 +50,19 @@ function laskuhari_api_handle_request() {
         ]);
         exit;
     }
-	
-	// dont parse large requests
-	if( $_SERVER['CONTENT_LENGTH'] > 2560 ) {
-		http_response_code( 413 );
 
-		echo json_encode([
-			"status"  => "ERROR",
-			"message" => "Request size limit exceeded"
-		]);
-		exit;
-	}
+    // check that timestamps are in sync at least 30 seconds
+    if( ! isset( $json['timestamp'] ) || abs( $json['timestamp'] - time() ) > 30 ) {	
+		do_action( "laskuhari_api_request_invalid_timestamp" );
 
-    $request = @file_get_contents( "php://input" );
-    $json = json_decode( $request, true );
+	    http_response_code( 401 );
+
+        echo json_encode([
+            "status"  => "ERROR",
+            "message" => "Blocked possible duplicate request"
+        ]);
+        exit;
+    }
 	
 	do_action( "laskuhari_webhook", $request );
 
