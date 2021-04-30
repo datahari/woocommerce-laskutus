@@ -74,7 +74,8 @@ function laskuhari_api_handle_request() {
     }
 
     // check that timestamps are in sync at least 30 seconds
-    if( ! isset( $json['timestamp'] ) || abs( $json['timestamp'] - time() ) > 30 ) {	
+    $timestamp = $headers['x-timestamp'];
+    if( ! isset( $timestamp ) || abs( $timestamp - time() ) > 30 ) {	
 		do_action( "laskuhari_api_request_invalid_timestamp" );
 
 	    http_response_code( 401 );
