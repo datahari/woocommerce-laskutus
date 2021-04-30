@@ -1232,13 +1232,23 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         return laskuhari_uid_error();
     }
 
+    $auth_key = laskuhari_api_generate_hash(
+        $laskuhari_gateway_object->uid,
+        $laskuhari_gateway_object->apikey,
+        $payload
+    );
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $api_url);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($ch, CURLOPT_TIMEOUT, 100);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
-    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type:application/json',
+        'X-UID:'.$laskuhari_gateway_object->uid,
+        'X-Auth-Key:'.$auth_key,
+        'X-Timestamp:'.time()
+    ]);
     curl_setopt($ch, CURLOPT_POST, TRUE);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
@@ -1246,8 +1256,6 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
     }
-
-    curl_setopt( $ch, CURLOPT_USERPWD, $laskuhari_gateway_object->uid . ":" . $laskuhari_gateway_object->apikey );
 
     $response = curl_exec( $ch );
 
