@@ -21,6 +21,22 @@ function laskuhari_api_handle_request() {
 	
 	do_action( "laskuhari_api_request_received" );
 
+	$content_max_length = apply_filters( "laskuhari_api_content_max_length", 2560 );
+
+	// dont parse large requests
+	if( $_SERVER['CONTENT_LENGTH'] > $content_max_length ) {
+		http_response_code( 413 );
+
+		echo json_encode([
+			"status"  => "ERROR",
+			"message" => "Request size limit exceeded"
+		]);
+		exit;
+	}
+
+    $request = @file_get_contents( "php://input" );
+    $json = json_decode( $request, true );
+
     // initialize Laskuhari Gateway
     $laskuhari = new WC_Gateway_Laskuhari( true );
 
