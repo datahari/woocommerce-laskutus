@@ -16,7 +16,7 @@ Author URI: http://shamokaldarpon.com/
 */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly
+    exit; // Exit if accessed directly
 }
 
 $laskuhari_plugin_version = "1.0.3";
@@ -55,8 +55,8 @@ function laskuhari_payment_gateway_load() {
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
-        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
-        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' ); 
+        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' );
+        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' );
         add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
         add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
@@ -158,9 +158,9 @@ function laskuhari_user_profile_additional_info( $user ) {
             <tr>
                 <th>' . $meta_disp_name . '</th>
                 <td>
-                    <input type="checkbox" name="' . $meta_field_name . '" 
-                           id="' . $meta_field_name . '" 
-                           value="yes" ' . $author_meta_checked . ' /> 
+                    <input type="checkbox" name="' . $meta_field_name . '"
+                           id="' . $meta_field_name . '"
+                           value="yes" ' . $author_meta_checked . ' />
                     <label for="' . $meta_field_name . '">Kyllä</label><br />
                     <span class="description"></span>
                 </td>
@@ -176,7 +176,7 @@ function laskuhari_user_profile_additional_info( $user ) {
             <tr>
                 <th>' . $meta_disp_name . '</th>
                 <td>
-                    <select name="' . $meta_field_name . '" 
+                    <select name="' . $meta_field_name . '"
                             id="' . $meta_field_name . '">
                         '.$options.'
                     </select><br />
@@ -483,7 +483,7 @@ function laskuhari_add_webhook( $event, $url ) {
 
     $payload = [
         "event" => $event,
-		"url" => $url
+        "url" => $url
     ];
 
     $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
@@ -576,7 +576,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
 
         $order_status = $order->get_status();
 
-        if( "processing" !== $order_status ) {  
+        if( "processing" !== $order_status ) {
             $data = array();
             $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
             return laskuhari_back_url( $data, $redirect_to );
@@ -595,7 +595,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     return $back_url;
 }
 
-// Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla 
+// Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla
 
 function laskuhari_einvoice_notices() {
     if( $_POST['payment_method'] != "laskuhari" ) {
@@ -881,7 +881,7 @@ function laskuhari_add_invoice_surcharge( $cart ) {
         return;
     }
 
-    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false; 
+    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskuhari->veroton_laskutuslisa( $prices_include_tax ), true );
 }
 
@@ -982,9 +982,9 @@ function laskuhari_back_url( $lh = false, $url = false ) {
         $data = $lh;
     }
     
-    $remove = array( 
-        '_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari', 
-        'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 
+    $remove = array(
+        '_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari',
+        'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty',
         'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa',
         'laskuhari-maksuehto', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite',
         'laskuhari-valittaja', 'laskuhari_action'

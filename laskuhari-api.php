@@ -1,6 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly
+    exit; // Exit if accessed directly
 }
 
 add_action( "init", "laskuhari_api_handle_request" );
@@ -18,21 +18,21 @@ function laskuhari_api_handle_request() {
     if( ! isset( $_GET['__laskuhari_api'] ) || $_GET['__laskuhari_api'] !== "true" ) {
         return false;
     }
-	
-	do_action( "laskuhari_api_request_received" );
+    
+    do_action( "laskuhari_api_request_received" );
 
-	$content_max_length = apply_filters( "laskuhari_api_content_max_length", 2560 );
+    $content_max_length = apply_filters( "laskuhari_api_content_max_length", 2560 );
 
-	// dont parse large requests
-	if( $_SERVER['CONTENT_LENGTH'] > $content_max_length ) {
-		http_response_code( 413 );
+    // dont parse large requests
+    if( $_SERVER['CONTENT_LENGTH'] > $content_max_length ) {
+        http_response_code( 413 );
 
-		echo json_encode([
-			"status"  => "ERROR",
-			"message" => "Request size limit exceeded"
-		]);
-		exit;
-	}
+        echo json_encode([
+            "status"  => "ERROR",
+            "message" => "Request size limit exceeded"
+        ]);
+        exit;
+    }
 
     $request = @file_get_contents( "php://input" );
     $json = json_decode( $request, true );
@@ -42,7 +42,7 @@ function laskuhari_api_handle_request() {
 
     // check that apikey is inserted into plugin settings
     if( strlen( $laskuhari->apikey ) < 64 ) {
-	    http_response_code( 500 );
+        http_response_code( 500 );
 
         echo json_encode([
             "status"  => "ERROR",
@@ -62,9 +62,9 @@ function laskuhari_api_handle_request() {
 
     // check that Auth-Key matches
     if( ! isset( $headers['x-auth-key'] ) || $headers['x-auth-key'] !== $hash ) {
-		do_action( "laskuhari_unauthorized_api_request" );
+        do_action( "laskuhari_unauthorized_api_request" );
 
-	    http_response_code( 401 );
+        http_response_code( 401 );
 
         echo json_encode([
             "status"  => "ERROR",
@@ -75,10 +75,10 @@ function laskuhari_api_handle_request() {
 
     // check that timestamps are in sync at least 30 seconds
     $timestamp = $headers['x-timestamp'];
-    if( ! isset( $timestamp ) || abs( $timestamp - time() ) > 30 ) {	
-		do_action( "laskuhari_api_request_invalid_timestamp" );
+    if( ! isset( $timestamp ) || abs( $timestamp - time() ) > 30 ) {
+        do_action( "laskuhari_api_request_invalid_timestamp" );
 
-	    http_response_code( 401 );
+        http_response_code( 401 );
 
         echo json_encode([
             "status"  => "ERROR",
@@ -86,8 +86,8 @@ function laskuhari_api_handle_request() {
         ]);
         exit;
     }
-	
-	do_action( "laskuhari_webhook", $request );
+    
+    do_action( "laskuhari_webhook", $request );
 
     if( "payment_status" === $json['event'] ) {
         $status = $json['status'];
