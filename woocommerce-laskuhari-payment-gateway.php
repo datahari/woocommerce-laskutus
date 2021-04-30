@@ -1236,7 +1236,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         $payload = json_encode( $payload, laskuhari_json_flag() );
     }
 
-    $auth_key = laskuhari_api_generate_hash(
+    $auth_key = laskuhari_api_generate_auth_key(
         $laskuhari_gateway_object->uid,
         $laskuhari_gateway_object->apikey,
         $payload

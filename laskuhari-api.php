@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_action( "init", "laskuhari_api_handle_request" );
 
-function laskuhari_api_generate_hash( $uid, $apikey, $request ) {
+function laskuhari_api_generate_auth_key( $uid, $apikey, $request ) {
     return hash( "sha256", implode( "+", [
         $uid,
         $apikey,
@@ -58,7 +58,7 @@ function laskuhari_api_handle_request() {
         $headers[strtolower($key)] = $value;
     }
 
-    $hash = laskuhari_api_generate_hash( $laskuhari->uid, $laskuhari->apikey, $request );
+    $hash = laskuhari_api_generate_auth_key( $laskuhari->uid, $laskuhari->apikey, $request );
 
     // check that Auth-Key matches
     if( ! isset( $headers['x-auth-key'] ) || $headers['x-auth-key'] !== $hash ) {
