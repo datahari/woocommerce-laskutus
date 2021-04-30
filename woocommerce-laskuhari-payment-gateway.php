@@ -1702,6 +1702,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
         $order->update_status( 'processing' );
 
+        laskuhari_get_invoice_payment_status( $order->get_id() );
+
         if( $send ) {
             return laskuhari_send_invoice( $order, $bulk_action );
         }
