@@ -93,6 +93,20 @@ function laskuhari_api_handle_request() {
         $status = $json['status'];
 
         if( isset( $json['wc_order_id'] ) && $json['wc_order_id'] > 0 ) {
+            $invoice_number = laskuhari_invoice_number_by_order( $json['wc_order_id'] );
+            $invoice_id     = laskuhari_invoice_id_by_order( $json['wc_order_id']);
+
+            // if invoice id or number doesn't match, dont update status
+            if( $json['invoice_id'] != $invoice_id || $json['invoice_number'] != $invoice_number ) {
+                http_response_code( 200 );
+        
+                echo json_encode([
+                    "status"  => "OK",
+                    "message" => "Invoice number not found here"
+                ]);
+                exit;
+            }
+
             update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status', $status['code'] );
             update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status_name', $status['name'] );
             update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status_id', $status['id'] );
