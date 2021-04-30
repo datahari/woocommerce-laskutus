@@ -52,10 +52,16 @@ function laskuhari_api_handle_request() {
     }
 
     $headers = getallheaders();
+
+    // make headers lowercase for case-insensitivity
+    foreach( $headers as $key => $value ) {
+        $headers[strtolower($key)] = $value;
+    }
+
     $hash = laskuhari_api_generate_hash( $laskuhari->uid, $laskuhari->apikey, $request );
 
     // check that Auth-Key matches
-    if( ! isset( $headers['X-Auth-Key'] ) || $headers['X-Auth-Key'] !== $hash ) {
+    if( ! isset( $headers['x-auth-key'] ) || $headers['x-auth-key'] !== $hash ) {
 		do_action( "laskuhari_unauthorized_api_request" );
 
 	    http_response_code( 401 );
