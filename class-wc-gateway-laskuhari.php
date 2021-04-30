@@ -34,6 +34,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 		$this->title              		= $this->lh_get_option( 'title' );
 		$this->send_method_fallback     = $this->lh_get_option( 'send_method_fallback' );
 		$this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
+		$this->create_webhooks          = $this->lh_get_option( 'create_webhooks' ) === 'yes' ? true : false;
 		$this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'yes' ? true : false;
 
 		if( $this->demotila == "yes" ) {
@@ -64,13 +65,19 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 			add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
 	    	add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 			
-			// add webhook if not added yet
-			if( ! $this->payment_status_webhook_added && $this->demotila != "yes" && strlen( $this->apikey ) > 64 && $this->uid ) {
-				$add_webhook = laskuhari_add_webhook( "payment_status", site_url( "/index.php" ) . "?__laskuhari_api=true" );
-				if( $add_webhook ) {
-					$this->update_option( "payment_status_webhook_added", "yes" );
-					$this->payment_status_webhook_added = true;
+			// add webhooks if not added yet and not in demo mode
+			if( $this->create_webhooks && $this->demotila != "yes" && strlen( $this->apikey ) > 64 && $this->uid ) {
+				$api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
+
+				if( ! $this->payment_status_webhook_added ) {
+					if( laskuhari_add_webhook( "payment_status", $api_url ) ) {
+						$this->update_option( "payment_status_webhook_added", "yes" );
+						$this->payment_status_webhook_added = true;
+					}
 				}
+			} elseif( $this->payment_status_webhook_added ) {
+				$this->update_option( "payment_status_webhook_added", "no" );
+				$this->payment_status_webhook_added = false;
 			}
 		}
 	}
@@ -238,6 +245,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 			'synkronoi_varastosaldot' => array(
 				'title'       => __( 'Synkronoi varastosaldot', 'laskuhari' ),
 				'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'laskuhari' ),
+				'type'        => 'checkbox',
+				'description' => '',
+				'default'     => 'no'
+			),
+			'create_webhooks' => array(
+				'title'       => __( 'Luo webhook', 'laskuhari' ),
+				'label'       => __( 'Luo webhook Laskuhariin, jotta laskujen maksustatus päivittyy WooCommerceen automaattisesti', 'laskuhari' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'no'
