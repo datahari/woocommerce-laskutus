@@ -638,7 +638,6 @@ function laskuhari_update_payment_terms_meta( $order_id ) {
 }
 
 function laskuhari_reset_metadata( $order_id ) {
-    update_post_meta( $order_id, "_laskuhari_payment_status_checked", "" );
     update_post_meta( $order_id, '_laskuhari_payment_status', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_id', "" );
@@ -726,15 +725,6 @@ function laskuhari_invoice_status( $order_id ) {
 }
 
 function laskuhari_order_payment_status( $order_id ) {
-
-    $status = laskuhari_get_invoice_payment_status( $order_id );
-
-    if ( isset( $status['maksustatus']['koodi'] ) ) {
-        update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
-        update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
-        update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
-    }
-
     $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
     $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
 
@@ -821,7 +811,7 @@ function laskuhari_metabox_html( $post ) {
             $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
             if( $invoice_id ) {
                 $open_link = '?avaa=' . $invoice_id;
-                $status = laskuhari_order_payment_status( $order->get_id(), $invoice_id );
+                $status = laskuhari_order_payment_status( $order->get_id() );
 
                 $update_title = __( 'Päivitä', 'laskuhari' );
                 $update_link  = '<a href="'.$edit_link.'&laskuhari_action=update_metadata"
@@ -955,8 +945,9 @@ function laskuhari_actions() {
     // update saved metadata retrieved through the API
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "update_metadata" ) {
         // reset payment status metadata
-        update_post_meta( $_GET['post'], "_laskuhari_payment_status", "" );
-        update_post_meta( $_GET['post'], "_laskuhari_payment_status_checked", "" );
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status', "" );
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status_name', "" );
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status_id', "" );
 
         // update payment status metadata
         laskuhari_get_invoice_payment_status( $_GET['post'] );
@@ -1105,39 +1096,26 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
 }
 
 function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
-    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
-
     if ( null === $invoice_id ) {
         $invoice_id = laskuhari_invoice_id_by_order( $order_id );
-    }
-
-    // get saved payment status for invoice
-    $saved_status = get_post_meta( $order_id, "_laskuhari_payment_status", true );
-    if( false !== $saved_status ) {
-        $saved_time = get_post_meta( $order_id, "_laskuhari_payment_status_checked", true );
-        // return saved payment status only if it was checked today
-        if( $saved_time >= date( "Y-m-d" ) ) {
-            return $saved_status;
-        }
-    }
-
-    // don't make too many api queries on one page load as it slows execution time
-    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
-        return $saved_status ? $saved_status : false;
     }
 
     // get invoice payment status from API
     $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
     $response = laskuhari_api_request( array(), $api_url, "Get status" );
-    $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
-        // save payment status and status check time to database
-        update_post_meta( $order_id, "_laskuhari_payment_status", $response['vastaus'] );
-        update_post_meta( $order_id, "_laskuhari_payment_status_checked", date( "Y-m-d H:i:s" ) );
+        $status = $response['vastaus'];
+
+        // save payment status to post_meta
+        if ( isset( $status['maksustatus']['koodi'] ) ) {
+            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
+        }
 
         // return payment status
-        return $response['vastaus'];
+        return $status;
     }
 
     return false;
