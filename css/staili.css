@@ -28,6 +28,8 @@ a.button.tips.laskuhari-invoice img {
     width: 30px;
 }
 
+.laskuhari-payment-status,
+.laskuhari-payment-terms-name,
 .laskuhari-tila {
     background: #ccc;
     color: #656565;
@@ -35,6 +37,16 @@ a.button.tips.laskuhari-invoice img {
     box-sizing: border-box;
     margin-bottom: 5px;
     text-align: center;
+    position: relative;
+}
+
+.laskuhari-update-payment-status {
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 1.5em;
+    position: absolute;
+    top: 2px;
+    right: 5px;
 }
 
 .laskuhari-laskunumero {
@@ -45,7 +57,6 @@ a.button.tips.laskuhari-invoice img {
     margin-bottom: 5px;
     text-align: center;
     position: relative;
-    top: -5px;
 }
 
 .laskuhari-tila.laskutettu {
@@ -55,6 +66,46 @@ a.button.tips.laskuhari-invoice img {
 
 .laskuhari-tila.luotu {
     background: #2259c5;
+    color: #fff;
+}
+
+#laskuhari-create-and-send-method {
+    display: none;
+}
+
+#laskuhari-send-check {
+    width: auto !important;
+    margin: 3px 3px 8px 1px;
+}
+
+#laskuhari-send-check-label {
+    position: relative;
+    top: -2px;
+}
+
+.laskuhari-payment-status,
+.laskuhari-payment-terms-name {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.laskuhari-payment-terms-name {
+    background: #d2d2d2;
+}
+
+.laskuhari-payment-status.laskuhari-paid {
+    background: #3eb320;
+    color: #fff;
+}
+
+.laskuhari-payment-status.laskuhari-not-paid {
+    background: #2259c5;
+    color: #fff;
+}
+
+.order-status.laskuhari-paid {
+    background: #00b100;
     color: #fff;
 }
 
@@ -84,7 +135,7 @@ a.button.tips.laskuhari-invoice img {
     margin-top: 13px;
 }
 
-#laskuhari-laheta-lasku-lomake {
+.laskuhari-pikkulomake {
     margin: 5px;
     padding: 5px;
     border-radius: 5px;
@@ -93,8 +144,14 @@ a.button.tips.laskuhari-invoice img {
     width: calc(100% - 10px);
 }
 
-#laskuhari-laheta-lasku-lomake input,
-#laskuhari-laheta-lasku-lomake select {
+.laskuhari-pikkulomake input,
+.laskuhari-pikkulomake select {
     width: 100%;
     box-sizing: border-box;
+    margin-bottom: 5px;
+}
+
+#place_order.laskuhari-place-order-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }

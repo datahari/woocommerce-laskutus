@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.0.3
+Version: 1.1
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -15,7 +15,14 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-$laskuhari_plugin_version = "1.0.3";
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // Exit if accessed directly
+}
+
+$laskuhari_plugin_version = "1.1";
+
+$__laskuhari_api_query_count = 0;
+$__laskuhari_api_query_limit = 2;
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
@@ -48,8 +55,8 @@ function laskuhari_payment_gateway_load() {
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
-        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' ); 
-        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' ); 
+        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' );
+        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' );
         add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
         add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
@@ -79,8 +86,10 @@ function laskuhari_payment_gateway_load() {
     
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'laskuhari-api.php';
+
 function laskuhari_domain() {
-    return "oma.laskuhari.fi";
+    return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
 }
 
 function laskuhari_json_flag() {
@@ -95,9 +104,32 @@ function laskuhari_json_flag() {
 
 function laskuhari_user_meta() {
     $custom_meta_fields = array();
-    $custom_meta_fields['laskuhari_laskutusasiakas'] = 'Laskutusasiakas';
+    $custom_meta_fields = array(
+        array(
+            "name"  => "laskuhari_laskutusasiakas",
+            "title" => __( 'Laskutusasiakas', 'laskuhari' ),
+            "type"  => "checkbox"
+        ),
+        array(
+            "name"    => "laskuhari_payment_terms_default",
+            "title"   => __( 'Maksuehto', 'laskuhari' ),
+            "type"    => "select",
+            "options" => apply_filters( "laskuhari_payment_terms_select_box", laskuhari_get_payment_terms() )
+        )
+    );
 
     return $custom_meta_fields;
+}
+
+add_filter( "laskuhari_payment_terms_select_box", "laskuhari_payment_terms_select_box" );
+function laskuhari_payment_terms_select_box( $terms ) {
+    $output = array(
+        "" => __( "Oletus", "laskuhari" )
+    );
+    foreach( $terms as $term ) {
+        $output[$term['id']] = $term['nimi'];
+    }
+    return $output;
 }
 
 function laskuhari_user_profile_additional_info( $user ) {
@@ -107,26 +139,51 @@ function laskuhari_user_profile_additional_info( $user ) {
     $meta_number = 0;
     $custom_meta_fields = laskuhari_user_meta();
 
-    foreach ( $custom_meta_fields as $meta_field_name => $meta_disp_name ) {
+    foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
 
-        if ( get_the_author_meta( $meta_field_name, $user->ID ) == "yes" ) {
-            $author_meta_checked = "checked";
-        } else {
-            $author_meta_checked = "";
-        }
+        $meta_disp_name  = $meta_field['title'];
+        $meta_field_name = $meta_field['name'];
 
-        echo '
-        <tr>
-            <th>' . $meta_disp_name . '</th>
-            <td>
-                <input type="checkbox" name="' . $meta_field_name . '" 
-                       id="' . $meta_field_name . '" 
-                       value="yes" ' . $author_meta_checked . ' /> 
-                <label for="' . $meta_field_name . '">Kyllä</label><br />
-                <span class="description"></span>
-            </td>
-        </tr>';
+        $current_value = get_the_author_meta( $meta_field_name, $user->ID );
+
+        if( "checkbox" === $meta_field['type'] ) {
+            if ( "yes" === $current_value ) {
+                $author_meta_checked = "checked";
+            } else {
+                $author_meta_checked = "";
+            }
+    
+            echo '
+            <tr>
+                <th>' . $meta_disp_name . '</th>
+                <td>
+                    <input type="checkbox" name="' . $meta_field_name . '"
+                           id="' . $meta_field_name . '"
+                           value="yes" ' . $author_meta_checked . ' />
+                    <label for="' . $meta_field_name . '">Kyllä</label><br />
+                    <span class="description"></span>
+                </td>
+            </tr>';
+        } elseif( "select" === $meta_field['type'] ) {
+            $options = '';
+            foreach( $meta_field['options'] as $id => $value ) {
+                $selected = ($id == $current_value ? ' selected' : '');
+                $options .= '<option value="' . esc_attr( $id ) . '"' . $selected . '>' . esc_html( $value ) . '</option>';
+            }
+
+            echo '
+            <tr>
+                <th>' . $meta_disp_name . '</th>
+                <td>
+                    <select name="' . $meta_field_name . '"
+                            id="' . $meta_field_name . '">
+                        '.$options.'
+                    </select><br />
+                    <span class="description"></span>
+                </td>
+            </tr>';
+        }
     }
 
     echo '</table>';
@@ -141,10 +198,16 @@ function laskuhari_update_user_meta( $user_id ) {
     $meta_number = 0;
     $custom_meta_fields = laskuhari_user_meta();
 
-    foreach ( $custom_meta_fields as $meta_field_name => $meta_disp_name ) {
+    foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
-        update_usermeta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
+        $meta_field_name = $meta_field['name'];
+
+        update_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
     }
+}
+
+function laskuhari_get_customer_payment_terms_default( $customerID ) {
+    return get_the_author_meta( "laskuhari_payment_terms_default", $customerID );
 }
 
 function laskuhari_get_vat_rate( $product = null ) {
@@ -413,6 +476,29 @@ function laskuhari_update_stock( $product ) {
     return true;
 }
 
+function laskuhari_add_webhook( $event, $url ) {
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/webhooks/";
+
+    $api_url = apply_filters( "laskuhari_webhooks_api_url", $api_url, $event, $url );
+
+    $payload = [
+        "event" => $event,
+        "url" => $url
+    ];
+
+    $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
+
+    $payload = json_encode( $payload, laskuhari_json_flag() );
+
+    $response = laskuhari_api_request( $payload, $api_url, "Add webhook" );
+
+    if( $response === false ) {
+        return false;
+    }
+
+    return true;
+}
+
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
 function laskuhari_register_plugin_links( $links, $file ) {
@@ -451,7 +537,16 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
                 return;
             }
         }
-        echo '<span class="order-status status-'.$status.'"><span>' . __( $data['tila'], 'laskuhari' ) . '</span></span>';
+
+        $status_name = $data['tila'];
+
+        $payment_status = laskuhari_order_payment_status( $post->ID );
+
+        if( "laskuhari-paid" === $payment_status['payment_status_class'] ) {
+            $status_name = strtoupper( $payment_status['payment_status_name'] );
+        }
+
+        echo '<span class="order-status status-'.$status.' '.$payment_status['payment_status_class'].'"><span>' . __( $status_name, 'laskuhari' ) . '</span></span>';
     }
 }
 
@@ -481,7 +576,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
 
         $order_status = $order->get_status();
 
-        if( "processing" !== $order_status ) {  
+        if( "processing" !== $order_status ) {
             $data = array();
             $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
             return laskuhari_back_url( $data, $redirect_to );
@@ -500,7 +595,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     return $back_url;
 }
 
-// Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla 
+// Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla
 
 function laskuhari_einvoice_notices() {
     if( $_POST['payment_method'] != "laskuhari" ) {
@@ -534,9 +629,31 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
     laskuhari_update_order_meta( $order_id );
 }
 
+function laskuhari_update_payment_terms_meta( $order_id ) {
+    if ( is_admin() && isset( $_REQUEST['laskuhari-maksuehto'] ) ) {
+        update_post_meta( $order_id, '_laskuhari_payment_terms', sanitize_text_field( $_REQUEST['laskuhari-maksuehto'] ) );
+        $payment_terms_name = laskuhari_get_payment_terms_name( $_REQUEST['laskuhari-maksuehto'] );
+        update_post_meta( $order_id, '_laskuhari_payment_terms_name', sanitize_text_field( $payment_terms_name ) );
+    }
+}
+
+function laskuhari_reset_metadata( $order_id ) {
+    update_post_meta( $order_id, '_laskuhari_payment_status', "" );
+    update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
+    update_post_meta( $order_id, '_laskuhari_payment_status_id', "" );
+    update_post_meta( $order_id, '_laskuhari_payment_terms_name', "" );
+    update_post_meta( $order_id, '_laskuhari_payment_terms', "" );
+    update_post_meta( $order_id, '_laskuhari_sent', "" );
+    update_post_meta( $order_id, '_laskuhari_invoice_number', "" );
+    update_post_meta( $order_id, '_laskuhari_invoice_id', "" );
+    update_post_meta( $order_id, '_laskuhari_uid', "" );
+}
+
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
 
-function laskuhari_update_order_meta( $order_id)  {
+function laskuhari_update_order_meta( $order_id )  {
+    laskuhari_update_payment_terms_meta( $order_id );
+
     if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
         update_post_meta( $order_id, '_laskuhari_laskutustapa', sanitize_text_field( $_REQUEST['laskuhari-laskutustapa'] ) );
     }
@@ -607,6 +724,23 @@ function laskuhari_invoice_status( $order_id ) {
     ];
 }
 
+function laskuhari_order_payment_status( $order_id ) {
+    $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
+    $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
+
+    if ( "1" === $payment_status ) {
+        $payment_status_class = "laskuhari-paid";
+    } else {
+        $payment_status_class = "laskuhari-not-paid";
+    }
+
+    return array(
+        "payment_status_class" => $payment_status_class,
+        "payment_status_name"  => $payment_status_name,
+    );
+}
+
+
 // Luo metaboxin HTML
 
 function laskuhari_metabox_html( $post ) {
@@ -623,7 +757,9 @@ function laskuhari_metabox_html( $post ) {
     $laskunumero = $tiladata['laskunumero'];
     $lasku_luotu = $tiladata['lasku_luotu'];
 
-    $maksutapa = get_post_meta( $post->ID, '_payment_method', true );
+    $maksutapa     = get_post_meta( $post->ID, '_payment_method', true );
+    $maksuehto     = get_post_meta( $post->ID, '_laskuhari_payment_terms', true );
+    $maksuehtonimi = get_post_meta( $post->ID, '_laskuhari_payment_terms_name', true );
     $maksutapa_ei_laskuhari = $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU";
 
     if( $maksutapa_ei_laskuhari ) {
@@ -638,34 +774,86 @@ function laskuhari_metabox_html( $post ) {
     if( $order && $order->get_status() != "processing" ) {
         echo __( 'Vaihda tilauksen status Käsittelyssä-tilaan, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
-        $edit_link = get_edit_post_link( $post );
+        $payment_terms = laskuhari_get_payment_terms();
+        $payment_terms_select = "";
+        if( is_array( $payment_terms ) && count( $payment_terms ) ) {
+            $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).'</b><br />'.
+                                    '<select name="laskuhari-maksuehto" id="laskuhari-maksuehto"><option value="">-- Valitse maksuehto --</option>';
+
+            $payment_terms_default = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
+
+            if( ! $payment_terms_default ) {
+                $payment_terms_default = $maksuehto;
+            }
+
+            foreach( $payment_terms as $term ) {
+                if( $term['oletus'] && ! $payment_terms_default ) {
+                    $default = ' selected';
+                } elseif( $term['id'] == $payment_terms_default ) {
+                    $default = ' selected';
+                } else {
+                    $default = '';
+                }
+                $payment_terms_select .= '<option value="'.esc_attr( $term['id'] ).'" '.$default.'>'.esc_html( $term['nimi'] ).'</option>';
+            }
+            $payment_terms_select .= '</select>';
+        }
+        
+        $edit_link           = get_edit_post_link( $post );
+        $luo_teksti          = "Luo lasku";
+        $luo_varoitus        = 'Haluatko varmasti luoda laskun tästä tilauksesta?';
+        $luo_ja_laheta       = __( "Luo ja lähetä lasku", "laskuhari" );
+        $luo_laheta_varoitus = __( "Haluatko varmasti laskuttaa tämän tilauksen?", "laskuhari" );
+
+        $laskuhari = $laskuhari_gateway_object;
         if( $lasku_luotu ) {
-            $laskuhari = $laskuhari_gateway_object;
     
             $invoice_id = laskuhari_invoice_id_by_order( $order->get_id() );
             if( $invoice_id ) {
-                $open_link = '#/lasku/' . $invoice_id;
+                $open_link = '?avaa=' . $invoice_id;
+                $status = laskuhari_order_payment_status( $order->get_id() );
+
+                $update_title = __( 'Päivitä', 'laskuhari' );
+                $update_link  = '<a href="'.$edit_link.'&laskuhari_action=update_metadata"
+                                    class="laskuhari-update-payment-status"
+                                    title="'.$update_title.'">&#8635;</a>';
+
+                echo '<div class="laskuhari-payment-status '.$status['payment_status_class'].'">'.esc_html( $status['payment_status_name'] ).$update_link.'</div>';
             } else {
-                $open_link = '#/laskunro/' . $laskunumero;
+                $open_link = '?avaanro=' . $laskunumero;
+                $status = false;
+            }
+
+            if( $maksuehtonimi ) {
+                echo '<div class="laskuhari-payment-terms-name">'.esc_html( $maksuehtonimi ).'</div>';
             }
     
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
             <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
-            <a class="laskuhari-nappi laheta-lasku" href="#" onclick="jQuery(\'#laskuhari-laheta-lasku-lomake\').slideToggle(); return false;">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
-            <div id="laskuhari-laheta-lasku-lomake" style="display: none;">';
-    
-                $laskuhari->lahetystapa_lomake( $post->ID );
-    
-                echo '<input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_lahetys(); return false;" />
+            <a class="laskuhari-nappi laheta-lasku" href="#">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
+            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'send\'); return false;" />
             </div>
-            <a class="laskuhari-nappi uusi-lasku" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\''.__( 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?', 'laskuhari' ).'\')) return false;">Tee uusi lasku</a>
             <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
-        } else {
-            echo '
-            <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=create" onclick="if(!confirm(\'' . __( 'Haluatko varmasti luoda laskun? Laskua ei vielä lähetetä.', 'laskuhari' ) . '\')) return false;">' . __( 'Tee lasku', 'laskuhari' ) . '</a>
-            <a class="laskuhari-nappi laskuta" href="' . $edit_link . '&laskuhari=send" onclick="if(!confirm(\'' . __( 'Haluatko varmasti laskuttaa tämän tilauksen?', 'laskuhari' ) . '\')) return false;">' . __( 'Tee ja lähetä lasku', 'laskuhari' ) . '</a>';
+
+            $luo_teksti = "Luo uusi lasku";
+            $luo_varoitus = 'Tämä luo uuden laskun uudella laskunumerolla. Jatketaanko?';
+            $luo_laheta_varoitus = __( "Haluatko varmasti luoda uuden laskun uudella laskunumerolla?", "laskuhari" );
         }
+
+        echo '
+        <a class="laskuhari-nappi uusi-lasku" href="#">'.__( $luo_teksti, 'laskuhari' ).'</a>
+        <div id="laskuhari-tee-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;">
+            '.$payment_terms_select.'
+            <input type="checkbox" id="laskuhari-send-check" /> <label for="laskuhari-send-check" id="laskuhari-send-check-label">Lähetä</label><br />
+            <div id="laskuhari-create-and-send-method">
+                <div id="lahetystapa-lomake2">';
+                $laskuhari->lahetystapa_lomake( $post->ID );
+        echo '</div>
+                <input type="button" value="'.$luo_ja_laheta.'" id="laskuhari-create-and-send" onclick="if(!confirm(\''.$luo_laheta_varoitus.'\')) {return false;} laskuhari_admin_action(\'send\');" />         
+            </div>
+            <input type="button" id="laskuhari-create-only" value="'.__( $luo_teksti, 'laskuhari' ).'" onclick="if(!confirm(\''.__( $luo_varoitus, 'laskuhari' ).'\')) {return false;} laskuhari_admin_action(\'create\');" />
+        </div>';
     }
 
     if( $maksutapa_ei_laskuhari ) {
@@ -693,7 +881,7 @@ function laskuhari_add_invoice_surcharge( $cart ) {
         return;
     }
 
-    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false; 
+    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskuhari->veroton_laskutuslisa( $prices_include_tax ), true );
 }
 
@@ -753,16 +941,31 @@ function laskuhari_actions() {
         laskuhari_go_back( $lh );
         exit;
     }
+
+    // update saved metadata retrieved through the API
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "update_metadata" ) {
+        // reset payment status metadata
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status', "" );
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status_name', "" );
+        update_post_meta( $_GET['post'], '_laskuhari_payment_status_id', "" );
+
+        // update payment status metadata
+        laskuhari_get_invoice_payment_status( $_GET['post'] );
+
+        // redirect back
+        laskuhari_go_back();
+        exit;
+    }
 }
 
-function laskuhari_go_back( $lh, $url = false ) {
+function laskuhari_go_back( $lh = false, $url = false ) {
     wp_redirect( laskuhari_back_url( $lh, $url ) );
     exit;
 }
 
-function laskuhari_back_url( $lh, $url = false ) {
+function laskuhari_back_url( $lh = false, $url = false ) {
 
-    if( isset($lh[0]) && is_array( $lh[0] ) ) {
+    if( is_array( $lh )&& isset( $lh[0] ) && is_array( $lh[0] ) ) {
         $data = array(
             "lahetetty" => array(),
             "luotu"     => array(),
@@ -779,11 +982,12 @@ function laskuhari_back_url( $lh, $url = false ) {
         $data = $lh;
     }
     
-    $remove = array( 
-        '_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari', 
-        'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty', 
-        'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa', 
-        'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite', 'laskuhari-valittaja' 
+    $remove = array(
+        '_wpnonce', 'order_id', 'laskuhari', 'laskuhari_download', 'laskuhari',
+        'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty',
+        'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa',
+        'laskuhari-maksuehto', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite',
+        'laskuhari-valittaja', 'laskuhari_action'
     );
 
     $back = remove_query_arg(
@@ -791,15 +995,17 @@ function laskuhari_back_url( $lh, $url = false ) {
         $url
     );
 
-    $back = add_query_arg(
-        array(
-            'laskuhari_luotu'     => $data["luotu"],
-            'laskuhari_lahetetty' => $data["lahetetty"],
-            'laskuhari_notice'    => $data["notice"],
-            'laskuhari_success'   => $data["success"]
-        ),
-        $back
-    );
+    if( is_array( $data ) ) {
+        $back = add_query_arg(
+            array(
+                'laskuhari_luotu'     => $data["luotu"],
+                'laskuhari_lahetetty' => $data["lahetetty"],
+                'laskuhari_notice'    => $data["notice"],
+                'laskuhari_success'   => $data["success"]
+            ),
+            $back
+        );
+    }
 
     return $back;
 }
@@ -889,6 +1095,74 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
     return intval( $response['invoice_id'] );
 }
 
+function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    // get invoice payment status from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
+    $response = laskuhari_api_request( array(), $api_url, "Get status" );
+
+    if( $response['status'] === "OK" ) {
+        $status = $response['vastaus'];
+
+        // save payment status to post_meta
+        if ( isset( $status['maksustatus']['koodi'] ) ) {
+            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
+            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
+        }
+
+        // return payment status
+        return $status;
+    }
+
+    return false;
+}
+
+function laskuhari_get_payment_terms() {
+    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
+
+    $saved_terms = get_option( "_laskuhari_payment_terms" );
+    if( $saved_terms ) {
+        return apply_filters( "laskuhari_payment_terms", $saved_terms );
+    }
+
+    // don't make too many api queries on one page load as it slows execution time
+    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
+        return false;
+    }
+
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
+    $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
+    $__laskuhari_api_query_count++;
+
+    if( $response['status'] === "OK" ) {
+        update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
+        return apply_filters( "laskuhari_payment_terms", $response['vastaus'] );
+    }
+
+    return false;
+}
+
+function laskuhari_get_payment_terms_name( $term_id, $terms = null ) {
+    if( null === $terms ) {
+        $terms = laskuhari_get_payment_terms();
+    }
+
+    if ( is_array( $terms ) ) {
+        foreach ( $terms as $term ) {
+            if ( $term['id'] == $term_id ) {
+                return $term['nimi'];
+            }
+        }
+    }
+
+    return false;
+}
+
+
 function laskuhari_invoice_id_by_order( $orderid ) {
     $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );
 
@@ -958,14 +1232,27 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         return laskuhari_uid_error();
     }
 
+    if( is_array( $payload ) ) {
+        $payload = json_encode( $payload, laskuhari_json_flag() );
+    }
+
+    $auth_key = laskuhari_api_generate_auth_key(
+        $laskuhari_gateway_object->uid,
+        $laskuhari_gateway_object->apikey,
+        $payload
+    );
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $api_url);
-    curl_setopt($ch, CURLOPT_FAILONERROR, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($ch, CURLOPT_TIMEOUT, 100);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
-    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type:application/json',
+        'X-UID:'.$laskuhari_gateway_object->uid,
+        'X-Auth-Key:'.$auth_key,
+        'X-Timestamp:'.time()
+    ]);
     curl_setopt($ch, CURLOPT_POST, TRUE);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
@@ -973,8 +1260,6 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
     }
-
-    curl_setopt( $ch, CURLOPT_USERPWD, $laskuhari_gateway_object->uid . ":" . $laskuhari_gateway_object->apikey );
 
     $response = curl_exec( $ch );
 
@@ -1119,7 +1404,21 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $verkkolaskuosoite = get_post_meta( $order->get_id(), '_laskuhari_verkkolaskuosoite', true );
     $valittaja         = get_post_meta( $order->get_id(), '_laskuhari_valittaja', true );
 
+    if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
+        $maksuehto = $_REQUEST['laskuhari-maksuehto'];
+    } else {
+        $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
+    }
+
+    if( ! $maksuehto ) {
+        $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
+    }
+
+    laskuhari_reset_metadata( $order->get_id() );
+
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
+
+    laskuhari_update_payment_terms_meta( $order->get_id() );
 
     $payload = [
         "ref" => "wc",
@@ -1163,15 +1462,16 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "toIntermediator" => $valittaja,
             "buyerPartyIdentifier" => $ytunnus
         ],
-        "maksuehto" => [
-            "id" => "",
-            "maksuaika" => "",
-            "nimi" => ""
-        ],
         "woocommerce" => [
             "wc_order_id" => $order->get_id()
         ]
     ];
+
+    if( $maksuehto ) {
+        $payload["maksuehto"] = [
+            "id" => $maksuehto
+        ];
+    }
 
     $laskurivit = [];
 
@@ -1401,6 +1701,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
         $order->update_status( 'processing' );
+
+        laskuhari_get_invoice_payment_status( $order->get_id() );
 
         if( $send ) {
             return laskuhari_send_invoice( $order, $bulk_action );
