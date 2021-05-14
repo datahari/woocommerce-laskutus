@@ -186,9 +186,65 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function init_form_fields() {
         $shipping_methods = array();
 
-        if ( is_admin() ) {
-            foreach ( WC()->shipping()->load_shipping_methods() as $method ) {
-                $shipping_methods[$method->id] = $method->get_title();
+        if ( is_admin() && class_exists( "WC_Shipping_Zones" ) ) {
+            // Get shipping zones
+            $shipping_zones = WC_Shipping_Zones::get_zones();
+
+            if( ! is_array( $shipping_zones ) ) {
+                $shipping_zones = [];
+            }
+
+            foreach ($shipping_zones as $key => $zone ) {
+                $locations = $zone['zone_locations'];
+
+                // Get shipping methods for zone
+                $zone_shipping_methods = $zone['shipping_methods'];
+                if( ! is_array( $zone_shipping_methods ) ) {
+                    $zone_shipping_methods = [];
+                }
+
+                foreach( $zone_shipping_methods as $method ) {
+                    $method_id = $method->id;
+
+                    // add instance id (shipping zone) to method ID if exists
+                    if( null !== $method->instance_id ) {
+                        $method_id .= ":".$method->instance_id;
+                    }
+
+                    // get title for shipping method
+                    $method_title = $method->get_title();
+
+                    // if title is not set, get method title
+                    if( ! $method_title ) {
+                        $method_title = $method->get_method_title();
+                    }
+
+                    // fallback: if no method title exists, use method id
+                    if( ! $method_title ) {
+                        $method_title = $method_id;
+                    }
+
+                    // if locations are included, add them to name
+                    if( is_array( $locations ) && count( $locations ) > 0 ) {
+                        $method_title .= " (";
+                        $p = "";
+                        $n = 0;
+                        foreach( $locations as $location ) {
+                            $method_title .= $p.$location->code;
+
+                            // list only 5 locations max
+                            if( $n >= 5 ) {
+                                $method_title .= "...";
+                                break;
+                            }
+                            $p = ", ";
+                            $n++;
+                        }
+                        $method_title .= ")";
+                    }
+
+                    $shipping_methods[$method_id] = $method_title;
+                }
             }
         }
 
@@ -440,34 +496,44 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 $chosen_shipping_methods = array();
             }
 
-            $check_method = false;
+            $check_methods = [];
 
             if ( is_object( $order ) ) {
-                if ( $order->shipping_method ) {
-                    $check_method = $order->shipping_method;
+                foreach( $order->get_shipping_methods() as $item ){
+                    $check_methods[] = $item->get_method_id().":".$item->get_instance_id();
                 }
 
-            } elseif ( empty( $chosen_shipping_methods ) || sizeof( $chosen_shipping_methods ) > 1 ) {
-                $check_method = false;
-            } elseif ( sizeof( $chosen_shipping_methods ) == 1 ) {
-                $check_method = $chosen_shipping_methods[0];
+            } elseif ( empty( $chosen_shipping_methods ) || count( $chosen_shipping_methods ) > 1 ) {
+                $check_methods = [];
+            } elseif ( count( $chosen_shipping_methods ) == 1 ) {
+                $check_methods = [$chosen_shipping_methods[0]];
             }
 
-            if ( ! $check_method ) {
+            if ( ! count( $check_methods ) ) {
                 return false;
             }
 
-            $found = false;
+            foreach( $check_methods as $check_method ) {
+                $found = false;
 
-            foreach ( $this->enable_for_methods as $method_id ) {
-                if ( strpos( $check_method, $method_id ) === 0 ) {
-                    $found = true;
-                    break;
+                foreach ( $this->enable_for_methods as $method_id ) {
+                    if( strpos( $method_id, ":" ) === false ) {
+                        // fallback for older plugin versions (<= 1.1)
+                        if( strpos( $check_method, $method_id ) === 0 ) {
+                            $found = true;
+                            break;
+                        }
+                    } else {
+                        if( $check_method == $method_id ) {
+                            $found = true;
+                            break;
+                        }
+                    }
                 }
-            }
 
-            if ( ! $found ) {
-                return false;
+                if ( ! $found ) {
+                    return false;
+                }
             }
         }
 
