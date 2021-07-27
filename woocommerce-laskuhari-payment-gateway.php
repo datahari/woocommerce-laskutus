@@ -102,6 +102,151 @@ function laskuhari_json_flag() {
     return JSON_INVALID_UTF8_SUBSTITUTE;
 }
 
+add_action( 'restrict_manage_posts', 'display_admin_shop_order_laskuhari_filter' );
+function display_admin_shop_order_laskuhari_filter() {
+    global $pagenow, $post_type;
+
+    if( 'shop_order' === $post_type && 'edit.php' === $pagenow ) {
+        $current   = isset($_GET['filter_laskuhari_status']) ? $_GET['filter_laskuhari_status'] : '';
+
+        echo '<select name="filter_laskuhari_status">
+        <option value="">Laskuhari: ' . __('Kaikki ', 'laskuhari') . '</option>
+        <option value="ei_laskutettu"'.( $current == 'ei_laskutettu' ? ' selected' : '' ).'>Laskuhari: '.__('Ei laskutettu', 'laskuhari').'</option>
+        <option value="ei_laskutettu_kaikki"'.( $current == 'ei_laskutettu_kaikki' ? ' selected' : '' ).'>Laskuhari: '.__('Ei laskutettu (Kaikki)', 'laskuhari').'</option>
+        <option value="lasku_luotu"'.( $current == 'lasku_luotu' ? ' selected' : '' ).'>Laskuhari: '.__('Lasku luotu', 'laskuhari').'</option>
+        <option value="laskutettu"'.( $current == 'laskutettu' ? ' selected' : '' ).'>Laskuhari: '.__('Laskutettu', 'laskuhari').'</option>
+        <option value="maksettu"'.( $current == 'maksettu' ? ' selected' : '' ).'>Laskuhari: '.__('Maksettu', 'laskuhari').'</option>
+        <option value="ei_maksettu"'.( $current == 'ei_maksettu' ? ' selected' : '' ).'>Laskuhari: '.__('Ei maksettu', 'laskuhari').'</option>
+        </select>';
+    }
+}
+
+add_action( 'pre_get_posts', 'laskuhari_custom_status_filter' );
+function laskuhari_custom_status_filter( $query ) {
+    global $pagenow;
+
+    $status_queries = [
+        "laskutettu" => [[
+            'key'     => '_laskuhari_sent',
+            'compare' => '=',
+            'value'   => "yes",
+        ]],
+        "ei_laskutettu" => [
+            'relation' => 'and',
+            [
+                'relation' => 'or',
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => 'NOT EXISTS'
+                ],
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => '=',
+                    'value'   => '0'
+                ],
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => '=',
+                    'value'   => ''
+                ]
+            ],
+            [
+                [
+                    'key'     => '_payment_method',
+                    'compare' => '=',
+                    'value'   => 'laskuhari'
+                ]
+            ]
+        ],
+        "ei_laskutettu_kaikki" => [
+            'relation' => 'and',
+            [
+                'relation' => 'or',
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => 'NOT EXISTS'
+                ],
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => '=',
+                    'value'   => '0'
+                ],
+                [
+                    'key'     => '_laskuhari_invoice_number',
+                    'compare' => '=',
+                    'value'   => ''
+                ]
+            ],
+            [
+                'relation' => 'or',
+                [
+                    'key'     => '_payment_method',
+                    'compare' => '=',
+                    'value'   => 'laskuhari'
+                ],
+                [
+                    'key'     => '_payment_method',
+                    'compare' => 'NOT EXISTS'
+                ],
+                [
+                    'key'     => '_payment_method',
+                    'compare' => '=',
+                    'value'   => ''
+                ]
+            ]
+        ],
+        "lasku_luotu" => [
+            'relation' => 'and',
+            [
+                'key'     => '_laskuhari_invoice_number',
+                'compare' => '>',
+                'value'   => "0",
+            ],
+            [
+                'key'     => '_laskuhari_sent',
+                'compare' => '!=',
+                'value'   => "yes",
+            ]
+        ],
+        "maksettu" => [
+            'relation' => 'and',
+            [
+                'key'     => '_laskuhari_invoice_number',
+                'compare' => '>',
+                'value'   => "0",
+            ],
+            [
+                'key'     => '_laskuhari_payment_status',
+                'compare' => '=',
+                'value'   => "1",
+            ]
+        ],
+        "ei_maksettu" => [
+            'relation' => 'and',
+            [
+                'key'     => '_laskuhari_invoice_number',
+                'compare' => '>',
+                'value'   => "0",
+            ],
+            [
+                'key'     => '_laskuhari_payment_status',
+                'compare' => '!=',
+                'value'   => "1",
+            ]
+        ]
+    ];
+
+    if( $query->is_admin && $pagenow == 'edit.php' && isset( $_GET['filter_laskuhari_status'] ) && $_GET['post_type'] == 'shop_order' ) {
+        if( ! isset( $status_queries[$_GET['filter_laskuhari_status']] ) ) {
+            return;
+        }
+        $status_query = $status_queries[$_GET['filter_laskuhari_status']];
+        $query->set( 'meta_query', $status_query );
+
+    }
+
+}
+
 function laskuhari_user_meta() {
     $custom_meta_fields = array();
     $custom_meta_fields = array(
