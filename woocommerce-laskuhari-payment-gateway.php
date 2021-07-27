@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.1.1
+Version: 1.1.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -832,7 +832,7 @@ function laskuhari_metabox_html( $post ) {
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
             <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
             <a class="laskuhari-nappi laheta-lasku" href="#">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
-            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'send\'); return false;" />
+            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'sendonly\'); return false;" />
             </div>
             <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
 
@@ -916,6 +916,13 @@ function laskuhari_actions() {
     if( ! is_admin() ) {
         return false;
     }
+
+    if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
+        $order_id = $_GET['order_id'] ? $_GET['order_id'] : $_GET['post'];
+        $lh = laskuhari_send_invoice( wc_get_order( $order_id ) );
+        laskuhari_go_back( $lh );
+        exit;
+    }
     
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
@@ -932,12 +939,6 @@ function laskuhari_actions() {
             $lh = laskuhari_download( $_GET['order_id'] );
         }
 
-        laskuhari_go_back( $lh );
-        exit;
-    }
-
-    if( isset( $_GET['laskuhari_send_invoice'] ) ) {
-        $lh = laskuhari_send_invoice( wc_get_order( $_GET['post'] ) );
         laskuhari_go_back( $lh );
         exit;
     }
