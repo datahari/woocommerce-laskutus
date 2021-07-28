@@ -1711,6 +1711,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     laskuhari_update_payment_terms_meta( $order->get_id() );
 
+    $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
+
     $payload = [
         "ref" => "wc",
         "site" => $_SERVER['HTTP_HOST'],
@@ -1736,7 +1738,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "postinumero" => $customer['postcode'],
             "postitoimipaikka" => $customer['city'],
             "email" => $customer['email'],
-            "puhelin" => $customer['phone']
+            "puhelin" => $customer['phone'],
+            "asiakasnro" => $customer_id
         ],
         "toimitusosoite" => [
             "yritys" => $shippingdata['company'],
