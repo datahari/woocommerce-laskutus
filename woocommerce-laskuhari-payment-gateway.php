@@ -907,10 +907,14 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
     if( $post_meta ) {
         return $post_meta;
     }
-    if( ! $order = wc_get_order( $order_id ) ) {
+    if( $order = wc_get_order( $order_id ) ) {
+        $user_id = $order->get_user_id();
+    } elseif( is_checkout() ) {
+        $user_id = get_current_user_id();
+    } else {
         return false;
     }
-    return get_user_meta( $order->get_user_id(), $meta_key, $single );
+    return get_user_meta( $user_id, $meta_key, $single );
 }
 
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
