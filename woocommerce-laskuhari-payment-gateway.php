@@ -1757,7 +1757,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "buyerPartyIdentifier" => $ytunnus
         ],
         "woocommerce" => [
-            "wc_order_id" => $order->get_id()
+            "wc_order_id" => $order->get_id(),
+            "wc_user_id" => $order->get_user_id()
         ]
     ];
 
