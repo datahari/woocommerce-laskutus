@@ -1690,10 +1690,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $cart_discount      = $order->get_discount_total();
     $cart_discount_tax  = $order->get_discount_tax();
 
-    $viitteenne        = get_post_meta( $order->get_id(), '_laskuhari_viitteenne', true );
-    $ytunnus           = get_post_meta( $order->get_id(), '_laskuhari_ytunnus', true );
-    $verkkolaskuosoite = get_post_meta( $order->get_id(), '_laskuhari_verkkolaskuosoite', true );
-    $valittaja         = get_post_meta( $order->get_id(), '_laskuhari_valittaja', true );
+    $viitteenne        = get_laskuhari_meta( $order->get_id(), '_laskuhari_viitteenne', true );
+    $ytunnus           = get_laskuhari_meta( $order->get_id(), '_laskuhari_ytunnus', true );
+    $verkkolaskuosoite = get_laskuhari_meta( $order->get_id(), '_laskuhari_verkkolaskuosoite', true );
+    $valittaja         = get_laskuhari_meta( $order->get_id(), '_laskuhari_valittaja', true );
 
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
         $maksuehto = $_REQUEST['laskuhari-maksuehto'];
@@ -2073,9 +2073,9 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     }
 
     if( $send_method == "verkkolasku" ) {
-        $verkkolaskuosoite = get_post_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
-        $valittaja         = get_post_meta( $order_id, '_laskuhari_valittaja', true );
-        $ytunnus           = get_post_meta( $order_id, '_laskuhari_ytunnus', true );
+        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
+        $valittaja         = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
+        $ytunnus           = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true );
 
         $can_send = true;
         $miten    = "verkkolaskuna";
