@@ -141,11 +141,13 @@ function laskuhari_custom_status_filter( $query ) {
     global $pagenow;
 
     $status_queries = [
-        "laskutettu" => [[
-            'key'     => '_laskuhari_sent',
-            'compare' => '=',
-            'value'   => "yes",
-        ]],
+        "laskutettu" => [
+            [
+                'key'     => '_laskuhari_sent',
+                'compare' => '=',
+                'value'   => "yes",
+            ]
+        ],
         "ei_laskutettu" => [
             'relation' => 'and',
             [
@@ -257,7 +259,6 @@ function laskuhari_custom_status_filter( $query ) {
         }
         $status_query = $status_queries[$_GET['filter_laskuhari_status']];
         $query->set( 'meta_query', $status_query );
-
     }
 
 }
@@ -303,37 +304,37 @@ function laskuhari_user_meta() {
             "type"  => "select",
             "options" => [
                 "" => "-- Valitse --",
-                "003723327487" => "Apix Messaging Oy (003723327487)",
-                "BAWCFI22" => "Basware Oyj (BAWCFI22)",
-                "003703575029" => "CGI (003703575029)",
+                "003723327487"    => "Apix Messaging Oy (003723327487)",
+                "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
+                "003703575029"    => "CGI (003703575029)",
                 "885790000000418" => "HighJump AS (885790000000418)",
-                "INEXCHANGE" => "InExchange Factorum AB (INEXCHANGE)",
-                "EXPSYS" => "Lexmark Expert Systems AB (EXPSYS)",
-                "003708599126" => "Liaison Technologies Oy (003708599126)",
-                "003721291126" => "Maventa (003721291126)",
-                "003726044706" => "Netbox Finland Oy (003726044706)",
-                "E204503" => "OpusCapita Solutions Oy (E204503)",
-                "003723609900" => "Pagero (003723609900)",
-                "PALETTE" => "Palette Software (PALETTE)",
-                "003710948874" => "Posti Messaging Oy (003710948874)",
-                "003701150617" => "PostNord Strålfors Oy (003701150617)",
-                "003714377140" => "Ropo Capital Oy (003714377140)",
-                "003703575029" => "Telia (003703575029)",
-                "003701011385" => "Tieto Oyj (003701011385)",
+                "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
+                "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
+                "003708599126"    => "Liaison Technologies Oy (003708599126)",
+                "003721291126"    => "Maventa (003721291126)",
+                "003726044706"    => "Netbox Finland Oy (003726044706)",
+                "E204503"         => "OpusCapita Solutions Oy (E204503)",
+                "003723609900"    => "Pagero (003723609900)",
+                "PALETTE"         => "Palette Software (PALETTE)",
+                "003710948874"    => "Posti Messaging Oy (003710948874)",
+                "003701150617"    => "PostNord Strålfors Oy (003701150617)",
+                "003714377140"    => "Ropo Capital Oy (003714377140)",
+                "003703575029"    => "Telia (003703575029)",
+                "003701011385"    => "Tieto Oyj (003701011385)",
                 "885060259470028" => "Tradeshift (885060259470028)",
-                "HELSFIHH" => "Aktia (HELSFIHH)",
-                "DABAFIHH" => "Danske Bank (DABAFIHH)",
-                "DNBAFIHX" => "DNB (DNBAFIHX)",
-                "HANDFIHH" => "Handelsbanken (HANDFIHH)",
-                "NDEAFIHH" => "Nordea Pankki (NDEAFIHH)",
-                "ITELFIHH" => "Oma Säästöpankki (ITELFIHH)",
-                "OKOYFIHH" => "Osuuspankit (OKOYFIHH)",
-                "OKOYFIHH" => "Pohjola Pankki (OKOYFIHH)",
-                "POPFFI22" => "POP Pankki  (POPFFI22)",
-                "SBANFIHH" => "S-Pankki (SBANFIHH)",
-                "TAPIFI22" => "LähiTapiola (TAPIFI22)",
-                "ITELFIHH" => "Säästöpankit (ITELFIHH)",
-                "AABAFI22" => "Ålandsbanken (AABAFI22)",
+                "HELSFIHH"        => "Aktia (HELSFIHH)",
+                "DABAFIHH"        => "Danske Bank (DABAFIHH)",
+                "DNBAFIHX"        => "DNB (DNBAFIHX)",
+                "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
+                "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
+                "ITELFIHH"        => "Oma Säästöpankki (ITELFIHH)",
+                "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
+                "OKOYFIHH"        => "Pohjola Pankki (OKOYFIHH)",
+                "POPFFI22"        => "POP Pankki  (POPFFI22)",
+                "SBANFIHH"        => "S-Pankki (SBANFIHH)",
+                "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
+                "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
+                "AABAFI22"        => "Ålandsbanken (AABAFI22)",
             ]
         )
     );
