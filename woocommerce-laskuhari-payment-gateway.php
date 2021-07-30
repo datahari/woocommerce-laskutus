@@ -102,22 +102,37 @@ function laskuhari_json_flag() {
     return JSON_INVALID_UTF8_SUBSTITUTE;
 }
 
+function lh_create_select_box( $name, $options, $current = '' ) {
+    $html = '<select name="'.esc_attr( $name ).'">';
+    foreach( $options as $value => $text ) {
+        $html .= '<option value="'.esc_attr( $value ).'"';
+        if( $current === $value ) {
+            $html .= " selected";
+        }
+        $html .= '>'.esc_html( $text ).'</option>';
+    }
+    $html .= '</select>';
+    return $html;
+}
+
 add_action( 'restrict_manage_posts', 'display_admin_shop_order_laskuhari_filter' );
 function display_admin_shop_order_laskuhari_filter() {
     global $pagenow, $post_type;
 
     if( 'shop_order' === $post_type && 'edit.php' === $pagenow ) {
-        $current   = isset($_GET['filter_laskuhari_status']) ? $_GET['filter_laskuhari_status'] : '';
+        $current = isset( $_GET['filter_laskuhari_status'] ) ? $_GET['filter_laskuhari_status'] : '';
 
-        echo '<select name="filter_laskuhari_status">
-        <option value="">Laskuhari: ' . __('Kaikki ', 'laskuhari') . '</option>
-        <option value="ei_laskutettu"'.( $current == 'ei_laskutettu' ? ' selected' : '' ).'>Laskuhari: '.__('Ei laskutettu', 'laskuhari').'</option>
-        <option value="ei_laskutettu_kaikki"'.( $current == 'ei_laskutettu_kaikki' ? ' selected' : '' ).'>Laskuhari: '.__('Ei laskutettu (Kaikki)', 'laskuhari').'</option>
-        <option value="lasku_luotu"'.( $current == 'lasku_luotu' ? ' selected' : '' ).'>Laskuhari: '.__('Lasku luotu', 'laskuhari').'</option>
-        <option value="laskutettu"'.( $current == 'laskutettu' ? ' selected' : '' ).'>Laskuhari: '.__('Laskutettu', 'laskuhari').'</option>
-        <option value="maksettu"'.( $current == 'maksettu' ? ' selected' : '' ).'>Laskuhari: '.__('Maksettu', 'laskuhari').'</option>
-        <option value="ei_maksettu"'.( $current == 'ei_maksettu' ? ' selected' : '' ).'>Laskuhari: '.__('Ei maksettu', 'laskuhari').'</option>
-        </select>';
+        $options = [
+            ""                     => 'Laskuhari: ' . __( 'Kaikki', 'laskuhari' ),
+            "ei_laskutettu"        => 'Laskuhari: ' . __( 'Ei laskutettu', 'laskuhari' ),
+            "ei_laskutettu_kaikki" => 'Laskuhari: ' . __( 'Ei laskutettu (Kaikki)', 'laskuhari' ),
+            "lasku_luotu"          => 'Laskuhari: ' . __( 'Lasku luotu', 'laskuhari' ),
+            "laskutettu"           => 'Laskuhari: ' . __( 'Laskutettu', 'laskuhari' ),
+            "maksettu"             => 'Laskuhari: ' . __( 'Maksettu', 'laskuhari' ),
+            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' )
+        ];
+
+        echo lh_create_select_box( "filter_laskuhari_status", $options, $current );
     }
 }
 
