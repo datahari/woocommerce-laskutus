@@ -831,7 +831,7 @@ function laskuhari_vat_number_fields() {
     ];
 }
 
-function laskuhari_ytunnus_kassalla() {
+function laskuhari_vat_id_at_checkout() {
     $vat_number_fields = laskuhari_vat_number_fields();
     foreach( $_REQUEST as $key => $value ) {
         foreach( $vat_number_fields as $field_name ) {
@@ -859,7 +859,7 @@ function laskuhari_einvoice_notices( $fields, $errors ) {
         if ( ! $_POST['laskuhari-laskutustapa'] ) {
             $errors->add( 'validation', __( 'Ole hyvä ja valitse laskutustapa' ) );
         }
-        if ( mb_strlen( laskuhari_ytunnus_kassalla() ) < 6 && $_POST['laskuhari-laskutustapa'] == "verkkolasku" ) {
+        if ( mb_strlen( laskuhari_vat_id_at_checkout() ) < 6 && $_POST['laskuhari-laskutustapa'] == "verkkolasku" ) {
             $errors->add( 'validation', __( 'Ole hyvä ja syötä y-tunnus verkkolaskun lähetystä varten' ) );
         }
     }
@@ -929,7 +929,7 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 function laskuhari_update_order_meta( $order_id )  {
     laskuhari_update_payment_terms_meta( $order_id );
     
-    $ytunnus = laskuhari_ytunnus_kassalla();
+    $ytunnus = laskuhari_vat_id_at_checkout();
     if ( isset( $ytunnus ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
     }
