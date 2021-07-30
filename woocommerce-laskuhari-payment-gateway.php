@@ -398,20 +398,11 @@ function laskuhari_user_profile_additional_info( $user ) {
                 </td>
             </tr>';
         } elseif( "select" === $meta_field['type'] ) {
-            $options = '';
-            foreach( $meta_field['options'] as $id => $value ) {
-                $selected = ($id == $current_value ? ' selected' : '');
-                $options .= '<option value="' . esc_attr( $id ) . '"' . $selected . '>' . esc_html( $value ) . '</option>';
-            }
-
             echo '
             <tr>
                 <th>' . $meta_disp_name . '</th>
                 <td>
-                    <select name="' . $meta_field_name . '"
-                            id="' . $meta_field_name . '">
-                        '.$options.'
-                    </select><br />
+                    '.lh_create_select_box( $meta_field_name, $meta_field['options'], $current_value ).'<br />
                     <span class="description"></span>
                 </td>
             </tr>';
