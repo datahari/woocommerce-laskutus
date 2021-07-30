@@ -882,7 +882,7 @@ function laskuhari_update_payment_terms_meta( $order_id ) {
     }
 }
 
-function laskuhari_reset_metadata( $order_id ) {
+function laskuhari_reset_order_metadata( $order_id ) {
     update_post_meta( $order_id, '_laskuhari_payment_status', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_id', "" );
@@ -1712,7 +1712,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
     }
 
-    laskuhari_reset_metadata( $order->get_id() );
+    laskuhari_reset_order_metadata( $order->get_id() );
 
     update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
