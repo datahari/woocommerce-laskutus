@@ -778,6 +778,13 @@ function laskuhari_add_bulk_action_for_invoicing( $actions ) {
     return $actions;
 }
 
+function is_laskuhari_allowed_order_status( $status ) {
+    return in_array( $status, [
+        "processing",
+        "completed"
+    ] );
+}
+
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if( ! is_admin() ) {
         return false;
@@ -799,7 +806,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
 
         $order_status = $order->get_status();
 
-        if( "processing" !== $order_status ) {
+        if( ! is_laskuhari_allowed_order_status( $order_status ) ) {
             $data = array();
             $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
             return laskuhari_back_url( $data, $redirect_to );
@@ -1060,8 +1067,8 @@ function laskuhari_metabox_html( $post ) {
     <div class="laskuhari-tila<?php echo $tila_class; ?>"><?php echo __($tila, 'laskuhari'); ?></div>
     <?php
     $order = wc_get_order( $post->ID );
-    if( $order && $order->get_status() != "processing" ) {
-        echo __( 'Vaihda tilauksen status Käsittelyssä-tilaan, jotta voit laskuttaa sen.', 'laskuhari' );
+    if( $order && ! is_laskuhari_allowed_order_status ( $order->get_status() ) ) {
+        echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
         $payment_terms = laskuhari_get_payment_terms();
         $payment_terms_select = "";
@@ -2002,7 +2009,11 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         update_post_meta( $order->get_id(), '_laskuhari_uid', $laskuhari_uid );
         
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
-        $order->update_status( 'processing' );
+
+        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
+            $status_after_creation = apply_filters( "laskuhari_status_after_creation", "processing", $order->get_id() );
+            $order->update_status( $status_after_creation );
+        }
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
 
@@ -2184,7 +2195,12 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $order->add_order_note( __( 'Lasku lähetetty ' . $miten, 'laskuhari' ) );
         update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
-        $order->update_status( 'processing' );
+
+        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
+            $status_after_sending = apply_filters( "laskuhari_status_after_sending", "processing", $order->get_id() );
+            $order->update_status( $status_after_sending );
+        }
+
         $sent_order = $order->get_id();
 
         do_action( "laskuhari_invoice_sent", $sent_order, $invoice_id );
@@ -2193,7 +2209,11 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $success = "Tilauksen #" . $order->get_order_number() . " lasku tallennettu Laskuhariin. Laskua ei lähetetty vielä.";
         $sent_order = "";
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
-        $order->update_status( 'processing' );
+
+        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
+            $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", "processing", $order->get_id() );
+            $order->update_status( $status_after_unsent_creation );
+        }
 
         do_action( "laskuhari_invoice_created_but_not_sent", $sent_order, $invoice_id );
     }
