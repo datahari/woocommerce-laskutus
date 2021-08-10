@@ -1699,8 +1699,14 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     // summat
     $loppusumma         = $order->get_total();
     $toimitustapa       = $order->get_shipping_method();
-    $toimitusmaksu      = $order->get_total_shipping();
+    $toimitusmaksu      = $order->get_shipping_total();
     $toimitus_vero      = $order->get_shipping_tax();
+
+    // calculate shipping cost down to multiple decimals
+    // get_shipping_total returns rounded excluding tax
+    $toimitus_veropros  = round( $toimitus_vero / $toimitusmaksu, 2);
+    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros );
+
     $cart_discount      = $order->get_discount_total();
     $cart_discount_tax  = $order->get_discount_tax();
 
