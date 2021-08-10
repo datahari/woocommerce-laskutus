@@ -1788,6 +1788,9 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         ];
     }
 
+    $coupon_codes = $order->get_coupon_codes();
+    $has_coupons = count( $coupon_codes ) > 0;
+
     $laskurivit = [];
 
     $laskettu_summa = 0;
@@ -1795,22 +1798,33 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         
         $data = $item->get_data();
 
-        $yht_verollinen = round( $data['subtotal'] + $data['subtotal_tax'], 2 );
+        if( $has_coupons ) {
+            $sub = 'sub';
+        } else {
+            $sub = '';
+        }
 
-        if( $data['subtotal'] != 0 ) {
-            $alv         = round( $data['subtotal_tax'] / $data['subtotal'] * 100, 0 );
+        $yht_verollinen = round( $data[$sub.'total'] + $data[$sub.'total_tax'], 2 );
+
+        if( $data[$sub.'total'] != 0 ) {
+            $alv         = round( $data[$sub.'total_tax'] / $data[$sub.'total'] * 100, 0 );
             $yht_veroton = $yht_verollinen / ( 1 + $alv / 100 );
         } else {
             $alv         = 0;
             $yht_veroton = 0;
         }
 
-        if( $data['subtotal'] != 0 ) {
+        if( $data[$sub.'total'] != 0 ) {
             $yks_verollinen = round( $yht_verollinen / $data['quantity'], 2 );
             $yks_veroton    = $yks_verollinen / ( 1 + $alv / 100 );
         } else {
             $yks_verollinen = 0;
             $yks_veroton    = 0;
+        }
+
+        if( $sub === '' ) {
+            $cart_discount -= $data['subtotal'] - $data['total'];
+            $cart_discount_tax -= $data['subtotal_tax'] - $data['total_tax'];
         }
 
         $ale = 0;
@@ -1863,9 +1877,20 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     // lisätään alennus
-    if( $cart_discount ) {
+    if( abs( round( $cart_discount, 2 ) ) > 0 ) {
+        $discount_name = "Alennus";
+
+        if( $has_coupons ) {
+            if( count( $coupon_codes ) > 1 ) {
+                $discount_name = __( "Kupongit", "laskuhari" );
+            } else {
+                $discount_name = __( "Kuponki", "laskuhari" );
+            }
+            $discount_name .= " (".implode( ", ", $coupon_codes ).")";
+        }
+
         $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => "Alennus",
+            "nimike"        => $discount_name,
             "maara"         => 1,
             "veroton"       => $cart_discount * -1,
             "alv"           => round( $cart_discount_tax / $cart_discount * 100, 0 ),
