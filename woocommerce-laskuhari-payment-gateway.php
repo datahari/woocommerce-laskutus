@@ -1828,7 +1828,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         }
 
         if( $data[$sub.'total'] != 0 ) {
-            $yks_verollinen = round( $yht_verollinen / $data['quantity'], 2 );
+            $yks_verollinen = round( $yht_verollinen / $data['quantity'], 10 );
             $yks_veroton    = $yks_verollinen / ( 1 + $alv / 100 );
         } else {
             $yks_verollinen = 0;
