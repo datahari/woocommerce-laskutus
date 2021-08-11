@@ -2128,6 +2128,8 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $send_method = $info->send_method_fallback;
     }
 
+    $mihin = "";
+
     if( $send_method == "verkkolasku" ) {
         $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
         $valittaja         = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
@@ -2135,6 +2137,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send = true;
         $miten    = "verkkolaskuna";
+        $mihin    = " osoitteeseen $verkkolaskuosoite ($valittaja)";
 
         $payload = [
             "lahetystapa" => "verkkolasku",
@@ -2162,6 +2165,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send   = true;
         $miten      = "sähköpostitse";
+        $mihin      = " osoitteeseen $email";
         $sendername = $sendername ? $sendername : "Laskutus";
 
         if( $email_message == "" ) {
@@ -2234,7 +2238,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             );
         }
 
-        $order->add_order_note( __( 'Lasku lähetetty ' . $miten, 'laskuhari' ) );
+        $order->add_order_note( __( 'Lasku lähetetty ' . $miten . $mihin, 'laskuhari' ) );
         update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
 
         if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
