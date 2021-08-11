@@ -1,13 +1,20 @@
 var laskuhari_viime_maksutapa = false;
 
 (function($) {
-    function laskuhari_tarkista_verkkolaskuosoite() {
+    function laskuhari_changed_send_method() {
         if( $("#laskuhari-laskutustapa").val() == "verkkolasku" ) {
             $("#laskuhari-verkkolasku-tiedot").show();
             $(".verkkolasku-pakollinen").attr("required", true);
         } else {
             $("#laskuhari-verkkolasku-tiedot").hide();
             $(".verkkolasku-pakollinen").attr("required", false);
+        }
+        if( $("#laskuhari-laskutustapa").val() == "email" ) {
+            $("#laskuhari-sahkoposti-tiedot").show();
+            $("#laskuhari-email").attr("required", true);
+        } else {
+            $("#laskuhari-sahkoposti-tiedot").hide();
+            $("#laskuhari-email").attr("required", false);
         }
     }
     function laskuhari_tarkista_laskutustapa(){
@@ -44,7 +51,7 @@ var laskuhari_viime_maksutapa = false;
             }
         });
         $("body").on("keyup change", "#laskuhari-laskutustapa", function() {
-            laskuhari_tarkista_verkkolaskuosoite();
+            laskuhari_changed_send_method();
         });
     });
 })(jQuery);

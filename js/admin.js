@@ -67,6 +67,7 @@ function laskuhari_admin_action( action ) {
 	var verkkolaskuosoite = $('#laskuhari-verkkolaskuosoite').val();
 	var valittajatunnus   = $('#laskuhari-valittaja').val();
 	var viitteenne        = $('#laskuhari-viitteenne').val();
+	var email             = $('#laskuhari-email').val();
 
 	window.location.href = urli+
 		'laskuhari='+action+
@@ -75,5 +76,6 @@ function laskuhari_admin_action( action ) {
 		'&laskuhari-ytunnus='+encodeURIComponent(ytunnus)+
 		'&laskuhari-verkkolaskuosoite='+encodeURIComponent(verkkolaskuosoite)+
 		'&laskuhari-valittaja='+encodeURIComponent(valittajatunnus)+
-		'&laskuhari-viitteenne='+encodeURIComponent(viitteenne);
+		'&laskuhari-viitteenne='+encodeURIComponent(viitteenne)+
+		'&laskuhari-email='+encodeURIComponent(email);
 }

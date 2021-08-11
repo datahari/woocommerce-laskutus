@@ -947,6 +947,9 @@ function laskuhari_update_order_meta( $order_id )  {
     if ( isset( $_REQUEST['laskuhari-verkkolaskuosoite'] ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_verkkolaskuosoite', $_REQUEST['laskuhari-verkkolaskuosoite'], true );
     }
+    if ( isset( $_REQUEST['laskuhari-email'] ) ) {
+        laskuhari_set_order_meta( $order_id, '_laskuhari_email', $_REQUEST['laskuhari-email'], false );
+    }
     if ( isset( $_REQUEST['laskuhari-valittaja'] ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_valittaja', $_REQUEST['laskuhari-valittaja'], true );
     }
@@ -1288,7 +1291,7 @@ function laskuhari_back_url( $lh = false, $url = false ) {
         'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty',
         'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa',
         'laskuhari-maksuehto', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite',
-        'laskuhari-valittaja', 'laskuhari_action'
+        'laskuhari-valittaja', 'laskuhari_action', 'laskuhari-email'
     );
 
     $back = remove_query_arg(
@@ -1658,6 +1661,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     if ( isset( $_REQUEST['laskuhari-viitteenne'] ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_viitteenne', $_REQUEST['laskuhari-viitteenne'], false );
+    }
+
+    if ( isset( $_REQUEST['laskuhari-email'] ) ) {
+        laskuhari_set_order_meta( $order_id, '_laskuhari_email', $_REQUEST['laskuhari-email'], false );
     }
 
     $prices_include_tax = get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
@@ -2139,7 +2146,10 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             ]
         ];
     } else if( $send_method == "email" ) {
-        if( stripos( $customer['email'] , "@" ) === false ) {
+        $email = get_laskuhari_meta( $order_id, '_laskuhari_email', true );
+        $email = $email ? $email : $customer['email'];
+
+        if( stripos( $email , "@" ) === false ) {
             $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';
             $order->add_order_note( $error_notice );
             if( function_exists( 'wc_add_notice' ) ) {
@@ -2160,7 +2170,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $payload = [
             "lahetystapa" => "email",
-            "osoite"      => $customer['email'],
+            "osoite"      => $email,
             "aihe"        => "Lasku",
             "viesti"      => $email_message,
             "lahettaja"   => $sendername

@@ -118,6 +118,23 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 <?php if( $this->verkkolasku_kaytossa ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
                 <?php if( $this->kirjelasku_kaytossa ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
             </select>
+            <?php
+            if( is_admin() ) {
+                $invoicing_email = get_laskuhari_meta( $order_id, '_laskuhari_email', true );
+                if( ! $invoicing_email ) {
+                    $order = wc_get_order( $order_id );
+                    if( $order ) {
+                        $invoicing_email = $order->get_billing_email();
+                    }
+                }
+                ?>
+                <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
+                    <div class="laskuhari-caption"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</div>
+                    <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $invoicing_email ); ?>" name="laskuhari-email" /><br />
+                </div>
+                <?php
+                }
+            ?>
             <div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
                 <?php
                 if( ! is_checkout() || ! laskuhari_vat_id_custom_field_exists() ) {
