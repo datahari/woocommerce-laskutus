@@ -1350,13 +1350,15 @@ function laskuhari_notices() {
 
     foreach ( $orders as $key => $notice ) {
         if( $notice != "" ) {
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $notice ) . ' luotu lasku</p></div>';
+            $order = wc_get_order( $notice );
+            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' luotu lasku</p></div>';
         }
     }
 
     foreach ( $orders2 as $key => $notice ) {
         if( $notice != "" ) {
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $notice ) . ' lähetetty lasku</p></div>';
+            $order = wc_get_order( $notice );
+            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' lähetetty lasku</p></div>';
         }
     }
 }
