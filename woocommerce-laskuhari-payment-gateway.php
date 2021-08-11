@@ -808,7 +808,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
 
         if( ! is_laskuhari_allowed_order_status( $order_status ) ) {
             $data = array();
-            $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
+            $data["notice"][] = __( 'Tilausten tulee olla Käsittelyssä- tai Valmis-tilassa, ennen kuin ne voidaan laskuttaa.', 'laskuhari' );
             return laskuhari_back_url( $data, $redirect_to );
         }
     }
