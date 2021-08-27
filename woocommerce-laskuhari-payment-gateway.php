@@ -79,6 +79,7 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
+	add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
         add_action( 'admin_notices', 'laskuhari_notices' );
@@ -100,6 +101,15 @@ function laskuhari_json_flag() {
         return JSON_PARTIAL_OUTPUT_ON_ERROR;
     }
     return JSON_INVALID_UTF8_SUBSTITUTE;
+}
+
+function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
+	if( $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+		if( mb_stripos( $title, $payment_terms_name ) === false ) {
+			$title .= " (" . $payment_terms_name . ")";
+		}
+	}
+	return $title;
 }
 
 function lh_create_select_box( $name, $options, $current = '' ) {
