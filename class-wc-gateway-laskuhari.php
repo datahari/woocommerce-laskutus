@@ -500,9 +500,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if ( ! $this->enable_for_virtual && ! $needs_shipping ) {
             return false;
         }
-        
+
         $current_user = wp_get_current_user();
-        
+
         // Tarkista käyttäjän laskutusasiakas-tieto
         $can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) !== "yes";
         $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
@@ -510,7 +510,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( $this->salli_laskutus_erikseen && $can_use_billing ) {
             return false;
         }
-        
+
         // Check methods
         if ( ! empty( $this->enable_for_methods ) && $needs_shipping ) {
 
