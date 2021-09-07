@@ -60,11 +60,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->enable_for_customers        = $this->lh_get_option( 'enable_for_customers', array() );
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
 
+        $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
+        $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
+
         if( ! $only_settings ) {
             add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
             add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
             add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
-            
+
             // add webhooks if not added yet and not in demo mode
             if( $this->create_webhooks && $this->demotila != "yes" && strlen( $this->apikey ) > 64 && $this->uid ) {
                 $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
@@ -91,6 +94,40 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
     public function parse_decimal( $number ) {
         return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
+    }
+
+    public function get_other_payment_methods() {
+        $gateways = array(
+            'WC_Gateway_Paypal'
+        );
+
+        $gateways = apply_filters( 'woocommerce_payment_gateways', $gateways );
+        $skip_gateways = apply_filters( 'laskuhari_skip_gateways', ["WC_Gateway_Laskuhari"] );
+
+        $payment_methods = [];
+
+        if( ! is_array( $gateways ) ) {
+            return $payment_methods;
+        }
+
+        foreach( $gateways as $gateway_class ) {
+            if( in_array( $gateway_class, $skip_gateways ) ) {
+                continue;
+            }
+            if( ! class_exists( $gateway_class ) ) {
+                continue;
+            }
+            try {
+                $gateway = new $gateway_class();
+            } catch( \Throwable $e ) {
+                continue;
+            }
+            if( $gateway->enabled == 'yes' ) {
+                $payment_methods[$gateway->id] = $gateway->method_title ? $gateway->method_title : $id;
+            }
+        }
+
+        return $payment_methods;
     }
 
     public function veroton_laskutuslisa( $sis_alv ) {
@@ -275,6 +312,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
+        $payment_methods = $this->get_other_payment_methods();
+
         $this->form_fields = array(
             'enabled' => array(
                 'title'       => __( 'Käytössä', 'laskuhari' ),
@@ -431,6 +470,26 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'custom_attributes' => array(
                     'data-placeholder' => __( 'Valitse toimitustavat', 'laskuhari' )
                 )
+            ),
+            'send_invoice_from_payment_methods' => array(
+                'title'             => __( 'Lähetä lasku myös näistä maksutavoista', 'laskuhari' ),
+                'type'              => 'multiselect',
+                'class'             => 'wc-enhanced-select',
+                'css'               => 'width: 450px;',
+                'default'           => '',
+                'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään vain jos automaattinen lähetys on käytössä)', 'laskuhari' ),
+                'options'           => $payment_methods,
+                'desc_tip'          => true,
+                'custom_attributes' => array(
+                    'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
+                )
+            ),
+            'invoice_email_text_for_other_payment_methods' => array(
+                'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
+                'type'        => 'textarea',
+                'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
+                'default'     => __( 'Kiitos tilauksestasi. Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
+                'desc_tip'    => true,
             ),
             'salli_laskutus_erikseen' => array(
                 'title'       => __( 'Salli vain laskutusasiakkaille', 'laskuhari' ),
