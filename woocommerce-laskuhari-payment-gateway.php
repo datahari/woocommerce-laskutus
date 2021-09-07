@@ -846,10 +846,12 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if( ! is_admin() ) {
         return false;
     }
-    
+
     if ( $action !== 'laskuhari-batch-send' ) {
         return $redirect_to;
     }
+
+    $send = apply_filters( "laskuhari_bulk_action_send", true, $order_ids );
 
     $data = array();
 
@@ -871,10 +873,10 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     }
 
     foreach( $_GET['post'] as $order_id ) {
-        $lh     = laskuhari_process_action( $order_id, true, true );
+        $lh     = laskuhari_process_action( $order_id, $send, true );
         $data[] = $lh;
     }
-    
+
     $back_url = laskuhari_back_url( $data, $redirect_to );
 
     $back_url = apply_filters( "laskuhari_return_url_after_bulk_action", $back_url, $order_ids );
