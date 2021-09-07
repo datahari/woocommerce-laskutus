@@ -1619,6 +1619,8 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     curl_setopt($ch, CURLOPT_POST, TRUE);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
+    $ch = apply_filters( "laskuhari_curl_settings", $ch );
+
     $response = curl_exec( $ch );
 
     $curl_errno = curl_errno( $ch );
