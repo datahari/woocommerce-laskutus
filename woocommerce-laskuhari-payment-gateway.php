@@ -1388,10 +1388,10 @@ function laskuhari_not_activated() {
 }
 
 function laskuhari_notices() {
-    $notices   = is_array($_GET['laskuhari_notice'])    ? $_GET['laskuhari_notice']    : array($_GET['laskuhari_notice']);
-    $successes = is_array($_GET['laskuhari_success'])   ? $_GET['laskuhari_success']   : array($_GET['laskuhari_success']);
-    $orders    = is_array($_GET['laskuhari_luotu'])     ? $_GET['laskuhari_luotu']     : array($_GET['laskuhari_luotu']);
-    $orders2   = is_array($_GET['laskuhari_lahetetty']) ? $_GET['laskuhari_lahetetty'] : array($_GET['laskuhari_lahetetty']);
+    $notices   = is_array($_GET['laskuhari_notice'])    ? $_GET['laskuhari_notice']    : array($_GET['laskuhari_notice'] ?? "");
+    $successes = is_array($_GET['laskuhari_success'])   ? $_GET['laskuhari_success']   : array($_GET['laskuhari_success'] ?? "");
+    $orders    = is_array($_GET['laskuhari_luotu'])     ? $_GET['laskuhari_luotu']     : array($_GET['laskuhari_luotu'] ?? "");
+    $orders2   = is_array($_GET['laskuhari_lahetetty']) ? $_GET['laskuhari_lahetetty'] : array($_GET['laskuhari_lahetetty'] ?? "");
 
     foreach ( $notices as $key => $notice ) {
         if( $notice != "" ) {
@@ -1662,17 +1662,17 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     if( $curl_errno ) {
         return false;
     }
-    
+
     return $response;
 }
 
 function laskuhari_invoice_row( $data ) {
     $row_payload = [
-        "koodi" => $data['product_sku'],
+        "koodi" => $data['product_sku'] ?? "",
         "tyyppi" => "",
         "woocommerce" => [
-            "wc_product_id" => $data['product_id'],
-            "wc_variation_id" => $data['variation_id']
+            "wc_product_id" => $data['product_id'] ?? "",
+            "wc_variation_id" => $data['variation_id'] ?? ""
         ],
         "nimike" => $data['nimike'],
         "maara" => $data['maara'],
