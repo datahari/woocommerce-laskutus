@@ -1619,11 +1619,6 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     curl_setopt($ch, CURLOPT_POST, TRUE);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
-    if( $laskuhari_gateway_object->enforce_ssl != "yes" ) {
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-    }
-
     $response = curl_exec( $ch );
 
     $curl_errno = curl_errno( $ch );

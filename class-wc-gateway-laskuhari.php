@@ -503,13 +503,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'laskuhari' ),
                 'type'              => 'checkbox',
                 'default'           => 'yes'
-            ),
-            'enforce_ssl' => array(
-                'title'       => __( 'Vahvista SSL', 'laskuhari' ),
-                'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'laskuhari' ),
-                'type'        => 'checkbox',
-                'description' => 'Mikäli pois käytöstä SSL_VERIFYHOST = 0, SSL_VERIFYPEER = FALSE',
-                'default'     => 'yes'
             )
         );
     }
