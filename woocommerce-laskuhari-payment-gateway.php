@@ -1055,7 +1055,7 @@ function laskuhari_metabox() {
         return false;
     }
 
-    if( $_GET['action'] == "edit" ) {
+    if( isset( $_GET['action'] ) && $_GET['action'] == "edit" ) {
         add_meta_box(
             'laskuhari_metabox',       // Unique ID
             'Laskuhari',               // Box title
@@ -1299,7 +1299,7 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
-        $order_id = $_GET['order_id'] ? $_GET['order_id'] : $_GET['post'];
+        $order_id = $_GET['order_id'] ?? $_GET['post'];
         $lh = laskuhari_send_invoice( wc_get_order( $order_id ) );
         laskuhari_go_back( $lh );
         exit;
@@ -1307,7 +1307,7 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
-        $order_id   = $_GET['order_id'] ? $_GET['order_id'] : $_GET['post'];
+        $order_id   = $_GET['order_id'] ?? $_GET['post'];
         $lh         = laskuhari_process_action( $order_id, $send );
 
         laskuhari_go_back( $lh );
