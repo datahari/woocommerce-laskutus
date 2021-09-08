@@ -1811,7 +1811,7 @@ function laskuhari_send_invoice_attached( $order ) {
                 if( ! $sent_to_admin ) {
                     $message = apply_filters(
                         "laskuhari_invoice_email_text_for_other_payment_methods_formatted",
-                        "<p>".nl2br( esc_html( $laskuhari_gateway_object->invoice_email_text_for_other_payment_methods ) )."</p>",
+                        wpautop( wptexturize( $laskuhari_gateway_object->invoice_email_text_for_other_payment_methods ) ),
                         $order
                     );
                     echo $message;
