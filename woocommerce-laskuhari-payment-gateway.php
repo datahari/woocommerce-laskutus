@@ -2257,7 +2257,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
-        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
+        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) && $order->get_payment_method() === "laskuhari" ) {
             $status_after_creation = apply_filters( "laskuhari_status_after_creation", "processing", $order->get_id() );
             $order->update_status( $status_after_creation );
         }
