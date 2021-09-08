@@ -40,7 +40,7 @@ add_action( 'woocommerce_init', function() {
 
     $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
 
-    add_action( 'woocommerce_payment_complete', 'laskuhari_handle_payment_complete' );
+    add_action( 'woocommerce_pre_payment_complete', 'laskuhari_handle_payment_complete' );
 } );
 
 add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
@@ -81,6 +81,12 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_after_checkout_validation', 'laskuhari_einvoice_notices', 10, 2);
     add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
+
+    add_action( 'woocommerce_order_status_cancelled_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
+    add_action( 'woocommerce_order_status_failed_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
+    add_action( 'woocommerce_order_status_on-hold_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
+    add_action( 'woocommerce_order_status_pending_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
+    add_action( 'woocommerce_before_resend_order_emails', "laskuhari_send_invoice_attached", 10, 1 );
 
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
@@ -154,22 +160,9 @@ function laskuhari_handle_payment_complete( $order_id ) {
         return false;
     }
 
-    $is_paid = $order->is_paid();
-
-    if( ! apply_filters( "laskuhari_should_handle_payment_complete", $is_paid, $payment_method, $order_id ) ) {
-        return false;
-    }
-
-    // decide whether to send invoice or only create
-    $send = apply_filters(
-        "laskuhari_should_send_invoice_from_other_payment_method",
-        $laskuhari_gateway_object->auto_gateway_enabled,
-        $order_id
-    );
-
     update_post_meta( $order_id, '_laskuhari_paid_by_other', "yes" );
 
-    laskuhari_process_action( $order_id, $send );
+    laskuhari_process_action( $order_id, false );
 }
 
 add_action( 'restrict_manage_posts', 'display_admin_shop_order_laskuhari_filter' );
@@ -1544,7 +1537,7 @@ function laskuhari_uid_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_uid', true );
 }
 
-function laskuhari_download( $order_id ) {
+function laskuhari_download( $order_id, $redirect = true ) {
     global $laskuhari_gateway_object;
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
@@ -1583,6 +1576,10 @@ function laskuhari_download( $order_id ) {
         return array(
             "notice" => urlencode( $error_notice )
         );
+    }
+
+    if( $redirect !== true ) {
+        return $response;
     }
 
     // ohjataan PDF-tiedostoon jos ei ollut virheitä
@@ -1708,6 +1705,138 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
     return "yes" === get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
 }
 
+function laskuhari_maybe_send_invoice_attached( $order ) {
+    global $laskuhari_gateway_object;
+
+    if( ! is_object( $order ) ) {
+        $order = wc_get_order( $order );
+    }
+
+    if( ! $order ) {
+        return false;
+    }
+
+    if(
+        $order->get_payment_method() === "laskuhari" &&
+        laskuhari_get_order_send_method( $order->get_id() ) !== "email" &&
+        apply_filters( "laskuhari_attach_invoice_only_on_email_method", true )
+    ) {
+        return false;
+    }
+
+    $invoice_number = get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+
+    if( ! $invoice_number ) {
+        return false;
+    }
+
+    if( ! $laskuhari_gateway_object->attach_invoice_to_wc_email && $order->get_payment_method() === "laskuhari" ) {
+        return false;
+    }
+
+    // attach invoice pdf to WC email
+    laskuhari_send_invoice_attached( $order );
+}
+
+function laskuhari_send_invoice_attached( $order ) {
+    global $laskuhari_gateway_object;
+
+    if( ! is_object( $order ) ) {
+        $order = wc_get_order( $order );
+    }
+
+    if( ! $order ) {
+        return false;
+    }
+
+    $invoice_number = get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+
+    if( ! $invoice_number ) {
+        return false;
+    }
+
+    if( ! apply_filters( "laskuhari_send_invoice_attached_custom_rule", true, $order ) ) {
+        return false;
+    }
+
+    // get pdf of invoice
+    $pdf_url = laskuhari_download( $order->get_id(), false );
+
+    if( is_string( $pdf_url ) && strpos( $pdf_url, "https://oma.laskuhari.fi/" ) === 0 ) {
+        $pdf = file_get_contents( $pdf_url );
+
+        // download invoice pdf to temporary file
+        $temp_file = get_temp_dir()."lasku_".intval( $invoice_number ).".pdf";
+        if( file_exists( $temp_file ) ) {
+            @unlink( $temp_file );
+        }
+        if( file_exists( $temp_file ) ) {
+            $temp_file = get_temp_dir()."lasku_".intval( $invoice_number )."_".wp_generate_password( 6, false ).".pdf";
+        }
+        file_put_contents( $temp_file, $pdf );
+
+        if( $laskuhari_gateway_object->invoice_email_text_for_other_payment_methods && laskuhari_order_is_paid_by_other_method( $order ) ) {
+            add_action( 'woocommerce_email_order_details', function( $order, $sent_to_admin ) use ( $laskuhari_gateway_object ) {
+                if( ! $sent_to_admin ) {
+                    $message = apply_filters(
+                        "laskuhari_invoice_email_text_for_other_payment_methods_formatted",
+                        "<p>".nl2br( esc_html( $laskuhari_gateway_object->invoice_email_text_for_other_payment_methods ) )."</p>",
+                        $order
+                    );
+                    echo $message;
+                }
+            }, 5, 2 );
+        }
+
+        // hook attachment to WC email
+        add_filter( "woocommerce_email_attachments", function( $attachments, $id, $object_type, $email_type ) use ( $temp_file, $order, $laskuhari_gateway_object ) {
+            $email_types = apply_filters(
+                "laskuhari_attach_pdf_to_email_types",
+                [
+                    "WC_Email_Customer_Processing_Order",
+                    "WC_Email_Customer_Invoice"
+                ],
+                $order
+            );
+
+            if( ! in_array( get_class( $email_type ), $email_types ) ) {
+                return $attachments;
+            }
+
+            $conditional_email_types = apply_filters(
+                "laskuhari_attach_pdf_to_email_types_conditionally",
+                [
+                    "WC_Email_Customer_Processing_Order"
+                ],
+                $order
+            );
+
+            if(
+                in_array( get_class( $email_type ), $conditional_email_types ) &&
+                ! $laskuhari_gateway_object->attach_invoice_to_wc_email &&
+                ! laskuhari_order_is_paid_by_other_method( $order )
+            ) {
+                return $attachments;
+            }
+
+            $attachments[] = $temp_file;
+
+            $order->add_order_note( __( "Liitetty lasku liitteksi tilaussähköpostiin (Laskuhari)", "laskuhari" ) );
+
+            do_action( "laskuhari_after_pdf_attached_to_email", $order, $temp_file, $email_type, $attachments, $id, $object_type );
+
+            return $attachments;
+        }, 10, 4 );
+
+        // make sure to delete temporary file
+        add_action( "shutdown", function() use ( $temp_file ) {
+            unlink( $temp_file );
+        } );
+    } else {
+        $order->add_order_note( __( "Laskun liittäminen tilausvahvistuksen liitteeksi epäonnistui (Laskuhari)", "laskuhari" ) );
+    }
+}
+
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
     global $laskuhari_gateway_object;
 
@@ -1803,7 +1932,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
 
     // merkitään lasku heti maksetuksi, jos se tehtiin muusta maksutavasta
-    if( laskuhari_order_is_paid_by_other_method( $order ) && $order->is_paid() ) {
+    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
         $invoice_status = apply_filters( "laskuhari_invoice_status_from_other_payment_method", "MAKSETTU", $order_id );
     } else {
         $invoice_status = "AVOIN";

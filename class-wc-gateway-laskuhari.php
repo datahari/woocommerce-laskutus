@@ -62,6 +62,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
+        $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
 
         if( ! $only_settings ) {
             add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -342,6 +343,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'type'        => 'checkbox',
                 'description' => 'Lähetetäänkö laskut automaattisesti, kun asiakas tekee tilauksen?',
                 'default'     => 'yes'
+            ),
+            'attach_invoice_to_wc_email' => array(
+                'title'       => __( 'Tilausvahvistuksen liite', 'laskuhari' ),
+                'label'       => __( 'Liitä lasku tilausvahvistuksen liitteeksi', 'laskuhari' ),
+                'type'        => 'checkbox',
+                'description' => 'Sähköpostilaskua ei tässä tapauksessa lähetetä erikseen',
+                'default'     => 'no'
             ),
             'email_lasku_kaytossa' => array(
                 'title'       => __( 'Sähköpostilaskut käytössä', 'laskuhari' ),
@@ -629,6 +637,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function process_payment( $order_id ) {
 
         if( $this->auto_gateway_create_enabled ) {
+            // don't send separate email invoice if it is attached to confirmation email
+            if( $this->attach_invoice_to_wc_email ) {
+                add_filter( "laskuhari_send_after_creation", function( $send, $send_method, $order ) {
+                    if( $send_method === "email" ) {
+                        $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                        return false;
+                    }
+                    return $send;
+                }, 10, 3 );
+            }
+
             $lh = laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
             $order      = $lh['order'];
             $notice     = $lh['notice'];
