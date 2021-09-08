@@ -1941,7 +1941,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     // calculate shipping cost down to multiple decimals
     // get_shipping_total returns rounded excluding tax
-    $toimitus_veropros  = round( $toimitus_vero / $toimitusmaksu, 2);
+    $toimitus_veropros  = $toimitusmaksu != 0 ? round( $toimitus_vero / $toimitusmaksu, 2) : 0;
     $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros );
 
     $cart_discount      = $order->get_discount_total();
