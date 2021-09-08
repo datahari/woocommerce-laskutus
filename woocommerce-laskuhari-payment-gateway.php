@@ -1915,6 +1915,9 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $shipping_different = false;
 
     foreach ( $customer as $key => $cdata ) {
+        if( in_array( $key, ["email", "phone"] ) && isset( $shippingdata[$key] ) && $shippingdata[$key] == "" ) {
+            continue;
+        }
         if( isset( $shippingdata[$key] ) && $shippingdata[$key] != $cdata ) {
             $shipping_different = true;
             break;
