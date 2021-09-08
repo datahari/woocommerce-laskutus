@@ -772,6 +772,32 @@ function laskuhari_add_webhook( $event, $url ) {
     return true;
 }
 
+function laskuhari_set_invoice_sent_status( $invoice_id, $sent, $send_date = false ) {
+    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/".$invoice_id."/lahetetty";
+
+    $api_url = apply_filters( "laskuhari_invoice_sent_status_api_url", $api_url, $invoice_id, $sent, $send_date );
+
+    $payload = [
+        "lahetetty" => $sent
+    ];
+
+    if( $send_date !== false ) {
+        $payload["lahetyspaiva"] = $send_date;
+    }
+
+    $payload = apply_filters( "laskuhari_set_invoice_sent_status_payload", $payload, $sent, $send_date );
+
+    $payload = json_encode( $payload, laskuhari_json_flag() );
+
+    $response = laskuhari_api_request( $payload, $api_url, "Set invoice sent status" );
+
+    if( $response === false ) {
+        return false;
+    }
+
+    return true;
+}
+
 // Lisää "Kirjaudu Laskuhariin" -linkki lisäosan tietoihin
 
 function laskuhari_register_plugin_links( $links, $file ) {
@@ -1750,8 +1776,9 @@ function laskuhari_send_invoice_attached( $order ) {
     }
 
     $invoice_number = get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+    $invoice_id     = get_post_meta( $order->get_id(), '_laskuhari_invoice_id', true );
 
-    if( ! $invoice_number ) {
+    if( ! $invoice_id ) {
         return false;
     }
 
@@ -1789,7 +1816,7 @@ function laskuhari_send_invoice_attached( $order ) {
         }
 
         // hook attachment to WC email
-        add_filter( "woocommerce_email_attachments", function( $attachments, $id, $object_type, $email_type ) use ( $temp_file, $order, $laskuhari_gateway_object ) {
+        add_filter( "woocommerce_email_attachments", function( $attachments, $id, $object_type, $email_type ) use ( $temp_file, $order, $laskuhari_gateway_object, $invoice_id ) {
             $email_types = apply_filters(
                 "laskuhari_attach_pdf_to_email_types",
                 [
@@ -1820,6 +1847,11 @@ function laskuhari_send_invoice_attached( $order ) {
             }
 
             $attachments[] = $temp_file;
+
+            if( get_post_meta( $order->get_id(), '_laskuhari_sent', true ) !== "yes" ) {
+                laskuhari_set_invoice_sent_status( $invoice_id, true, wp_date( "Y-m-d" ) );
+                update_post_meta( $order->get_id(), '_laskuhari_sent', "yes" );
+            }
 
             $order->add_order_note( __( "Liitetty lasku liitteksi tilaussähköpostiin (Laskuhari)", "laskuhari" ) );
 
