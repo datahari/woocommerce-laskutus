@@ -2319,6 +2319,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 }
 
 function laskuhari_get_order_send_method( $order_id ) {
+    global $laskuhari_gateway_object;
+
     $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
 
     $send_methods = array(
@@ -2328,7 +2330,7 @@ function laskuhari_get_order_send_method( $order_id ) {
     );
 
     if( ! in_array( $send_method, $send_methods ) ) {
-        $send_method = $info->send_method_fallback;
+        $send_method = $laskuhari_gateway_object->send_method_fallback;
     }
 
     return $send_method;
