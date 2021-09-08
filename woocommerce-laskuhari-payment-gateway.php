@@ -1355,10 +1355,10 @@ function laskuhari_back_url( $lh = false, $url = false ) {
             "successes" => array()
         );
         foreach( $lh as $datas ) {
-            $data["luotu"][]     = $datas["luotu"];
-            $data["lahetetty"][] = $datas["lahetetty"];
-            $data["notice"][]    = $datas["notice"];
-            $data["success"][]   = $datas["success"];
+            $data["luotu"][]     = $datas["luotu"] ?? "";
+            $data["lahetetty"][] = $datas["lahetetty"] ?? "";
+            $data["notice"][]    = $datas["notice"] ?? "";
+            $data["success"][]   = $datas["success"] ?? "";
         }
     } else {
         $data = $lh;
@@ -1380,10 +1380,10 @@ function laskuhari_back_url( $lh = false, $url = false ) {
     if( is_array( $data ) ) {
         $back = add_query_arg(
             array(
-                'laskuhari_luotu'     => $data["luotu"],
-                'laskuhari_lahetetty' => $data["lahetetty"],
-                'laskuhari_notice'    => $data["notice"],
-                'laskuhari_success'   => $data["success"]
+                'laskuhari_luotu'     => $data["luotu"] ?? "",
+                'laskuhari_lahetetty' => $data["lahetetty"] ?? "",
+                'laskuhari_notice'    => $data["notice"] ?? "",
+                'laskuhari_success'   => $data["success"] ?? ""
             ),
             $back
         );
@@ -1406,11 +1406,15 @@ function laskuhari_not_activated() {
     </div>';
 }
 
+function laskuhari_force_array( $input ) {
+    return is_array( $input ) ? $input : [$input];
+}
+
 function laskuhari_notices() {
-    $notices   = is_array($_GET['laskuhari_notice'])    ? $_GET['laskuhari_notice']    : array($_GET['laskuhari_notice'] ?? "");
-    $successes = is_array($_GET['laskuhari_success'])   ? $_GET['laskuhari_success']   : array($_GET['laskuhari_success'] ?? "");
-    $orders    = is_array($_GET['laskuhari_luotu'])     ? $_GET['laskuhari_luotu']     : array($_GET['laskuhari_luotu'] ?? "");
-    $orders2   = is_array($_GET['laskuhari_lahetetty']) ? $_GET['laskuhari_lahetetty'] : array($_GET['laskuhari_lahetetty'] ?? "");
+    $notices   = laskuhari_force_array( $_GET['laskuhari_notice'] ?? "" );
+    $successes = laskuhari_force_array( $_GET['laskuhari_success'] ?? "" );
+    $orders    = laskuhari_force_array( $_GET['laskuhari_luotu'] ?? "" );
+    $orders2   = laskuhari_force_array( $_GET['laskuhari_lahetetty'] ?? "" );
 
     foreach ( $notices as $key => $notice ) {
         if( $notice != "" ) {
