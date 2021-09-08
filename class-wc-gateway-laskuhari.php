@@ -485,7 +485,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'class'             => 'wc-enhanced-select',
                 'css'               => 'width: 450px;',
                 'default'           => '',
-                'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään vain jos automaattinen lähetys on käytössä)', 'laskuhari' ),
+                'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään tilausvahvistuksen liitteenä)', 'laskuhari' ),
                 'options'           => $payment_methods,
                 'desc_tip'          => true,
                 'custom_attributes' => array(
@@ -495,8 +495,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             'invoice_email_text_for_other_payment_methods' => array(
                 'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
                 'type'        => 'textarea',
-                'description' => __( 'Viesti, joka lähetetään saatetekstinä sähköpostilaskun ohessa, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
-                'default'     => __( 'Kiitos tilauksestasi. Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
+                'description' => __( 'Teksti, joka lisätään tilausvahvistusviestiin, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
+                'default'     => __( 'Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
                 'desc_tip'    => true,
             ),
             'salli_laskutus_erikseen' => array(
