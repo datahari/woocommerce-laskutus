@@ -2343,6 +2343,12 @@ function laskuhari_get_order_send_method( $order_id ) {
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
     global $laskuhari_gateway_object;
 
+    if( ! apply_filters( "laskuhari_can_send_invoice", true, $order, $bulk_action ) ) {
+        return array(
+            "notice" => urlencode( __( "Laskun lähetys estetty" ) )
+        );
+    }
+
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid    = $info->uid;
