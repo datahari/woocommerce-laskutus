@@ -2264,7 +2264,9 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
 
-        if( $send ) {
+        $send_method = laskuhari_get_order_send_method( $order->get_id() );
+
+        if( apply_filters( 'laskuhari_send_after_creation', $send, $send_method, $order ) ) {
             return laskuhari_send_invoice( $order, $bulk_action );
         }
 
@@ -2282,6 +2284,22 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         "notice"  => urlencode( $error_notice ),
         "success" => urlencode( $success )
     );
+}
+
+function laskuhari_get_order_send_method( $order_id ) {
+    $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
+
+    $send_methods = array(
+        "verkkolasku",
+        "email",
+        "kirje"
+    );
+
+    if( ! in_array( $send_method, $send_methods ) ) {
+        $send_method = $info->send_method_fallback;
+    }
+
+    return $send_method;
 }
 
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
@@ -2334,17 +2352,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     $can_send = false;
 
-    $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
-
-    $send_methods = array(
-        "verkkolasku",
-        "email",
-        "kirje"
-    );
-
-    if( ! in_array( $send_method, $send_methods ) ) {
-        $send_method = $info->send_method_fallback;
-    }
+    $send_method = laskuhari_get_order_send_method( $order_id );
 
     $mihin = "";
 
