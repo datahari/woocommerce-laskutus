@@ -60,11 +60,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->enable_for_customers        = $this->lh_get_option( 'enable_for_customers', array() );
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
 
+        $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
+        $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
+        $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
+
         if( ! $only_settings ) {
             add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
             add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
             add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
-            
+
             // add webhooks if not added yet and not in demo mode
             if( $this->create_webhooks && $this->demotila != "yes" && strlen( $this->apikey ) > 64 && $this->uid ) {
                 $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
@@ -93,6 +97,40 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
     }
 
+    public function get_other_payment_methods() {
+        $gateways = array(
+            'WC_Gateway_Paypal'
+        );
+
+        $gateways = apply_filters( 'woocommerce_payment_gateways', $gateways );
+        $skip_gateways = apply_filters( 'laskuhari_skip_gateways', ["WC_Gateway_Laskuhari"] );
+
+        $payment_methods = [];
+
+        if( ! is_array( $gateways ) ) {
+            return $payment_methods;
+        }
+
+        foreach( $gateways as $gateway_class ) {
+            if( in_array( $gateway_class, $skip_gateways ) ) {
+                continue;
+            }
+            if( ! class_exists( $gateway_class ) ) {
+                continue;
+            }
+            try {
+                $gateway = new $gateway_class();
+            } catch( \Throwable $e ) {
+                continue;
+            }
+            if( $gateway->enabled == 'yes' ) {
+                $payment_methods[$gateway->id] = $gateway->method_title ? $gateway->method_title : $id;
+            }
+        }
+
+        return $payment_methods;
+    }
+
     public function veroton_laskutuslisa( $sis_alv ) {
         if( $sis_alv ) {
             return $this->laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
@@ -114,9 +152,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             <div id="laskuhari-lahetystapa-lomake">
             <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
                 <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
-                <?php if( $this->email_lasku_kaytossa ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->verkkolasku_kaytossa ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->kirjelasku_kaytossa ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
             </select>
             <?php
             if( is_admin() ) {
@@ -275,6 +313,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
+        $payment_methods = $this->get_other_payment_methods();
+
         $this->form_fields = array(
             'enabled' => array(
                 'title'       => __( 'Käytössä', 'laskuhari' ),
@@ -303,6 +343,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'type'        => 'checkbox',
                 'description' => 'Lähetetäänkö laskut automaattisesti, kun asiakas tekee tilauksen?',
                 'default'     => 'yes'
+            ),
+            'attach_invoice_to_wc_email' => array(
+                'title'       => __( 'Tilausvahvistuksen liite', 'laskuhari' ),
+                'label'       => __( 'Liitä lasku tilausvahvistuksen liitteeksi', 'laskuhari' ),
+                'type'        => 'checkbox',
+                'description' => 'Sähköpostilaskua ei tässä tapauksessa lähetetä erikseen',
+                'default'     => 'no'
             ),
             'email_lasku_kaytossa' => array(
                 'title'       => __( 'Sähköpostilaskut käytössä', 'laskuhari' ),
@@ -432,6 +479,26 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'data-placeholder' => __( 'Valitse toimitustavat', 'laskuhari' )
                 )
             ),
+            'send_invoice_from_payment_methods' => array(
+                'title'             => __( 'Lähetä lasku myös näistä maksutavoista', 'laskuhari' ),
+                'type'              => 'multiselect',
+                'class'             => 'wc-enhanced-select',
+                'css'               => 'width: 450px;',
+                'default'           => '',
+                'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään tilausvahvistuksen liitteenä)', 'laskuhari' ),
+                'options'           => $payment_methods,
+                'desc_tip'          => true,
+                'custom_attributes' => array(
+                    'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
+                )
+            ),
+            'invoice_email_text_for_other_payment_methods' => array(
+                'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
+                'type'        => 'textarea',
+                'description' => __( 'Teksti, joka lisätään tilausvahvistusviestiin, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
+                'default'     => __( 'Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
+                'desc_tip'    => true,
+            ),
             'salli_laskutus_erikseen' => array(
                 'title'       => __( 'Salli vain laskutusasiakkaille', 'laskuhari' ),
                 'label'       => __( 'Salli laskutus-maksutavan valinta vain tietyille asiakkaille', 'laskuhari' ),
@@ -444,13 +511,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'laskuhari' ),
                 'type'              => 'checkbox',
                 'default'           => 'yes'
-            ),
-            'enforce_ssl' => array(
-                'title'       => __( 'Vahvista SSL', 'laskuhari' ),
-                'label'       => __( 'Vahvista SSL-yhteys Laskuharin rajapintaan (suositellaan)', 'laskuhari' ),
-                'type'        => 'checkbox',
-                'description' => 'Mikäli pois käytöstä SSL_VERIFYHOST = 0, SSL_VERIFYPEER = FALSE',
-                'default'     => 'yes'
             )
         );
     }
@@ -500,9 +560,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if ( ! $this->enable_for_virtual && ! $needs_shipping ) {
             return false;
         }
-        
+
         $current_user = wp_get_current_user();
-        
+
         // Tarkista käyttäjän laskutusasiakas-tieto
         $can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) !== "yes";
         $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
@@ -510,7 +570,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( $this->salli_laskutus_erikseen && $can_use_billing ) {
             return false;
         }
-        
+
         // Check methods
         if ( ! empty( $this->enable_for_methods ) && $needs_shipping ) {
 
@@ -577,6 +637,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function process_payment( $order_id ) {
 
         if( $this->auto_gateway_create_enabled ) {
+            // don't send separate email invoice if it is attached to confirmation email
+            if( $this->attach_invoice_to_wc_email ) {
+                add_filter( "laskuhari_send_after_creation", function( $send, $send_method, $order ) {
+                    if( $send_method === "email" ) {
+                        $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                        return false;
+                    }
+                    return $send;
+                }, 10, 3 );
+            }
+
             $lh = laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
             $order      = $lh['order'];
             $notice     = $lh['notice'];
