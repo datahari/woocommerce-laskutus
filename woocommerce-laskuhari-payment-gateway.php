@@ -959,14 +959,6 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
     laskuhari_update_order_meta( $order_id );
 }
 
-function laskuhari_update_payment_terms_meta( $order_id ) {
-    if ( is_admin() && isset( $_REQUEST['laskuhari-maksuehto'] ) ) {
-        update_post_meta( $order_id, '_laskuhari_payment_terms', sanitize_text_field( $_REQUEST['laskuhari-maksuehto'] ) );
-        $payment_terms_name = laskuhari_get_payment_terms_name( $_REQUEST['laskuhari-maksuehto'] );
-        update_post_meta( $order_id, '_laskuhari_payment_terms_name', sanitize_text_field( $payment_terms_name ) );
-    }
-}
-
 function laskuhari_reset_order_metadata( $order_id ) {
     update_post_meta( $order_id, '_laskuhari_payment_status', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
@@ -1012,8 +1004,6 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
 
 function laskuhari_update_order_meta( $order_id )  {
-    laskuhari_update_payment_terms_meta( $order_id );
-
     $ytunnus = laskuhari_vat_id_at_checkout();
     if ( isset( $ytunnus ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
@@ -1972,12 +1962,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
     }
 
-    laskuhari_reset_order_metadata( $order->get_id() );
-
-    update_post_meta( $order->get_id(), '_laskuhari_sent', false );
-
-    laskuhari_update_payment_terms_meta( $order->get_id() );
-
     $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
 
     // merkitään lasku heti maksetuksi, jos se tehtiin muusta maksutavasta
@@ -2299,10 +2283,15 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     // jatketaan vain, jos ei ollut virheitä
     if( intval( $laskuid ) > 0 ) {
+        laskuhari_reset_order_metadata( $order->get_id() );
+
+        update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
         update_post_meta( $order->get_id(), '_laskuhari_invoice_number', $laskunro );
         update_post_meta( $order->get_id(), '_laskuhari_invoice_id', $laskuid );
         update_post_meta( $order->get_id(), '_laskuhari_uid', $laskuhari_uid );
+        update_post_meta( $order->get_id(), '_laskuhari_payment_terms', $response['vastaus']['meta']['maksuehto'] );
+        update_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', $response['vastaus']['meta']['maksuehtonimi'] );
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
