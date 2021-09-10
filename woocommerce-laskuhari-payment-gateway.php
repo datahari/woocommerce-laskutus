@@ -1914,11 +1914,19 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     $shipping_different = false;
 
-    foreach ( $customer as $key => $cdata ) {
-        if( in_array( $key, ["email", "phone"] ) && isset( $shippingdata[$key] ) && $shippingdata[$key] == "" ) {
+    foreach ( $customer as $key => $bdata ) {
+        if( ! isset( $shippingdata[$key] ) ) {
             continue;
         }
-        if( isset( $shippingdata[$key] ) && $shippingdata[$key] != $cdata ) {
+
+        $bdata = trim( $bdata );
+        $sdata = trim( $shippingdata[$key] );
+
+        if( in_array( $key, ["email", "phone"] ) && $sdata == "" ) {
+            continue;
+        }
+
+        if( $sdata != "" && $sdata != $bdata ) {
             $shipping_different = true;
             break;
         }
@@ -1991,7 +1999,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         "laskutusosoite" => [
             "yritys" => $customer['company'],
             "ytunnus" => $ytunnus,
-            "henkilo" => $customer['first_name'].' '.$customer['last_name'],
+            "henkilo" => trim( $customer['first_name'].' '.$customer['last_name'] ),
             "lahiosoite" => [
                 $customer['address_1'],
                 $customer['address_2']
@@ -2004,7 +2012,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         ],
         "toimitusosoite" => [
             "yritys" => $shippingdata['company'],
-            "henkilo" => $shippingdata['first_name'].' '.$shippingdata['last_name'],
+            "henkilo" => trim( $shippingdata['first_name'].' '.$shippingdata['last_name'] ),
             "lahiosoite" => [
                 $shippingdata['address_1'],
                 $shippingdata['address_2']
