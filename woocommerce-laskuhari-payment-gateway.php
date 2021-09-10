@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.3
+Version: 1.3.1
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3";
+$laskuhari_plugin_version = "1.3.1";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
@@ -959,14 +959,6 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
     laskuhari_update_order_meta( $order_id );
 }
 
-function laskuhari_update_payment_terms_meta( $order_id ) {
-    if ( is_admin() && isset( $_REQUEST['laskuhari-maksuehto'] ) ) {
-        update_post_meta( $order_id, '_laskuhari_payment_terms', sanitize_text_field( $_REQUEST['laskuhari-maksuehto'] ) );
-        $payment_terms_name = laskuhari_get_payment_terms_name( $_REQUEST['laskuhari-maksuehto'] );
-        update_post_meta( $order_id, '_laskuhari_payment_terms_name', sanitize_text_field( $payment_terms_name ) );
-    }
-}
-
 function laskuhari_reset_order_metadata( $order_id ) {
     update_post_meta( $order_id, '_laskuhari_payment_status', "" );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
@@ -1012,8 +1004,6 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
 
 function laskuhari_update_order_meta( $order_id )  {
-    laskuhari_update_payment_terms_meta( $order_id );
-
     $ytunnus = laskuhari_vat_id_at_checkout();
     if ( isset( $ytunnus ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
@@ -1151,10 +1141,14 @@ function laskuhari_metabox_html( $post ) {
     if( $order && ! is_laskuhari_allowed_order_status ( $order->get_status() ) ) {
         echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
+        $edit_link = get_edit_post_link( $post );
         $payment_terms = laskuhari_get_payment_terms();
         $payment_terms_select = "";
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
-            $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).'</b><br />'.
+            $update_terms_link = '<a href="'.$edit_link.'&laskuhari_action=fetch_payment_terms"
+                                     class="laskuhari-fetch-payment-terms"
+                                     title="Hae uudelleen">&#8635;</a>';
+            $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).$update_terms_link.'</b><br />'.
                                     '<select name="laskuhari-maksuehto" id="laskuhari-maksuehto"><option value="">-- Valitse maksuehto --</option>';
 
             $payment_terms_default = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
@@ -1176,7 +1170,6 @@ function laskuhari_metabox_html( $post ) {
             $payment_terms_select .= '</select>';
         }
 
-        $edit_link           = get_edit_post_link( $post );
         $luo_teksti          = "Luo lasku";
         $luo_varoitus        = 'Haluatko varmasti luoda laskun tästä tilauksesta?';
         $luo_ja_laheta       = __( "Luo ja lähetä lasku", "laskuhari" );
@@ -1337,6 +1330,11 @@ function laskuhari_actions() {
         // redirect back
         laskuhari_go_back();
         exit;
+    }
+
+    // update list of payment terms
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "fetch_payment_terms" ) {
+        laskuhari_get_payment_terms( true );
     }
 }
 
@@ -1509,12 +1507,14 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     return false;
 }
 
-function laskuhari_get_payment_terms() {
+function laskuhari_get_payment_terms( $force = false ) {
     global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
 
-    $saved_terms = get_option( "_laskuhari_payment_terms" );
-    if( $saved_terms ) {
-        return apply_filters( "laskuhari_payment_terms", $saved_terms );
+    if( $force !== true ) {
+        $saved_terms = get_option( "_laskuhari_payment_terms" );
+        if( $saved_terms ) {
+            return apply_filters( "laskuhari_payment_terms", $saved_terms );
+        }
     }
 
     // don't make too many api queries on one page load as it slows execution time
@@ -1914,11 +1914,19 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     $shipping_different = false;
 
-    foreach ( $customer as $key => $cdata ) {
-        if( in_array( $key, ["email", "phone"] ) && isset( $shippingdata[$key] ) && $shippingdata[$key] == "" ) {
+    foreach ( $customer as $key => $bdata ) {
+        if( ! isset( $shippingdata[$key] ) ) {
             continue;
         }
-        if( isset( $shippingdata[$key] ) && $shippingdata[$key] != $cdata ) {
+
+        $bdata = trim( $bdata );
+        $sdata = trim( $shippingdata[$key] );
+
+        if( in_array( $key, ["email", "phone"] ) && $sdata == "" ) {
+            continue;
+        }
+
+        if( $sdata != "" && $sdata != $bdata ) {
             $shipping_different = true;
             break;
         }
@@ -1962,12 +1970,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
     }
 
-    laskuhari_reset_order_metadata( $order->get_id() );
-
-    update_post_meta( $order->get_id(), '_laskuhari_sent', false );
-
-    laskuhari_update_payment_terms_meta( $order->get_id() );
-
     $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
 
     // merkitään lasku heti maksetuksi, jos se tehtiin muusta maksutavasta
@@ -1997,7 +1999,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         "laskutusosoite" => [
             "yritys" => $customer['company'],
             "ytunnus" => $ytunnus,
-            "henkilo" => $customer['first_name'].' '.$customer['last_name'],
+            "henkilo" => trim( $customer['first_name'].' '.$customer['last_name'] ),
             "lahiosoite" => [
                 $customer['address_1'],
                 $customer['address_2']
@@ -2010,7 +2012,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         ],
         "toimitusosoite" => [
             "yritys" => $shippingdata['company'],
-            "henkilo" => $shippingdata['first_name'].' '.$shippingdata['last_name'],
+            "henkilo" => trim( $shippingdata['first_name'].' '.$shippingdata['last_name'] ),
             "lahiosoite" => [
                 $shippingdata['address_1'],
                 $shippingdata['address_2']
@@ -2289,10 +2291,15 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     // jatketaan vain, jos ei ollut virheitä
     if( intval( $laskuid ) > 0 ) {
+        laskuhari_reset_order_metadata( $order->get_id() );
+
+        update_post_meta( $order->get_id(), '_laskuhari_sent', false );
 
         update_post_meta( $order->get_id(), '_laskuhari_invoice_number', $laskunro );
         update_post_meta( $order->get_id(), '_laskuhari_invoice_id', $laskuid );
         update_post_meta( $order->get_id(), '_laskuhari_uid', $laskuhari_uid );
+        update_post_meta( $order->get_id(), '_laskuhari_payment_terms', $response['vastaus']['meta']['maksuehto'] );
+        update_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', $response['vastaus']['meta']['maksuehtonimi'] );
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
