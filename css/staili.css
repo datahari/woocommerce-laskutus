@@ -49,6 +49,13 @@ a.button.tips.laskuhari-invoice img {
     right: 5px;
 }
 
+.laskuhari-fetch-payment-terms {
+    text-decoration: none;
+    position: relative;
+    top: 1px;
+    left: 4px;
+}
+
 .laskuhari-laskunumero {
     background: #ccc;
     color: #525252;

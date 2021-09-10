@@ -1151,10 +1151,14 @@ function laskuhari_metabox_html( $post ) {
     if( $order && ! is_laskuhari_allowed_order_status ( $order->get_status() ) ) {
         echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
+        $edit_link = get_edit_post_link( $post );
         $payment_terms = laskuhari_get_payment_terms();
         $payment_terms_select = "";
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
-            $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).'</b><br />'.
+            $update_terms_link = '<a href="'.$edit_link.'&laskuhari_action=fetch_payment_terms"
+                                     class="laskuhari-fetch-payment-terms"
+                                     title="Hae uudelleen">&#8635;</a>';
+            $payment_terms_select = '<b>'.__( 'Maksuehto', 'laskuhari' ).$update_terms_link.'</b><br />'.
                                     '<select name="laskuhari-maksuehto" id="laskuhari-maksuehto"><option value="">-- Valitse maksuehto --</option>';
 
             $payment_terms_default = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
@@ -1176,7 +1180,6 @@ function laskuhari_metabox_html( $post ) {
             $payment_terms_select .= '</select>';
         }
 
-        $edit_link           = get_edit_post_link( $post );
         $luo_teksti          = "Luo lasku";
         $luo_varoitus        = 'Haluatko varmasti luoda laskun tästä tilauksesta?';
         $luo_ja_laheta       = __( "Luo ja lähetä lasku", "laskuhari" );
@@ -1337,6 +1340,11 @@ function laskuhari_actions() {
         // redirect back
         laskuhari_go_back();
         exit;
+    }
+
+    // update list of payment terms
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "fetch_payment_terms" ) {
+        laskuhari_get_payment_terms( true );
     }
 }
 
@@ -1509,12 +1517,14 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     return false;
 }
 
-function laskuhari_get_payment_terms() {
+function laskuhari_get_payment_terms( $force = false ) {
     global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
 
-    $saved_terms = get_option( "_laskuhari_payment_terms" );
-    if( $saved_terms ) {
-        return apply_filters( "laskuhari_payment_terms", $saved_terms );
+    if( $force !== true ) {
+        $saved_terms = get_option( "_laskuhari_payment_terms" );
+        if( $saved_terms ) {
+            return apply_filters( "laskuhari_payment_terms", $saved_terms );
+        }
     }
 
     // don't make too many api queries on one page load as it slows execution time
