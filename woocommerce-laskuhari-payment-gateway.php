@@ -936,6 +936,38 @@ function laskuhari_vat_id_at_checkout() {
 function lh_is_vat_id_field( $field ) {
     $vat_number_fields = laskuhari_vat_number_fields();
     foreach( $vat_number_fields as $field_name ) {
+        if( mb_stripos( $field, $field_name ) !== false ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function laskuhari_custom_billing_email_fields() {
+    return [
+        "laskutusemail",
+        "laskutussahkoposti",
+        "laskutus_email",
+        "laskutus_sahkoposti",
+        "laskuhari_billing_email"
+    ];
+}
+
+function laskuhari_custom_billing_email_at_checkout() {
+    $fields = laskuhari_custom_billing_email_fields();
+    foreach( $_REQUEST as $key => $value ) {
+        foreach( $fields as $field_name ) {
+            if( mb_stripos( $key, $field_name ) !== false ) {
+                return $value;
+            }
+        }
+    }
+    return "";
+}
+
+function lh_is_custom_billing_email_field( $field ) {
+    $fields = laskuhari_custom_billing_email_fields();
+    foreach( $fields as $field_name ) {
         if( mb_stripos( $field, $field_name ) ) {
             return true;
         }
@@ -1014,6 +1046,11 @@ function laskuhari_update_order_meta( $order_id )  {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
     }
 
+    $billing_email = laskuhari_custom_billing_email_at_checkout();
+    if ( isset( $billing_email ) ) {
+        laskuhari_set_order_meta( $order_id, '_laskuhari_email', $billing_email, true );
+    }
+
     if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
         laskuhari_set_order_meta( $order_id, "_laskuhari_laskutustapa", $_REQUEST['laskuhari-laskutustapa'], true );
     }
@@ -1036,6 +1073,18 @@ function laskuhari_vat_id_custom_field_exists() {
     foreach( $field_data as $type => $fields ) {
         foreach( $fields as $field_name => $field_settings ) {
             if( lh_is_vat_id_field( $field_name ) ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function laskuhari_custom_billing_email_field_exists() {
+    $field_data = WC()->checkout->get_checkout_fields();
+    foreach( $field_data as $type => $fields ) {
+        foreach( $fields as $field_name => $field_settings ) {
+            if( lh_is_custom_billing_email_field( $field_name ) ) {
                 return true;
             }
         }
@@ -2375,9 +2424,11 @@ function laskuhari_get_order_billing_email( $order ) {
         return "";
     }
 
-    $invoicing_email = get_the_author_meta( "_laskuhari_billing_email", $order->get_customer_id() );
-    $invoicing_email = $invoicing_email ? $invoicing_email : get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
+    $invoicing_email = get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
+    $invoicing_email = $invoicing_email ? $invoicing_email : get_the_author_meta( "_laskuhari_billing_email", $order->get_customer_id() );
     $invoicing_email = $invoicing_email ? $invoicing_email : $order->get_billing_email();
+
+    $invoicing_email = apply_filters( "laskuhari_invoicing_email", $invoicing_email, $order );
 
     return $invoicing_email;
 }
