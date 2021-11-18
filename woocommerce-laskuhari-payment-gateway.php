@@ -1567,7 +1567,7 @@ function laskuhari_uid_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_uid', true );
 }
 
-function laskuhari_download( $order_id, $redirect = true ) {
+function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
     global $laskuhari_gateway_object;
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
@@ -1598,7 +1598,9 @@ function laskuhari_download( $order_id, $redirect = true ) {
 
     $api_url = apply_filters( "laskuhari_get_pdf_url", $api_url, $order_id );
 
-    $response = laskuhari_api_request( array(), $api_url, "Get PDF", "url" );
+    $payload = apply_filters( "laskuhari_download_pdf_payload", $args, $order_id );
+
+    $response = laskuhari_api_request( $payload, $api_url, "Get PDF", "url" );
 
     // tarkastetaan virheet
     if( stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
@@ -1790,10 +1792,19 @@ function laskuhari_send_invoice_attached( $order ) {
         return false;
     }
 
-    // get pdf of invoice
-    $pdf_url = laskuhari_download( $order->get_id(), false );
+    $args = [];
 
-    if( is_string( $pdf_url ) && strpos( $pdf_url, "https://oma.laskuhari.fi/" ) === 0 ) {
+    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
+        $args = [
+            "leima" => $laskuhari_gateway_object->paid_stamp === "yes" ? "maksettu" : "",
+            "pohja" => $laskuhari_gateway_object->receipt_template === "yes" ? "kuitti" : ""
+        ];
+    }
+
+    // get pdf of invoice
+    $pdf_url = laskuhari_download( $order->get_id(), false, $args );
+
+    if( is_string( $pdf_url ) && strpos( $pdf_url, "https://".laskuhari_domain()."/" ) === 0 ) {
         $pdf = file_get_contents( $pdf_url );
 
         // download invoice pdf to temporary file

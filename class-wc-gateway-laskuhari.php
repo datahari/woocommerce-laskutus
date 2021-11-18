@@ -63,6 +63,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
         $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
+        $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' );
+        $this->receipt_template                             = $this->lh_get_option( 'receipt_template' );
 
         if( ! $only_settings ) {
             add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -491,6 +493,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'custom_attributes' => array(
                     'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
                 )
+            ),
+            'paid_stamp' => array(
+                'title'             => __( 'Maksettu-leima', 'laskuhari' ),
+                'label'             => __( 'Lisää maksettu-leima muilla maksutavoilla maksettuihin laskuihin', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'default'           => 'no'
+            ),
+            'receipt_template' => array(
+                'title'             => __( 'Lähetä kuittina', 'laskuhari' ),
+                'label'             => __( 'Käytä kuittipohjaa laskupohjan sijasta muilla maksutavoilla maksetuissa tilauksissa', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'default'           => 'no'
             ),
             'invoice_email_text_for_other_payment_methods' => array(
                 'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
