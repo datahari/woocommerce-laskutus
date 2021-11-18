@@ -339,6 +339,11 @@ function laskuhari_user_meta() {
             ]
         ),
         array(
+            "name"  => "_laskuhari_billing_email",
+            "title" => __( 'Laskutussähköposti', 'laskuhari' ),
+            "type"  => "text"
+        ),
+        array(
             "name"  => "_laskuhari_ytunnus",
             "title" => __( 'Y-tunnus', 'laskuhari' ),
             "type"  => "text"
@@ -2370,7 +2375,8 @@ function laskuhari_get_order_billing_email( $order ) {
         return "";
     }
 
-    $invoicing_email = get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
+    $invoicing_email = get_the_author_meta( "_laskuhari_billing_email", $order->get_customer_id() );
+    $invoicing_email = $invoicing_email ? $invoicing_email : get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
     $invoicing_email = $invoicing_email ? $invoicing_email : $order->get_billing_email();
 
     return $invoicing_email;
