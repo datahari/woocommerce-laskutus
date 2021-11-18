@@ -160,13 +160,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             </select>
             <?php
             if( is_admin() ) {
-                $invoicing_email = get_laskuhari_meta( $order_id, '_laskuhari_email', true );
-                if( ! $invoicing_email ) {
-                    $order = wc_get_order( $order_id );
-                    if( $order ) {
-                        $invoicing_email = $order->get_billing_email();
-                    }
-                }
+                $invoicing_email = laskuhari_get_order_billing_email( $order_id );
                 ?>
                 <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
                     <div class="laskuhari-caption"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</div>

@@ -2361,6 +2361,21 @@ function laskuhari_get_order_send_method( $order_id ) {
     return $send_method;
 }
 
+function laskuhari_get_order_billing_email( $order ) {
+    if( ! is_a( $order, "WC_Order" ) ) {
+        $order = wc_get_order( $order );
+    }
+
+    if( ! $order ) {
+        return "";
+    }
+
+    $invoicing_email = get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
+    $invoicing_email = $invoicing_email ? $invoicing_email : $order->get_billing_email();
+
+    return $invoicing_email;
+}
+
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
     global $laskuhari_gateway_object;
 
@@ -2408,9 +2423,6 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     laskuhari_update_order_meta( $order_id );
 
-    // tilaajan tiedot
-    $customer = $order->get_address( 'billing' );
-
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/laheta";
 
     $api_url = apply_filters( "laskuhari_send_invoice_api_url", $api_url, $order_id, $invoice_id );
@@ -2441,7 +2453,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ];
     } else if( $send_method == "email" ) {
         $email = get_laskuhari_meta( $order_id, '_laskuhari_email', true );
-        $email = $email ? $email : $customer['email'];
+        $email = $email ? $email : laskuhari_get_order_billing_email( $order );
 
         if( stripos( $email , "@" ) === false ) {
             $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';
