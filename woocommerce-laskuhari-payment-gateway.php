@@ -1847,13 +1847,20 @@ function laskuhari_send_invoice_attached( $order ) {
     }
 
     $args = [];
+    $template_name = "lasku";
 
     if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $args = [
-            "leima" => $laskuhari_gateway_object->paid_stamp === "yes" ? "maksettu" : "",
-            "pohja" => $laskuhari_gateway_object->receipt_template === "yes" ? "kuitti" : ""
-        ];
+        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
+            $args['leima'] = "maksettu";
+        }
+
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+            $args['pohja'] = "kuitti";
+        }
     }
+
+    $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
 
     // get pdf of invoice
     $pdf_url = laskuhari_download( $order->get_id(), false, $args );
@@ -1861,13 +1868,16 @@ function laskuhari_send_invoice_attached( $order ) {
     if( is_string( $pdf_url ) && strpos( $pdf_url, "https://".laskuhari_domain()."/" ) === 0 ) {
         $pdf = file_get_contents( $pdf_url );
 
+        $pdf_filename = $template_name."_".intval( $invoice_number );
+        $pdf_filename = apply_filters( "laskuhari_attachment_pdf_filename", $pdf_filename, $template_name, $order );
+
         // download invoice pdf to temporary file
-        $temp_file = get_temp_dir()."lasku_".intval( $invoice_number ).".pdf";
+        $temp_file = get_temp_dir().$pdf_filename.".pdf";
         if( file_exists( $temp_file ) ) {
             @unlink( $temp_file );
         }
         if( file_exists( $temp_file ) ) {
-            $temp_file = get_temp_dir()."lasku_".intval( $invoice_number )."_".wp_generate_password( 6, false ).".pdf";
+            $temp_file = get_temp_dir().$pdf_filename."_".wp_generate_password( 6, false ).".pdf";
         }
         file_put_contents( $temp_file, $pdf );
 
