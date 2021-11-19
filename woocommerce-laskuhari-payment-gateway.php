@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.3.1
+Version: 1.3.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3.1";
+$laskuhari_plugin_version = "1.3.2";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
@@ -116,7 +116,7 @@ function laskuhari_json_flag() {
 }
 
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
-    if( $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+    if( is_admin() && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
         if( mb_stripos( $title, $payment_terms_name ) === false ) {
             $title .= " (" . $payment_terms_name . ")";
         }
@@ -337,6 +337,11 @@ function laskuhari_user_meta() {
                 "verkkolasku" => "Verkkolasku",
                 "kirje" => "Kirje"
             ]
+        ),
+        array(
+            "name"  => "_laskuhari_billing_email",
+            "title" => __( 'Laskutussähköposti', 'laskuhari' ),
+            "type"  => "text"
         ),
         array(
             "name"  => "_laskuhari_ytunnus",
@@ -931,6 +936,38 @@ function laskuhari_vat_id_at_checkout() {
 function lh_is_vat_id_field( $field ) {
     $vat_number_fields = laskuhari_vat_number_fields();
     foreach( $vat_number_fields as $field_name ) {
+        if( mb_stripos( $field, $field_name ) !== false ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function laskuhari_custom_billing_email_fields() {
+    return [
+        "laskutusemail",
+        "laskutussahkoposti",
+        "laskutus_email",
+        "laskutus_sahkoposti",
+        "laskuhari_billing_email"
+    ];
+}
+
+function laskuhari_custom_billing_email_at_checkout() {
+    $fields = laskuhari_custom_billing_email_fields();
+    foreach( $_REQUEST as $key => $value ) {
+        foreach( $fields as $field_name ) {
+            if( mb_stripos( $key, $field_name ) !== false ) {
+                return $value;
+            }
+        }
+    }
+    return "";
+}
+
+function lh_is_custom_billing_email_field( $field ) {
+    $fields = laskuhari_custom_billing_email_fields();
+    foreach( $fields as $field_name ) {
         if( mb_stripos( $field, $field_name ) ) {
             return true;
         }
@@ -1009,6 +1046,11 @@ function laskuhari_update_order_meta( $order_id )  {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
     }
 
+    $billing_email = laskuhari_custom_billing_email_at_checkout();
+    if ( isset( $billing_email ) ) {
+        laskuhari_set_order_meta( $order_id, '_laskuhari_email', $billing_email, true );
+    }
+
     if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
         laskuhari_set_order_meta( $order_id, "_laskuhari_laskutustapa", $_REQUEST['laskuhari-laskutustapa'], true );
     }
@@ -1031,6 +1073,18 @@ function laskuhari_vat_id_custom_field_exists() {
     foreach( $field_data as $type => $fields ) {
         foreach( $fields as $field_name => $field_settings ) {
             if( lh_is_vat_id_field( $field_name ) ) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function laskuhari_custom_billing_email_field_exists() {
+    $field_data = WC()->checkout->get_checkout_fields();
+    foreach( $field_data as $type => $fields ) {
+        foreach( $fields as $field_name => $field_settings ) {
+            if( lh_is_custom_billing_email_field( $field_name ) ) {
                 return true;
             }
         }
@@ -1567,7 +1621,7 @@ function laskuhari_uid_by_order( $orderid ) {
     return get_post_meta( $orderid, '_laskuhari_uid', true );
 }
 
-function laskuhari_download( $order_id, $redirect = true ) {
+function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
     global $laskuhari_gateway_object;
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
@@ -1598,7 +1652,9 @@ function laskuhari_download( $order_id, $redirect = true ) {
 
     $api_url = apply_filters( "laskuhari_get_pdf_url", $api_url, $order_id );
 
-    $response = laskuhari_api_request( array(), $api_url, "Get PDF", "url" );
+    $payload = apply_filters( "laskuhari_download_pdf_payload", $args, $order_id );
+
+    $response = laskuhari_api_request( $payload, $api_url, "Get PDF", "url" );
 
     // tarkastetaan virheet
     if( stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
@@ -1790,19 +1846,38 @@ function laskuhari_send_invoice_attached( $order ) {
         return false;
     }
 
-    // get pdf of invoice
-    $pdf_url = laskuhari_download( $order->get_id(), false );
+    $args = [];
+    $template_name = "lasku";
 
-    if( is_string( $pdf_url ) && strpos( $pdf_url, "https://oma.laskuhari.fi/" ) === 0 ) {
+    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
+        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
+            $args['leima'] = "maksettu";
+        }
+
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+            $args['pohja'] = "kuitti";
+        }
+    }
+
+    $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
+
+    // get pdf of invoice
+    $pdf_url = laskuhari_download( $order->get_id(), false, $args );
+
+    if( is_string( $pdf_url ) && strpos( $pdf_url, "https://".laskuhari_domain()."/" ) === 0 ) {
         $pdf = file_get_contents( $pdf_url );
 
+        $pdf_filename = $template_name."_".intval( $invoice_number );
+        $pdf_filename = apply_filters( "laskuhari_attachment_pdf_filename", $pdf_filename, $template_name, $order );
+
         // download invoice pdf to temporary file
-        $temp_file = get_temp_dir()."lasku_".intval( $invoice_number ).".pdf";
+        $temp_file = get_temp_dir().$pdf_filename.".pdf";
         if( file_exists( $temp_file ) ) {
             @unlink( $temp_file );
         }
         if( file_exists( $temp_file ) ) {
-            $temp_file = get_temp_dir()."lasku_".intval( $invoice_number )."_".wp_generate_password( 6, false ).".pdf";
+            $temp_file = get_temp_dir().$pdf_filename."_".wp_generate_password( 6, false ).".pdf";
         }
         file_put_contents( $temp_file, $pdf );
 
@@ -2350,6 +2425,24 @@ function laskuhari_get_order_send_method( $order_id ) {
     return $send_method;
 }
 
+function laskuhari_get_order_billing_email( $order ) {
+    if( ! is_a( $order, "WC_Order" ) ) {
+        $order = wc_get_order( $order );
+    }
+
+    if( ! $order ) {
+        return "";
+    }
+
+    $invoicing_email = get_laskuhari_meta( $order->get_id(), '_laskuhari_email', true );
+    $invoicing_email = $invoicing_email ? $invoicing_email : get_the_author_meta( "_laskuhari_billing_email", $order->get_customer_id() );
+    $invoicing_email = $invoicing_email ? $invoicing_email : $order->get_billing_email();
+
+    $invoicing_email = apply_filters( "laskuhari_invoicing_email", $invoicing_email, $order );
+
+    return $invoicing_email;
+}
+
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
     global $laskuhari_gateway_object;
 
@@ -2397,9 +2490,6 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     laskuhari_update_order_meta( $order_id );
 
-    // tilaajan tiedot
-    $customer = $order->get_address( 'billing' );
-
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/laheta";
 
     $api_url = apply_filters( "laskuhari_send_invoice_api_url", $api_url, $order_id, $invoice_id );
@@ -2430,7 +2520,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ];
     } else if( $send_method == "email" ) {
         $email = get_laskuhari_meta( $order_id, '_laskuhari_email', true );
-        $email = $email ? $email : $customer['email'];
+        $email = $email ? $email : laskuhari_get_order_billing_email( $order );
 
         if( stripos( $email , "@" ) === false ) {
             $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';
