@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.3.2
+Version: 1.3.3
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3.2";
+$laskuhari_plugin_version = "1.3.3";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
@@ -116,7 +116,8 @@ function laskuhari_json_flag() {
 }
 
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
-    if( is_admin() && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+    $is_laskuhari_order = get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
+    if( is_admin() && $is_laskuhari_order && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
         if( mb_stripos( $title, $payment_terms_name ) === false ) {
             $title .= " (" . $payment_terms_name . ")";
         }
