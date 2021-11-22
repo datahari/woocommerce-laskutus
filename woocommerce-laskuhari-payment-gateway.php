@@ -116,7 +116,8 @@ function laskuhari_json_flag() {
 }
 
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
-    if( is_admin() && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+    $is_laskuhari_order = get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
+    if( is_admin() && $is_laskuhari_order && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
         if( mb_stripos( $title, $payment_terms_name ) === false ) {
             $title .= " (" . $payment_terms_name . ")";
         }
