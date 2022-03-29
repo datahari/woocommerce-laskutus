@@ -656,9 +656,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 }, 10, 3 );
             }
 
-            $lh = laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
-            $order      = $lh['order'];
-            $notice     = $lh['notice'];
+            laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
         }
 
         $order = wc_get_order( $order_id );
