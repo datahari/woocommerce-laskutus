@@ -2116,7 +2116,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     $coupon_codes = $order->get_coupon_codes();
     $has_coupons = count( $coupon_codes ) > 0;
 
-    // remove coupons staring with an underscore
+    // remove coupons starting with an underscore
     $coupon_codes = array_filter( $coupon_codes, function($v) {
         return $v[0] !== '_';
     } );
