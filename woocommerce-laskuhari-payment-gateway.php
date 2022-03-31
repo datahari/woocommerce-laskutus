@@ -25,6 +25,7 @@ $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
+require_once plugin_dir_path( __FILE__ ) . 'class-laskuhari-invoice.php';
 
 add_action( 'woocommerce_init', function() {
     global $laskuhari_gateway_object;
@@ -39,6 +40,9 @@ add_action( 'woocommerce_init', function() {
     require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
 
     $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
+
+    require_once plugin_dir_path( __FILE__ ) . 'class-laskuhari-wc-plugin.php';
+    $new_plugin = Laskuhari_WC_Plugin::instance();
 
     add_action( 'woocommerce_pre_payment_complete', 'laskuhari_handle_payment_complete' );
 } );
@@ -1962,366 +1966,40 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         return laskuhari_send_invoice( $order, $bulk_action );
     }
 
-    if ( isset( $_REQUEST['laskuhari-viitteenne'] ) ) {
-        laskuhari_set_order_meta( $order_id, '_laskuhari_viitteenne', $_REQUEST['laskuhari-viitteenne'], false );
-    }
-
-    if ( isset( $_REQUEST['laskuhari-email'] ) ) {
-        laskuhari_set_order_meta( $order_id, '_laskuhari_email', $_REQUEST['laskuhari-email'], false );
-    }
-
-    $prices_include_tax = get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
-
     // laskunlähetyksen asetukset
-    $info = $laskuhari_gateway_object;
-    $laskuhari_uid           = $info->uid;
-    $laskutuslisa            = $info->laskutuslisa;
-    $laskutuslisa_alv        = $info->laskutuslisa_alv;
-    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax );
-    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax );
+    $laskuhari_uid = $laskuhari_gateway_object->uid;
 
     if( ! $laskuhari_uid ) {
         return laskuhari_uid_error();
     }
 
-    // tilaajan tiedot
-    $customer               = $order->get_address( 'billing' );
-    $shippingdata           = $order->get_address( 'shipping' );
+    $invoice = new Laskuhari_Invoice( $order );
 
-    $shipping_different = false;
-
-    foreach ( $customer as $key => $bdata ) {
-        if( ! isset( $shippingdata[$key] ) ) {
-            continue;
-        }
-
-        $bdata = trim( $bdata );
-        $sdata = trim( $shippingdata[$key] );
-
-        if( in_array( $key, ["email", "phone"] ) && $sdata == "" ) {
-            continue;
-        }
-
-        if( $sdata != "" && $sdata != $bdata ) {
-            $shipping_different = true;
-            break;
-        }
+    if ( isset( $_REQUEST['laskuhari-viitteenne'] ) ) {
+        $invoice->set_buyer_reference( $_REQUEST['laskuhari-viitteenne'] );
     }
 
-    if( ! $shipping_different ) {
-        foreach( $shippingdata as $key => $sdata ) {
-            $shippingdata[$key] = "";
-        }
+    if ( isset( $_REQUEST['laskuhari-email'] ) ) {
+        $invoice->set_email_address( $_REQUEST['laskuhari-email'] );
     }
-
-    // tilatut tuotteet
-    $products           = $order->get_items();
-
-    // summat
-    $loppusumma         = $order->get_total();
-    $toimitustapa       = $order->get_shipping_method();
-    $toimitusmaksu      = $order->get_shipping_total();
-    $toimitus_vero      = $order->get_shipping_tax();
-
-    // calculate shipping cost down to multiple decimals
-    // get_shipping_total returns rounded excluding tax
-    $toimitus_veropros  = $toimitusmaksu != 0 ? round( $toimitus_vero / $toimitusmaksu, 2) : 0;
-    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros );
-
-    $cart_discount      = $order->get_discount_total();
-    $cart_discount_tax  = $order->get_discount_tax();
-
-    $viitteenne        = get_laskuhari_meta( $order->get_id(), '_laskuhari_viitteenne', true );
-    $ytunnus           = get_laskuhari_meta( $order->get_id(), '_laskuhari_ytunnus', true );
-    $verkkolaskuosoite = get_laskuhari_meta( $order->get_id(), '_laskuhari_verkkolaskuosoite', true );
-    $valittaja         = get_laskuhari_meta( $order->get_id(), '_laskuhari_valittaja', true );
 
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
-        $maksuehto = $_REQUEST['laskuhari-maksuehto'];
-    } else {
-        $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
+        $invoice->set_payment_term( $_REQUEST['laskuhari-maksuehto'] );
     }
 
-    if( ! $maksuehto ) {
-        $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
+    $invoice->add_products();
+    $invoice->add_shipping_cost();
+    $invoice->add_discount();
+    $invoice->add_fees();
+    $invoice->add_invoicing_fee();
+
+    if( $rounding_error = $invoice->check_rounding_error() ) {
+        return $rounding_error;
     }
 
-    $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
+    $invoice->add_rounding_row();
 
-    // merkitään lasku heti maksetuksi, jos se tehtiin muusta maksutavasta
-    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $invoice_status = apply_filters( "laskuhari_invoice_status_from_other_payment_method", "MAKSETTU", $order_id );
-    } else {
-        $invoice_status = "AVOIN";
-    }
-
-    $invoice_status = apply_filters( "laskuhari_new_invoice_status", $invoice_status, $order_id );
-
-    $payload = [
-        "ref" => "wc",
-        "site" => $_SERVER['HTTP_HOST'],
-        "tyyppi" => 0,
-        "laskunro" => false,
-        "pvm" => date( 'd.m.Y' ),
-        "viitteenne" => $viitteenne,
-        "viitteemme" => "",
-        "tilausnumero" => $order->get_order_number(),
-        "metatiedot" => [
-          "lahetetty" => false,
-          "toimitettu" => false,
-          "maksupvm" => false,
-          "status" => $invoice_status
-        ],
-        "laskutusosoite" => [
-            "yritys" => $customer['company'],
-            "ytunnus" => $ytunnus,
-            "henkilo" => trim( $customer['first_name'].' '.$customer['last_name'] ),
-            "lahiosoite" => [
-                $customer['address_1'],
-                $customer['address_2']
-            ],
-            "postinumero" => $customer['postcode'],
-            "postitoimipaikka" => $customer['city'],
-            "email" => $customer['email'],
-            "puhelin" => $customer['phone'],
-            "asiakasnro" => $customer_id
-        ],
-        "toimitusosoite" => [
-            "yritys" => $shippingdata['company'],
-            "henkilo" => trim( $shippingdata['first_name'].' '.$shippingdata['last_name'] ),
-            "lahiosoite" => [
-                $shippingdata['address_1'],
-                $shippingdata['address_2']
-            ],
-            "postinumero" => $shippingdata['postcode'],
-            "postitoimipaikka" => $shippingdata['city']
-        ],
-        "verkkolasku" => [
-            "toIdentifier" => $verkkolaskuosoite,
-            "toIntermediator" => $valittaja,
-            "buyerPartyIdentifier" => $ytunnus
-        ],
-        "woocommerce" => [
-            "wc_order_id" => $order->get_id(),
-            "wc_user_id" => $order->get_user_id()
-        ]
-    ];
-
-    if( $maksuehto ) {
-        $payload["maksuehto"] = [
-            "id" => $maksuehto
-        ];
-    }
-
-    $coupon_codes = $order->get_coupon_codes();
-    $has_coupons = count( $coupon_codes ) > 0;
-
-    // remove coupons starting with an underscore
-    $coupon_codes = array_filter( $coupon_codes, function($v) {
-        return $v[0] !== '_';
-    } );
-
-    $laskurivit = [];
-
-    $laskettu_summa = 0;
-    foreach( $products as $item ) {
-
-        $data = $item->get_data();
-
-        if( $has_coupons ) {
-            $sub = 'sub';
-        } else {
-            $sub = '';
-        }
-
-        $yht_verollinen = round( $data[$sub.'total'] + $data[$sub.'total_tax'], 2 );
-
-        if( $data[$sub.'total'] != 0 ) {
-            $alv         = round( $data[$sub.'total_tax'] / $data[$sub.'total'] * 100, 0 );
-            $yht_veroton = $yht_verollinen / ( 1 + $alv / 100 );
-        } else {
-            $alv         = 0;
-            $yht_veroton = 0;
-        }
-
-        if( $data[$sub.'total'] != 0 ) {
-            $yks_verollinen = round( $yht_verollinen / $data['quantity'], 10 );
-            $yks_veroton    = $yks_verollinen / ( 1 + $alv / 100 );
-        } else {
-            $yks_verollinen = 0;
-            $yks_veroton    = 0;
-        }
-
-        if( $sub === '' ) {
-            $cart_discount -= $data['subtotal'] - $data['total'];
-            $cart_discount_tax -= $data['subtotal_tax'] - $data['total_tax'];
-        }
-
-        $ale = 0;
-
-        $product_id = $data['variation_id'] ? $data['variation_id'] : $data['product_id'];
-
-        if( $laskuhari_gateway_object->synkronoi_varastosaldot && ! laskuhari_product_synced( $product_id ) ) {
-            laskuhari_create_product( $product_id );
-        }
-
-        $product_sku = "";
-        if( $product_id ) {
-            set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
-            $product = wc_get_product( $product_id );
-            $product_sku = $product->get_sku();
-        }
-
-        $laskurivit[] = laskuhari_invoice_row( [
-            "product_sku"   => $product_sku,
-            "product_id"    => $data['product_id'],
-            "variation_id"  => $data['variation_id'],
-            "nimike"        => $data['name'],
-            "maara"         => $data['quantity'],
-            "veroton"       => $yks_veroton,
-            "alv"           => $alv,
-            "verollinen"    => $yks_verollinen,
-            "ale"           => $ale,
-            "yhtveroton"    => $yht_veroton,
-            "yhtverollinen" => $yht_verollinen
-        ] );
-
-        $laskettu_summa += $yht_verollinen;
-    }
-
-
-    // lisätään toimitusmaksu
-    if( $toimitusmaksu > 0 ) {
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => "Toimitustapa: " . $toimitustapa,
-            "maara"         => 1,
-            "veroton"       => $toimitusmaksu,
-            "alv"           => round( $toimitus_vero / $toimitusmaksu * 100, 0 ),
-            "verollinen"    => $toimitusmaksu + $toimitus_vero,
-            "ale"           => 0,
-            "yhtveroton"    => $toimitusmaksu,
-            "yhtverollinen" => $toimitusmaksu + $toimitus_vero
-        ]);
-
-        $laskettu_summa += $toimitusmaksu + $toimitus_vero;
-    }
-
-    // lisätään alennus
-    if( abs( round( $cart_discount, 2 ) ) > 0 ) {
-        $discount_name = "Alennus";
-
-        $coupon_count = count( $coupon_codes );
-
-        if( $coupon_count > 0 ) {
-            if( $coupon_count > 1 ) {
-                $discount_name = __( "Kupongit", "laskuhari" );
-            } else {
-                $discount_name = __( "Kuponki", "laskuhari" );
-            }
-            $discount_name .= " (".implode( ", ", $coupon_codes ).")";
-        }
-
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => $discount_name,
-            "maara"         => 1,
-            "veroton"       => $cart_discount * -1,
-            "alv"           => round( $cart_discount_tax / $cart_discount * 100, 0 ),
-            "verollinen"    => ( $cart_discount + $cart_discount_tax ) * -1,
-            "ale"           => 0,
-            "yhtveroton"    => $cart_discount * -1,
-            "yhtverollinen" => ( $cart_discount + $cart_discount_tax ) * -1
-        ] );
-
-        $laskettu_summa += ( $cart_discount + $cart_discount_tax ) * -1;
-    }
-
-    // lisätään maksut
-    foreach( $order->get_items('fee') as $item_fee ){
-        $fee_name      = $item_fee->get_name();
-        $fee_total_tax = $item_fee->get_total_tax();
-        $fee_total     = $item_fee->get_total();
-
-        $fee_total_including_tax = $fee_total + $fee_total_tax;
-
-        // otetaan laskutuslisä pois desimaalikorjauksen laskennasta
-        if( $fee_name == "Laskutuslisä" ) {
-            $loppusumma -= $fee_total_including_tax;
-            continue;
-        }
-
-        if( $fee_total != 0 ) {
-            $alv         = round( $fee_total_tax / $fee_total * 100, 0 );
-            $yht_veroton = $fee_total;
-        } else {
-            $alv         = 0;
-            $yht_veroton = 0;
-        }
-
-        if( $fee_total != 0 ) {
-            $yks_verollinen = round( $fee_total_including_tax, 2 );
-            $yks_veroton    = $yks_verollinen / ( 1 + $alv / 100 );
-        } else {
-            $yks_verollinen = 0;
-            $yks_veroton    = 0;
-        }
-
-        $ale = 0;
-
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => $fee_name,
-            "maara"         => 1,
-            "veroton"       => $yks_veroton,
-            "alv"           => $alv,
-            "verollinen"    => $yks_verollinen,
-            "ale"           => $ale,
-            "yhtveroton"    => $yht_veroton,
-            "yhtverollinen" => $fee_total
-        ] );
-
-        $laskettu_summa += $fee_total_including_tax;
-    }
-
-    // lisätään laskutuslisä, jos lasku on tehty kassan kautta
-    // tai manuaalisesti hallintapaneelin kautta
-    if( $laskutuslisa && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => "Laskutuslisä",
-            "maara"         => 1,
-            "veroton"       => $laskutuslisa_veroton,
-            "alv"           => $laskutuslisa_alv,
-            "verollinen"    => $laskutuslisa_verollinen,
-            "ale"           => 0,
-            "yhtveroton"    => $laskutuslisa_veroton,
-            "yhtverollinen" => $laskutuslisa_verollinen
-        ] );
-    }
-
-    if( abs( $loppusumma-$laskettu_summa ) > 0.05 ) {
-        $error_notice = 'Pyöristysvirhe liian suuri ('.$loppusumma.' - '.$laskettu_summa.' = ' . round( $loppusumma-$laskettu_summa, 2 ) . ')! Laskua ei luotu';
-        $order->add_order_note( $error_notice );
-        if( function_exists( 'wc_add_notice' ) ) {
-            wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-        }
-
-        return array(
-            "notice" => urlencode( $error_notice )
-        );
-    }
-
-    if( round( $loppusumma, 2 ) != round( $laskettu_summa, 2 ) ) {
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => "Pyöristys",
-            "maara"         => 1,
-            "veroton"       => ($loppusumma-$laskettu_summa),
-            "alv"           => 0,
-            "verollinen"    => ($loppusumma-$laskettu_summa),
-            "ale"           => 0,
-            "yhtveroton"    => ($loppusumma-$laskettu_summa),
-            "yhtverollinen" => ($loppusumma-$laskettu_summa)
-        ]);
-    }
-    $payload['laskurivit'] = $laskurivit;
-    $payload['wc_api_version'] = 3;
+    $payload = $invoice->create_payload();
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
