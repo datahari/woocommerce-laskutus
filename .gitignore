@@ -1,0 +1,8 @@
+test/assets/*
+!test/assets/wordpress/
+test/assets/wordpress/*
+!test/assets/wordpress/README
+test/puppeteer/node_modules
+test/puppeteer/config.js
+test/phpunit
+test/.phpunit.result.cache

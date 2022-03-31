@@ -1,3 +1,6 @@
 WordPress should be installed here for testing.
 
 PHPUnit tests use WordPress dependencies from this folder.
+
+Puppeteer tests use a WordPress installation at http://localhost:8088
+which can also be run from this folder with php -S localhost:8088
