@@ -13,17 +13,18 @@ exports.login = async function( page ) {
 
 exports.open_settings = async function( page ) {
     await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari" );
-    exports.login( page );
+    await exports.login( page );
     await page.waitFor( "#woocommerce_laskuhari_enabled" );
 }
 
 exports.logout = async function( page ) {
+    await page.waitFor( 200 );
     await page.hover( "#wp-admin-bar-my-account" );
     await page.waitFor( 500 );
     await page.click( "#wp-admin-bar-logout a" );
 }
 
-exports.make_order = async function( page ) {
+exports.make_order_before_select_invoice_method = async function( page ) {
     // go to shop page
     await page.goto( config.wordpress_url+"/?post_type=product" );
 
@@ -66,6 +67,18 @@ exports.make_order = async function( page ) {
 
     // select laskuhari payment method
     await page.click( "label[for=payment_method_laskuhari]" );
+}
+
+exports.place_order = async function( page ) {
+    // send order
+    await page.click( "#place_order" );
+
+    // wait for order to complete
+    await page.waitFor( ".woocommerce-order-received" );
+}
+
+exports.make_order = async function( page ) {
+    await exports.make_order_before_select_invoice_method( page );
 
     // select email invoicing
     await page.evaluate(function() {
@@ -77,11 +90,7 @@ exports.make_order = async function( page ) {
     await page.click( "#laskuhari-viitteenne" );
     await page.keyboard.type( "testing reference" );
 
-    // send order
-    await page.click( "#place_order" );
-
-    // wait for order to complete
-    await page.waitFor( ".woocommerce-order-received" );
+    await exports.place_order( page );
 }
 
 exports.open_order_page = async function( page ) {
@@ -91,14 +100,14 @@ exports.open_order_page = async function( page ) {
 
     // log in to order page
     await page.goto( config.wordpress_url+"/wp-admin/post.php?post="+order_id+"&action=edit" );
-    exports.login( page );
+    await exports.login( page );
     await page.waitFor( ".laskuhari-tila" );
 }
 
 exports.open_invoice_pdf = async function( page ) {
     // open order page if we are not there already
     if( ! (await page.$('.laskuhari-tila')) ) {
-        exports.open_order_page( page );
+        await exports.open_order_page( page );
     }
 
     // open the invoice PDF
