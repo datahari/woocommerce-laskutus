@@ -1,0 +1,3 @@
+WordPress should be installed here for testing.
+
+PHPUnit tests use WordPress dependencies from this folder.
