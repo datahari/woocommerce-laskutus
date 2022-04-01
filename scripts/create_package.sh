@@ -13,9 +13,6 @@ fi
 
 # clone git repository
 git clone https://github.com/datahari/woocommerce-laskutus.git woocommerce-laskuhari-payment-gateway
-cd woocommerce-laskuhari-payment-gateway
-git checkout v2
-cd ../
 
 # remove git folder and files
 rm -rf woocommerce-laskuhari-payment-gateway/.git
