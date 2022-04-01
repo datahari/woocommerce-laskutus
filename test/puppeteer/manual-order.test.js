@@ -2,6 +2,15 @@ const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
 const config    = require('./config.js');
 
+/**
+ * This test creates a manual order from the WooCommerce admin panel.
+ * The order is first created in "Awaiting payment" status.
+ * The order is then changed to "Processing" status.
+ * An invoice is then created but NOT sent.
+ * The invoice is then sent.
+ * A new invoice is then created and sent at the same time.
+ */
+
 test("manual-order", async () => {
     const browser = await puppeteer.launch({
         headless: false,
@@ -170,6 +179,40 @@ test("manual-order", async () => {
     element = await page.$('#woocommerce-order-notes .note_content');
     val = await page.evaluate(el => el.textContent, element);
     expect( val ).toMatch( /.*Lasku lähetetty sähköpostitse.*/ );
+
+    // save invoice number
+    element = await page.$('.laskuhari-laskunumero');
+    let old_invoice_number = await page.evaluate(el => el.textContent, element);
+
+    // click "create a new invoice"
+    await page.click( ".laskuhari-nappi.uusi-lasku" );
+    await page.waitFor( 600 );
+
+    // select "send"
+    await page.click( "#laskuhari-send-check" );
+    await page.waitFor( 600 );
+
+    // click "create and send"
+    await page.click( "#laskuhari-create-and-send" );
+
+    // wait for page to load
+    await page.waitForNavigation();
+    await page.waitFor( ".laskuhari-payment-status" );
+
+    // check that an invoice was sent
+    element = await page.$('.laskuhari-tila');
+    invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toBe( "LASKUTETTU" );
+
+    // check that invoice status is unpaid
+    element = await page.$('.laskuhari-not-paid');
+    invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toMatch( /.*Avoin.*/ );
+
+    // check that the invoice number was changed
+    element = await page.$('.laskuhari-laskunumero');
+    let new_invoice_number = await page.evaluate(el => el.textContent, element);
+    expect( new_invoice_number == old_invoice_number ).toBe( false );
 
     // open invoice pdf
     await functions.open_invoice_pdf( page );
