@@ -1,8 +1,11 @@
+# dont include node modules
+test/puppeteer/node_modules
+
+# dont include actual end-to-end test config
+test/puppeteer/config.js
+
+# dont include testing assets except README
 test/assets/*
 !test/assets/wordpress/
 test/assets/wordpress/*
 !test/assets/wordpress/README
-test/puppeteer/node_modules
-test/puppeteer/config.js
-test/phpunit
-test/.phpunit.result.cache
