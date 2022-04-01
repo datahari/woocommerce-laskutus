@@ -667,7 +667,7 @@ class Laskuhari_Invoice
         $payment_term = $this->get_meta( '_laskuhari_payment_terms' );
 
         if( ! $payment_term ) {
-            $payment_term = laskuhari_get_customer_payment_terms_default( $this->order->get_customer_id() );
+            $payment_term = get_user_meta( $this->order->get_customer_id(), "laskuhari_payment_terms_default", true );
         }
 
         return intval( $payment_term );

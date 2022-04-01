@@ -1,11 +1,15 @@
 <?php
-require_once( __DIR__ . "/wordpress-bootstrap.php" );
-require_once( __DIR__ . "/../class-laskuhari-wc-plugin.php" );
+require_once( __DIR__ . "/../wordpress-bootstrap.php" );
+require_once( __DIR__ . "/../../class-laskuhari-wc-plugin.php" );
 
 use PHPUnit\Framework\TestCase;
 
 final class Laskuhari_WC_Plugin_Test extends TestCase
 {
+    protected function get_test_dir_path() {
+        return realpath( __DIR__ . "/../" );
+    }
+
     /**
      * Reset the instance on every test
      *
@@ -69,7 +73,7 @@ final class Laskuhari_WC_Plugin_Test extends TestCase
     function test_it_can_determine_plugin_file_path() {
         $plugin = Laskuhari_WC_Plugin::instance();
 
-        $expected = realpath( __DIR__ . "/../woocommerce-laskuhari-payment-gateway.php" );
+        $expected = realpath( $this->get_test_dir_path() . "/../woocommerce-laskuhari-payment-gateway.php" );
 
         $this->assertEquals( $expected, $plugin->get_plugin_file() );
     }
@@ -87,7 +91,7 @@ final class Laskuhari_WC_Plugin_Test extends TestCase
         $plugin_link_html = '<a href="https://oma.laskuhari.fi/" target="_blank">Kirjaudu Laskuhariin</a>';
 
         // we test a weird path because the tests are not run from inside a wordpress installation
-        $path = substr( realpath( __DIR__ . "/../woocommerce-laskuhari-payment-gateway.php" ), 1 );
+        $path = substr( realpath( $this->get_test_dir_path() . "/../woocommerce-laskuhari-payment-gateway.php" ), 1 );
 
         // test it adds plugin link when the plugin file matches
         $plugin_links = [];
@@ -131,6 +135,8 @@ final class Laskuhari_WC_Plugin_Test extends TestCase
         $this->assertEquals( 1345.643232, $plugin->parse_decimal( "1345,643232" ) );
         $this->assertEquals( 142.323, $plugin->parse_decimal( 142.323 ) );
         $this->assertEquals( 142.323, $plugin->parse_decimal( "142.323" ) );
+        $this->assertEquals( -142.323, $plugin->parse_decimal( "−142.323" ) );
+        $this->assertEquals( 500.52, $plugin->parse_decimal( "500,52 euroa" ) );
     }
 
     /**

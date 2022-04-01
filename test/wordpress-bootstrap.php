@@ -17,6 +17,23 @@ function wp_cache_get() { return; }
 function wp_cache_add() { return false; }
 function wp_cache_set() { return false; }
 
+$mock_post_meta = [];
+function get_post_meta( $post_id, $meta_key, $single = false ) {
+	global $mock_post_meta;
+	return $mock_post_meta[$post_id][$meta_key] ?? "";
+}
+
+function update_post_meta( $post_id, $meta_key, $meta_value ) {
+	global $mock_post_meta;
+	$mock_post_meta[$post_id][$meta_key] = $meta_value;
+}
+
+$mock_user_meta = [];
+function get_user_meta( $user_id, $meta_key, $single = false ) {
+	global $mock_user_meta;
+	return $mock_user_meta[$user_id][$meta_key] ?? "";
+}
+
 # define mock classes
 class wpdb {
     public $options;
