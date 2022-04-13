@@ -88,6 +88,24 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         }
     }
 
+    /**
+     * Override generate_multiselect_html function to fetch other payment methods at print time.
+     * Otherwise an infinite loop of fetching payment methods will break the script
+     *
+     * @param string $key
+     * @param array $data
+     * @since  1.3.4
+     * @return string
+     */
+    public function generate_multiselect_html( $key, $data ) {
+        if( $key === "send_invoice_from_payment_methods" ) {
+            $payment_methods = $this->get_other_payment_methods();
+            $data['options'] = $payment_methods;
+        }
+
+        return parent::generate_multiselect_html( $key, $data );
+    }
+
     public function lh_get_option( $option, $default = null ) {
         if( null === $default && isset( $this->form_fields[$option]['default'] ) ) {
             $default = $this->form_fields[$option]['default'];
@@ -100,34 +118,19 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     public function get_other_payment_methods() {
-        $gateways = array(
-            'WC_Gateway_Paypal'
-        );
-
-        $gateways = apply_filters( 'woocommerce_payment_gateways', $gateways );
-        $skip_gateways = apply_filters( 'laskuhari_skip_gateways', ["WC_Gateway_Laskuhari"] );
+        $gateways = WC()->payment_gateways->payment_gateways();
 
         $payment_methods = [];
 
-        if( ! is_array( $gateways ) ) {
-            return $payment_methods;
-        }
-
-        foreach( $gateways as $gateway_class ) {
-            if( in_array( $gateway_class, $skip_gateways ) ) {
+        foreach( $gateways as $id => $gateway ) {
+            if( $id === "laskuhari" ) {
                 continue;
             }
-            if( ! class_exists( $gateway_class ) ) {
+            if( $gateway->enabled !== "yes" ) {
                 continue;
             }
-            try {
-                $gateway = new $gateway_class();
-            } catch( \Throwable $e ) {
-                continue;
-            }
-            if( $gateway->enabled == 'yes' ) {
-                $payment_methods[$gateway->id] = $gateway->method_title ? $gateway->method_title : $id;
-            }
+            $title = $gateway->get_method_title();
+            $payment_methods[$id] = $title ? $title : $id;
         }
 
         return $payment_methods;
@@ -309,8 +312,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
-        $payment_methods = $this->get_other_payment_methods();
-
         $this->form_fields = array(
             'enabled' => array(
                 'title'       => __( 'Käytössä', 'laskuhari' ),
@@ -482,7 +483,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'css'               => 'width: 450px;',
                 'default'           => '',
                 'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään tilausvahvistuksen liitteenä)', 'laskuhari' ),
-                'options'           => $payment_methods,
+                'options'           => [],
                 'desc_tip'          => true,
                 'custom_attributes' => array(
                     'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
