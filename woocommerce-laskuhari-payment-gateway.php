@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3.3";
+$laskuhari_plugin_version = "1.3.4";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
