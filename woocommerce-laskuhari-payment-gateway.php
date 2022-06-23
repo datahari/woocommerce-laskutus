@@ -19,13 +19,13 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3.3";
-
-$__laskuhari_api_query_count = 0;
-$__laskuhari_api_query_limit = 2;
-
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 require_once plugin_dir_path( __FILE__ ) . 'class-laskuhari-invoice.php';
+require_once plugin_dir_path( __FILE__ ) . 'LaskuhariPaymentTerm.php';
+require_once plugin_dir_path( __FILE__ ) . 'LaskuhariExtension.php';
+require_once plugin_dir_path( __FILE__ ) . 'LaskuhariAdminOrderListFilter.php';
+require_once plugin_dir_path( __FILE__ ) . 'LaskuhariDOM.php';
+require_once plugin_dir_path( __FILE__ ) . 'AddUserMeta.php';
 
 add_action( 'woocommerce_init', function() {
     global $laskuhari_gateway_object;
@@ -77,10 +77,6 @@ function laskuhari_payment_gateway_load() {
     add_action( 'admin_print_scripts', 'laskuhari_add_admin_scripts' );
     add_action( 'admin_print_styles', 'laskuhari_add_styles' );
     add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
-    add_action( 'show_user_profile', 'laskuhari_user_profile_additional_info' );
-    add_action( 'edit_user_profile', 'laskuhari_user_profile_additional_info' );
-    add_action( 'personal_options_update', 'laskuhari_update_user_meta' );
-    add_action( 'edit_user_profile_update', 'laskuhari_update_user_meta' );
     add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column' );
     add_action( 'woocommerce_after_checkout_validation', 'laskuhari_einvoice_notices', 10, 2);
     add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
@@ -105,8 +101,10 @@ function laskuhari_payment_gateway_load() {
 
 require_once plugin_dir_path( __FILE__ ) . 'laskuhari-api.php';
 
+add_filter( "laskuhari_payment_terms_select_box", "laskuhari_payment_terms_select_box" );
+
 function laskuhari_domain() {
-    return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
+    return apply_filters( "laskuhari_domain", Laskuhari_WC_Plugin::instance()->get_domain() );
 }
 
 function laskuhari_json_flag() {
@@ -117,29 +115,6 @@ function laskuhari_json_flag() {
         return JSON_PARTIAL_OUTPUT_ON_ERROR;
     }
     return JSON_INVALID_UTF8_SUBSTITUTE;
-}
-
-function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
-    $is_laskuhari_order = get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
-    if( is_admin() && $is_laskuhari_order && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
-        if( mb_stripos( $title, $payment_terms_name ) === false ) {
-            $title .= " (" . $payment_terms_name . ")";
-        }
-    }
-    return $title;
-}
-
-function lh_create_select_box( $name, $options, $current = '' ) {
-    $html = '<select name="'.esc_attr( $name ).'">';
-    foreach( $options as $value => $text ) {
-        $html .= '<option value="'.esc_attr( $value ).'"';
-        if( $current === $value ) {
-            $html .= " selected";
-        }
-        $html .= '>'.esc_html( $text ).'</option>';
-    }
-    $html .= '</select>';
-    return $html;
 }
 
 // handle invoice creation & sending from other payment methods
@@ -170,239 +145,16 @@ function laskuhari_handle_payment_complete( $order_id ) {
     laskuhari_process_action( $order_id, false );
 }
 
-add_action( 'restrict_manage_posts', 'display_admin_shop_order_laskuhari_filter' );
-function display_admin_shop_order_laskuhari_filter() {
-    global $pagenow, $post_type;
-
-    if( 'shop_order' === $post_type && 'edit.php' === $pagenow ) {
-        $current = isset( $_GET['filter_laskuhari_status'] ) ? $_GET['filter_laskuhari_status'] : '';
-
-        $options = [
-            ""                     => 'Laskuhari: ' . __( 'Kaikki', 'laskuhari' ),
-            "ei_laskutettu"        => 'Laskuhari: ' . __( 'Ei laskutettu', 'laskuhari' ),
-            "ei_laskutettu_kaikki" => 'Laskuhari: ' . __( 'Ei laskutettu (Kaikki)', 'laskuhari' ),
-            "lasku_luotu"          => 'Laskuhari: ' . __( 'Lasku luotu', 'laskuhari' ),
-            "laskutettu"           => 'Laskuhari: ' . __( 'Laskutettu', 'laskuhari' ),
-            "maksettu"             => 'Laskuhari: ' . __( 'Maksettu', 'laskuhari' ),
-            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' )
-        ];
-
-        echo lh_create_select_box( "filter_laskuhari_status", $options, $current );
-    }
-}
-
-add_action( 'pre_get_posts', 'laskuhari_custom_status_filter' );
-function laskuhari_custom_status_filter( $query ) {
-    global $pagenow;
-
-    $status_queries = [
-        "laskutettu" => [
-            [
-                'key'     => '_laskuhari_sent',
-                'compare' => '=',
-                'value'   => "yes",
-            ]
-        ],
-        "ei_laskutettu" => [
-            'relation' => 'and',
-            [
-                'relation' => 'or',
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => 'NOT EXISTS'
-                ],
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => '=',
-                    'value'   => '0'
-                ],
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => '=',
-                    'value'   => ''
-                ]
-            ],
-            [
-                [
-                    'key'     => '_payment_method',
-                    'compare' => '=',
-                    'value'   => 'laskuhari'
-                ]
-            ]
-        ],
-        "ei_laskutettu_kaikki" => [
-            'relation' => 'and',
-            [
-                'relation' => 'or',
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => 'NOT EXISTS'
-                ],
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => '=',
-                    'value'   => '0'
-                ],
-                [
-                    'key'     => '_laskuhari_invoice_number',
-                    'compare' => '=',
-                    'value'   => ''
-                ]
-            ],
-            [
-                'relation' => 'or',
-                [
-                    'key'     => '_payment_method',
-                    'compare' => '=',
-                    'value'   => 'laskuhari'
-                ],
-                [
-                    'key'     => '_payment_method',
-                    'compare' => 'NOT EXISTS'
-                ],
-                [
-                    'key'     => '_payment_method',
-                    'compare' => '=',
-                    'value'   => ''
-                ]
-            ]
-        ],
-        "lasku_luotu" => [
-            'relation' => 'and',
-            [
-                'key'     => '_laskuhari_invoice_number',
-                'compare' => '>',
-                'value'   => "0",
-            ],
-            [
-                'key'     => '_laskuhari_sent',
-                'compare' => '!=',
-                'value'   => "yes",
-            ]
-        ],
-        "maksettu" => [
-            'relation' => 'and',
-            [
-                'key'     => '_laskuhari_invoice_number',
-                'compare' => '>',
-                'value'   => "0",
-            ],
-            [
-                'key'     => '_laskuhari_payment_status',
-                'compare' => '=',
-                'value'   => "1",
-            ]
-        ],
-        "ei_maksettu" => [
-            'relation' => 'and',
-            [
-                'key'     => '_laskuhari_invoice_number',
-                'compare' => '>',
-                'value'   => "0",
-            ],
-            [
-                'key'     => '_laskuhari_payment_status',
-                'compare' => '!=',
-                'value'   => "1",
-            ]
-        ]
-    ];
-
-    if( $query->is_admin && $pagenow == 'edit.php' && isset( $_GET['filter_laskuhari_status'] ) && $_GET['post_type'] == 'shop_order' ) {
-        if( ! isset( $status_queries[$_GET['filter_laskuhari_status']] ) ) {
-            return;
+function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
+    $is_laskuhari_order = get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
+    if( is_admin() && $is_laskuhari_order && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+        if( mb_stripos( $title, $payment_terms_name ) === false ) {
+            $title .= " (" . $payment_terms_name . ")";
         }
-        $status_query = $status_queries[$_GET['filter_laskuhari_status']];
-        $query->set( 'meta_query', $status_query );
     }
-
+    return $title;
 }
 
-function laskuhari_user_meta() {
-    $custom_meta_fields = array();
-    $custom_meta_fields = array(
-        array(
-            "name"  => "laskuhari_laskutusasiakas",
-            "title" => __( 'Laskutusasiakas', 'laskuhari' ),
-            "type"  => "checkbox"
-        ),
-        array(
-            "name"    => "laskuhari_payment_terms_default",
-            "title"   => __( 'Maksuehto', 'laskuhari' ),
-            "type"    => "select",
-            "options" => apply_filters( "laskuhari_payment_terms_select_box", laskuhari_get_payment_terms() )
-        ),
-        array(
-            "name"  => "_laskuhari_laskutustapa",
-            "title" => __( 'Laskutustapa', 'laskuhari' ),
-            "type"  => "select",
-            "options" => [
-                "" => "-- Valitse --",
-                "email" => "Sähköposti",
-                "verkkolasku" => "Verkkolasku",
-                "kirje" => "Kirje"
-            ]
-        ),
-        array(
-            "name"  => "_laskuhari_billing_email",
-            "title" => __( 'Laskutussähköposti', 'laskuhari' ),
-            "type"  => "text"
-        ),
-        array(
-            "name"  => "_laskuhari_ytunnus",
-            "title" => __( 'Y-tunnus', 'laskuhari' ),
-            "type"  => "text"
-        ),
-        array(
-            "name"  => "_laskuhari_verkkolaskuosoite",
-            "title" => __( 'Verkkolaskuosoite', 'laskuhari' ),
-            "type"  => "text"
-        ),
-        array(
-            "name"  => "_laskuhari_valittaja",
-            "title" => __( 'Verkkolaskuoperaattori', 'laskuhari' ),
-            "type"  => "select",
-            "options" => [
-                "" => "-- Valitse --",
-                "003723327487"    => "Apix Messaging Oy (003723327487)",
-                "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
-                "003703575029"    => "CGI (003703575029)",
-                "885790000000418" => "HighJump AS (885790000000418)",
-                "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
-                "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
-                "003708599126"    => "Liaison Technologies Oy (003708599126)",
-                "003721291126"    => "Maventa (003721291126)",
-                "003726044706"    => "Netbox Finland Oy (003726044706)",
-                "E204503"         => "OpusCapita Solutions Oy (E204503)",
-                "003723609900"    => "Pagero (003723609900)",
-                "PALETTE"         => "Palette Software (PALETTE)",
-                "003710948874"    => "Posti Messaging Oy (003710948874)",
-                "003701150617"    => "PostNord Strålfors Oy (003701150617)",
-                "003714377140"    => "Ropo Capital Oy (003714377140)",
-                "003703575029"    => "Telia (003703575029)",
-                "003701011385"    => "Tieto Oyj (003701011385)",
-                "885060259470028" => "Tradeshift (885060259470028)",
-                "HELSFIHH"        => "Aktia (HELSFIHH)",
-                "DABAFIHH"        => "Danske Bank (DABAFIHH)",
-                "DNBAFIHX"        => "DNB (DNBAFIHX)",
-                "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
-                "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
-                "ITELFIHH"        => "Oma Säästöpankki (ITELFIHH)",
-                "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
-                "OKOYFIHH"        => "Pohjola Pankki (OKOYFIHH)",
-                "POPFFI22"        => "POP Pankki  (POPFFI22)",
-                "SBANFIHH"        => "S-Pankki (SBANFIHH)",
-                "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
-                "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
-                "AABAFI22"        => "Ålandsbanken (AABAFI22)",
-            ]
-        )
-    );
-
-    return $custom_meta_fields;
-}
-
-add_filter( "laskuhari_payment_terms_select_box", "laskuhari_payment_terms_select_box" );
 function laskuhari_payment_terms_select_box( $terms ) {
     $output = array(
         "" => __( "Oletus", "laskuhari" )
@@ -411,82 +163,6 @@ function laskuhari_payment_terms_select_box( $terms ) {
         $output[$term['id']] = $term['nimi'];
     }
     return $output;
-}
-
-function laskuhari_user_profile_additional_info( $user ) {
-    echo '<h3>Laskuhari</h3>'.
-         '<table class="form-table">';
-
-    $meta_number = 0;
-    $custom_meta_fields = laskuhari_user_meta();
-
-    foreach ( $custom_meta_fields as $meta_field ) {
-        $meta_number++;
-
-        $meta_disp_name   = $meta_field['title'];
-        $meta_field_name  = $meta_field['name'];
-
-        $current_value = get_user_meta( $user->ID, $meta_field_name, true );
-
-        if( "checkbox" === $meta_field['type'] ) {
-            if ( "yes" === $current_value ) {
-                $author_meta_checked = "checked";
-            } else {
-                $author_meta_checked = "";
-            }
-
-            echo '
-            <tr>
-                <th>' . $meta_disp_name . '</th>
-                <td>
-                    <input type="checkbox" name="' . $meta_field_name . '"
-                           id="' . $meta_field_name . '"
-                           value="yes" ' . $author_meta_checked . ' />
-                    <label for="' . $meta_field_name . '">Kyllä</label><br />
-                    <span class="description"></span>
-                </td>
-            </tr>';
-        } elseif( "text" === $meta_field['type'] ) {
-            echo '
-            <tr>
-                <th>' . $meta_disp_name . '</th>
-                <td>
-                    <input type="text" name="' . $meta_field_name . '"
-                           id="' . $meta_field_name . '"
-                           value="' . esc_attr( $current_value ) . '" /><br />
-                    <span class="description"></span>
-                </td>
-            </tr>';
-        } elseif( "select" === $meta_field['type'] ) {
-            echo '
-            <tr>
-                <th>' . $meta_disp_name . '</th>
-                <td>
-                    '.lh_create_select_box( $meta_field_name, $meta_field['options'], $current_value ).'<br />
-                    <span class="description"></span>
-                </td>
-            </tr>';
-        }
-    }
-
-    echo '</table>';
-}
-
-function laskuhari_update_user_meta( $user_id ) {
-
-    if( ! current_user_can( 'edit_user', $user_id ) ) {
-        return false;
-    }
-
-    $meta_number = 0;
-    $custom_meta_fields = laskuhari_user_meta();
-
-    foreach ( $custom_meta_fields as $meta_field ) {
-        $meta_number++;
-        $meta_field_name = $meta_field['name'];
-
-        update_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
-    }
 }
 
 function laskuhari_get_customer_payment_terms_default( $customerID ) {
@@ -1201,7 +877,7 @@ function laskuhari_metabox_html( $post ) {
         echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
         $edit_link = get_edit_post_link( $post );
-        $payment_terms = laskuhari_get_payment_terms();
+        $payment_terms = LaskuhariPaymentTerm::get_list();
         $payment_terms_select = "";
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
             $update_terms_link = '<a href="'.$edit_link.'&laskuhari_action=fetch_payment_terms"
@@ -1393,7 +1069,7 @@ function laskuhari_actions() {
 
     // update list of payment terms
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "fetch_payment_terms" ) {
-        laskuhari_get_payment_terms( true );
+        LaskuhariPaymentTerm::get_list( true );
     }
 }
 
@@ -1511,22 +1187,20 @@ function laskuhari_add_styles() {
 }
 
 function laskuhari_add_public_scripts() {
-    global $laskuhari_plugin_version;
     wp_enqueue_script(
         'laskuhari-js-public',
         plugins_url( 'js/public.js' , __FILE__ ),
         array( 'jquery' ),
-        $laskuhari_plugin_version
+        Laskuhari_WC_Plugin::instance()->version
     );
 }
 
 function laskuhari_add_admin_scripts() {
-    global $laskuhari_plugin_version;
     wp_enqueue_script(
         'laskuhari-js-admin',
         plugins_url( 'js/admin.js' , __FILE__ ),
         array( 'jquery' ),
-        $laskuhari_plugin_version
+        Laskuhari_WC_Plugin::instance()->version
     );
 }
 
@@ -1565,50 +1239,6 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
 
     return false;
 }
-
-function laskuhari_get_payment_terms( $force = false ) {
-    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
-
-    if( $force !== true ) {
-        $saved_terms = get_option( "_laskuhari_payment_terms" );
-        if( $saved_terms ) {
-            return apply_filters( "laskuhari_payment_terms", $saved_terms );
-        }
-    }
-
-    // don't make too many api queries on one page load as it slows execution time
-    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
-        return false;
-    }
-
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
-    $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
-    $__laskuhari_api_query_count++;
-
-    if( $response['status'] === "OK" ) {
-        update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
-        return apply_filters( "laskuhari_payment_terms", $response['vastaus'] );
-    }
-
-    return false;
-}
-
-function laskuhari_get_payment_terms_name( $term_id, $terms = null ) {
-    if( null === $terms ) {
-        $terms = laskuhari_get_payment_terms();
-    }
-
-    if ( is_array( $terms ) ) {
-        foreach ( $terms as $term ) {
-            if ( $term['id'] == $term_id ) {
-                return $term['nimi'];
-            }
-        }
-    }
-
-    return false;
-}
-
 
 function laskuhari_invoice_id_by_order( $orderid ) {
     $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );

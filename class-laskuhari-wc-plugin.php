@@ -33,6 +33,16 @@ class Laskuhari_WC_Plugin
         "synkronoi_varastosaldot" => self::YESNO
     ];
 
+    /**
+     * List of activated plugin extensions
+     *
+     * @var array
+     */
+    private array $extensions = [
+        "LaskuhariAdminOrderListFilter",
+        "AddUserMeta",
+    ];
+
     const DECIMAL = 1;
     const YESNO = 2;
 
@@ -55,6 +65,18 @@ class Laskuhari_WC_Plugin
         $this->check_dependencies();
         $this->add_payment_gateway();
         $this->add_plugin_links();
+        $this->init_extensions();
+    }
+
+    /**
+     * Initialize all plugin extensions
+     *
+     * @return void
+     */
+    private function init_extensions() {
+        foreach( $this->extensions as $extension ) {
+            (new $extension())->init();
+        }
     }
 
     /**
