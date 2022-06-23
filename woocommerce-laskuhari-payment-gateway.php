@@ -1867,7 +1867,7 @@ function laskuhari_send_invoice_attached( $order ) {
     $pdf_url = laskuhari_download( $order->get_id(), false, $args );
 
     if( is_string( $pdf_url ) && strpos( $pdf_url, "https://".laskuhari_domain()."/" ) === 0 ) {
-        $pdf = file_get_contents( $pdf_url );
+        $pdf = lh_get_file_from_url( $pdf_url );
 
         $pdf_filename = $template_name."_".intval( $invoice_number );
         $pdf_filename = apply_filters( "laskuhari_attachment_pdf_filename", $pdf_filename, $template_name, $order );
@@ -1947,6 +1947,27 @@ function laskuhari_send_invoice_attached( $order ) {
     } else {
         $order->add_order_note( __( "Laskun liittäminen tilausvahvistuksen liitteeksi epäonnistui (Laskuhari)", "laskuhari" ) );
     }
+}
+
+/**
+ * Download file from an URL - alternative to file_get_contents
+ * that works with PHP allow_url_fopen turned off
+ *
+ * @param string $url The URL to fetch file from
+ * @since 1.3.5
+ * @return string Contents of downloaded file
+ */
+function lh_get_file_from_url( $url ) {
+    $ch = curl_init();
+
+    curl_setopt( $ch, CURLOPT_URL, $url );
+    curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+
+    $data = curl_exec( $ch );
+
+    curl_close( $ch );
+
+    return $data;
 }
 
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
