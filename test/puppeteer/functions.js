@@ -66,7 +66,11 @@ exports.make_order_before_select_invoice_method = async function( page ) {
     await page.keyboard.type( config.test_email );
 
     // select laskuhari payment method
+    await page.waitFor(1000);
+    await page.waitFor( "label[for=payment_method_laskuhari]" );
     await page.click( "label[for=payment_method_laskuhari]" );
+    await page.waitFor( "#laskuhari-laskutustapa" );
+    await page.waitFor(1000);
 }
 
 exports.place_order = async function( page ) {
