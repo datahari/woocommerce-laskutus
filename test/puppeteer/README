@@ -1,0 +1,11 @@
+This folder includes end-to-end tests made with jest-puppeteer.
+Each test should be run one by one with "npm test <test filename>"
+Simultaneous tests won't work since they use the same URL with
+different plugin settings.
+
+A WordPress installation with WooCommerce and the plugin must be installed
+in a local (or remote) testing enviroment, the URL of which needs to be added
+to the config.js file (copy config-sample.js to config.js with proper settings).
+
+The WordPress installation that is used for the PHPUnit test dependencies
+can be used for the puppeteer tests as well.
