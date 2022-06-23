@@ -16,6 +16,13 @@ class Laskuhari_WC_Plugin
     private $plugin_name = "woocommerce-laskuhari-payment-gateway";
 
     /**
+     * Plugin version number
+     *
+     * @var string
+     */
+    public $version = "2.0";
+
+    /**
      * Plugin settings
      *
      * @var ?array
