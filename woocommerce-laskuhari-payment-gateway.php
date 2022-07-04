@@ -1665,6 +1665,17 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         );
     }
 
+    if( laskuhari_order_is_paid_by_other_method( $order_id ) && ! isset( $args['pohja'] ) && ! isset( $args['leima'] ) ) {
+        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
+            $args['leima'] = "maksettu";
+        }
+
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+            $args['pohja'] = "kuitti";
+        }
+    }
+
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/pdf-link";
 
     $api_url = apply_filters( "laskuhari_get_pdf_url", $api_url, $order_id );
@@ -1805,6 +1816,9 @@ function laskuhari_uid_error() {
 }
 
 function laskuhari_order_is_paid_by_other_method( $order ) {
+    if( ! is_object( $order ) ) {
+        $order = wc_get_order( $order );
+    }
     return "yes" === get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
 }
 
@@ -1865,17 +1879,6 @@ function laskuhari_send_invoice_attached( $order ) {
 
     $args = [];
     $template_name = "lasku";
-
-    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
-            $args['leima'] = "maksettu";
-        }
-
-        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
-            $template_name = "kuitti";
-            $args['pohja'] = "kuitti";
-        }
-    }
 
     $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
 
