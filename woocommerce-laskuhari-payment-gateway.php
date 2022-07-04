@@ -1787,7 +1787,7 @@ function laskuhari_invoice_row( $data ) {
         ],
         "nimike" => $data['nimike'],
         "maara" => $data['maara'],
-        "yks" => "",
+        "yks" => $data['yks'] ?? "",
         "veroton" => $data['veroton'],
         "alv" => $data['alv'],
         "ale" => $data['ale'],
@@ -1987,6 +1987,55 @@ function lh_get_file_from_url( $url ) {
     curl_close( $ch );
 
     return $data;
+}
+
+function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
+    $quantity_unit = "";
+
+    $unit_fields = apply_filters( "laskuhari_quantity_unit_fields", [
+        // Woocommerce Advanced Quantity
+        "_advanced-qty-quantity-suffix",
+        "product-category-advanced-qty-quantity-suffix",
+        "woo-advanced-qty-quantity-suffix",
+
+        // Quantities and Units for WooCommerce
+        "unit",
+
+        // General
+        "qty-unit",
+        "qty_unit",
+        "qty-suffix",
+        "qty_suffix",
+        "quantity_unit",
+        "yksikko",
+        "ykiskkö",
+        "yks",
+    ] );
+
+    foreach( $unit_fields as $unit_field ) {
+        if( isset( $item[$unit_field] ) ) {
+            $quantity_unit = $item[$unit_field];
+            break;
+        }
+
+        if( isset( $item["_".$unit_field] ) ) {
+            $quantity_unit = $item["_".$unit_field];
+            break;
+        }
+
+        if( $product_id && $quantity_unit = get_post_meta( $product_id, $unit_field, true )  ) {
+           break;
+        }
+
+        if( $product_id && $quantity_unit = get_post_meta( $product_id, "_".$unit_field, true )  ) {
+           break;
+        }
+
+    }
+
+    $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
+
+    return $quantity_unit;
 }
 
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
@@ -2212,12 +2261,19 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             $product_sku = $product->get_sku();
         }
 
+        if( $laskuhari_gateway_object->show_quantity_unit ) {
+            $quantity_unit = laskuhari_determine_quantity_unit( $data, $product_id, $order_id );
+        } else {
+            $quantity_unit = "";
+        }
+
         $laskurivit[] = laskuhari_invoice_row( [
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
             "nimike"        => $data['name'],
             "maara"         => $data['quantity'],
+            "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
             "alv"           => $alv,
             "verollinen"    => $yks_verollinen,
