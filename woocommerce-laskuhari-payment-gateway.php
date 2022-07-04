@@ -1253,9 +1253,20 @@ function laskuhari_metabox_html( $post ) {
                 echo '<div class="laskuhari-payment-terms-name">'.esc_html( $maksuehtonimi ).'</div>';
             }
 
+            $download_link = $edit_link . '&laskuhari_download=current&laskuhari_template=';
+
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
-            <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-pdf laskuhari-sidebutton" data-toggle="sidebutton-download-pdf" href="#">&#9662;</a>
+            <div class="laskuhari-sidebutton-menu" id="sidebutton-download-pdf">
+                <a href="' . $download_link . 'lasku" target="_blank">' . __( 'Lataa lasku', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'kuitti" target="_blank">' . __( 'Lataa kuitti', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'kateiskuitti" target="_blank">' . __( 'Lataa käteiskuitti', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'lahete" target="_blank">' . __( 'Lataa lähete', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'tarjous" target="_blank">' . __( 'Lataa tarjous', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'tilausvahvistus" target="_blank">' . __( 'Lataa tilausvahvistus', 'laskuhari' ) . '</a>
+            </div>
             <a class="laskuhari-nappi laheta-lasku" href="#">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
             <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" class="laskuhari-send-invoice-button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'sendonly\'); return false;" />
             </div>
@@ -1362,10 +1373,15 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari_download'] ) ) {
+
+        $args = [
+            'pohja' => $_GET['laskuhari_template'] ?? "lasku",
+        ];
+
         if( $_GET['laskuhari_download'] === "current" ) {
-            $lh = laskuhari_download( $_GET['post'] );
+            $lh = laskuhari_download( $_GET['post'], true, $args );
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            $lh = laskuhari_download( $_GET['order_id'] );
+            $lh = laskuhari_download( $_GET['order_id'], true, $args );
         }
 
         laskuhari_go_back( $lh );
