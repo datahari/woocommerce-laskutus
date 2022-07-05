@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.3.5
+Version: 1.4
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.3.5";
+$laskuhari_plugin_version = "1.4";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
@@ -1253,11 +1253,22 @@ function laskuhari_metabox_html( $post ) {
                 echo '<div class="laskuhari-payment-terms-name">'.esc_html( $maksuehtonimi ).'</div>';
             }
 
+            $download_link = $edit_link . '&laskuhari_download=current&laskuhari_template=';
+
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
-            <a class="laskuhari-nappi lataa-lasku" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-pdf laskuhari-sidebutton" data-toggle="sidebutton-download-pdf" href="#">&#9662;</a>
+            <div class="laskuhari-sidebutton-menu" id="sidebutton-download-pdf">
+                <a href="' . $download_link . 'lasku" target="_blank">' . __( 'Lataa lasku', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'kuitti" target="_blank">' . __( 'Lataa kuitti', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'kateiskuitti" target="_blank">' . __( 'Lataa käteiskuitti', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'lahete" target="_blank">' . __( 'Lataa lähete', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'tarjous" target="_blank">' . __( 'Lataa tarjous', 'laskuhari' ) . '</a>
+                <a href="' . $download_link . 'tilausvahvistus" target="_blank">' . __( 'Lataa tilausvahvistus', 'laskuhari' ) . '</a>
+            </div>
             <a class="laskuhari-nappi laheta-lasku" href="#">' . __('Lähetä lasku', 'laskuhari').'' . ( $lahetetty ? ' ' . __( 'uudelleen', 'laskuhari' ) . '' : '' ) . '</a>
-            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'sendonly\'); return false;" />
+            <div id="laskuhari-laheta-lasku-lomake" class="laskuhari-pikkulomake" style="display: none;"><div id="lahetystapa-lomake1"></div><input type="button" class="laskuhari-send-invoice-button" value="' . __( 'Lähetä lasku', 'laskuhari' ) . '" onclick="laskuhari_admin_action(\'sendonly\'); return false;" />
             </div>
             <a class="laskuhari-nappi avaa-laskuharissa" href="https://' . laskuhari_domain() . '/' . $open_link . '" target="_blank">' . __( 'Avaa Laskuharissa', 'laskuhari' ).'</a>';
 
@@ -1362,10 +1373,15 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari_download'] ) ) {
+
+        $args = [
+            'pohja' => $_GET['laskuhari_template'] ?? "lasku",
+        ];
+
         if( $_GET['laskuhari_download'] === "current" ) {
-            $lh = laskuhari_download( $_GET['post'] );
+            $lh = laskuhari_download( $_GET['post'], true, $args );
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            $lh = laskuhari_download( $_GET['order_id'] );
+            $lh = laskuhari_download( $_GET['order_id'], true, $args );
         }
 
         laskuhari_go_back( $lh );
@@ -1649,6 +1665,17 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         );
     }
 
+    if( laskuhari_order_is_paid_by_other_method( $order_id ) && ! isset( $args['pohja'] ) && ! isset( $args['leima'] ) ) {
+        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
+            $args['leima'] = "maksettu";
+        }
+
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+            $args['pohja'] = "kuitti";
+        }
+    }
+
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/pdf-link";
 
     $api_url = apply_filters( "laskuhari_get_pdf_url", $api_url, $order_id );
@@ -1760,7 +1787,7 @@ function laskuhari_invoice_row( $data ) {
         ],
         "nimike" => $data['nimike'],
         "maara" => $data['maara'],
-        "yks" => "",
+        "yks" => $data['yks'] ?? "",
         "veroton" => $data['veroton'],
         "alv" => $data['alv'],
         "ale" => $data['ale'],
@@ -1789,6 +1816,9 @@ function laskuhari_uid_error() {
 }
 
 function laskuhari_order_is_paid_by_other_method( $order ) {
+    if( ! is_object( $order ) ) {
+        $order = wc_get_order( $order );
+    }
     return "yes" === get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
 }
 
@@ -1849,17 +1879,6 @@ function laskuhari_send_invoice_attached( $order ) {
 
     $args = [];
     $template_name = "lasku";
-
-    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
-            $args['leima'] = "maksettu";
-        }
-
-        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
-            $template_name = "kuitti";
-            $args['pohja'] = "kuitti";
-        }
-    }
 
     $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
 
@@ -1968,6 +1987,55 @@ function lh_get_file_from_url( $url ) {
     curl_close( $ch );
 
     return $data;
+}
+
+function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
+    $quantity_unit = "";
+
+    $unit_fields = apply_filters( "laskuhari_quantity_unit_fields", [
+        // Woocommerce Advanced Quantity
+        "_advanced-qty-quantity-suffix",
+        "product-category-advanced-qty-quantity-suffix",
+        "woo-advanced-qty-quantity-suffix",
+
+        // Quantities and Units for WooCommerce
+        "unit",
+
+        // General
+        "qty-unit",
+        "qty_unit",
+        "qty-suffix",
+        "qty_suffix",
+        "quantity_unit",
+        "yksikko",
+        "ykiskkö",
+        "yks",
+    ] );
+
+    foreach( $unit_fields as $unit_field ) {
+        if( isset( $item[$unit_field] ) ) {
+            $quantity_unit = $item[$unit_field];
+            break;
+        }
+
+        if( isset( $item["_".$unit_field] ) ) {
+            $quantity_unit = $item["_".$unit_field];
+            break;
+        }
+
+        if( $product_id && $quantity_unit = get_post_meta( $product_id, $unit_field, true )  ) {
+           break;
+        }
+
+        if( $product_id && $quantity_unit = get_post_meta( $product_id, "_".$unit_field, true )  ) {
+           break;
+        }
+
+    }
+
+    $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
+
+    return $quantity_unit;
 }
 
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
@@ -2193,12 +2261,19 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             $product_sku = $product->get_sku();
         }
 
+        if( $laskuhari_gateway_object->show_quantity_unit ) {
+            $quantity_unit = laskuhari_determine_quantity_unit( $data, $product_id, $order_id );
+        } else {
+            $quantity_unit = "";
+        }
+
         $laskurivit[] = laskuhari_invoice_row( [
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
             "nimike"        => $data['name'],
             "maara"         => $data['quantity'],
+            "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
             "alv"           => $alv,
             "verollinen"    => $yks_verollinen,

@@ -29,6 +29,13 @@
 				$("#laskuhari-create-and-send-method").slideUp();
 			}
 		});
+		$("body").on( "click", ".laskuhari-sidebutton", function() {
+			$("#"+$(this).attr("data-toggle")).slideToggle();
+			return false;
+		} );
+		$("body").on( "click", ".laskuhari-sidebutton-menu a", function() {
+			$("#"+$(this).closest(".laskuhari-sidebutton-menu").attr("id")).slideUp();
+		} );
 	});
 })(jQuery);
 

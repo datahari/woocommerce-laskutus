@@ -134,6 +134,42 @@ a.button.tips.laskuhari-invoice img {
     color: #fff;
 }
 
+.laskuhari-with-sidebutton {
+    width: 80%;
+    display: inline-block;
+}
+
+.laskuhari-sidebutton {
+    width: calc( 20% - 6px );
+    margin-left: 2px;
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+.laskuhari-sidebutton-menu {
+    border: 1px solid #2259c5;
+    border-radius: 4px;
+    background: #fff;
+    margin-bottom: 2px;
+    display: none;
+}
+
+.laskuhari-sidebutton-menu a {
+    border-bottom: 1px solid #2259c5;
+    padding: 6px;
+    display: block;
+    text-decoration: none;
+}
+
+.laskuhari-sidebutton-menu a:last-child {
+    border-bottom: 0;
+}
+
+.laskuhari-sidebutton-menu a:hover {
+    background: #2259c5;
+    color: #fff;
+}
+
 .laskuhari-caption {
     margin-top: 5px;
 }

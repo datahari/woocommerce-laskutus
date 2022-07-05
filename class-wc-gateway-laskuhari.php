@@ -59,6 +59,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->enable_for_methods          = $this->lh_get_option( 'enable_for_methods', array() );
         $this->enable_for_customers        = $this->lh_get_option( 'enable_for_customers', array() );
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
+        $this->show_quantity_unit          = $this->lh_get_option( 'show_quantity_unit' ) === 'yes' ? true : false;
 
         $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
@@ -519,6 +520,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'             => __( 'Virtuaalituotteet', 'laskuhari' ),
                 'label'             => __( 'Hyväksy laskutus-maksutapa, jos tuote on virtuaalinen', 'laskuhari' ),
                 'type'              => 'checkbox',
+                'default'           => 'yes'
+            ),
+            'show_quantity_unit' => array(
+                'title'             => __( 'Vie yksiköt laskulle', 'laskuhari' ),
+                'label'             => __( 'Vie laskulle tuotteen märään yksikkö (kpl, kg, m, jne.)', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'description'       => 'Toiminto vaatii yhteensopivan lisäosan (esim. Woocommerce Advanced Quantity tai Quantities and Units for WooCommerce)',
                 'default'           => 'yes'
             )
         );
