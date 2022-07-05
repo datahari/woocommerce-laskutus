@@ -1673,7 +1673,6 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         }
 
         if( $laskuhari_gateway_object->receipt_template === "yes" ) {
-            $template_name = "kuitti";
             $args['pohja'] = "kuitti";
         }
     }
@@ -1881,6 +1880,12 @@ function laskuhari_send_invoice_attached( $order ) {
 
     $args = [];
     $template_name = "lasku";
+
+    if( laskuhari_order_is_paid_by_other_method( $order_id ) ) {
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+        }
+    }
 
     $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
 
