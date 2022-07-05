@@ -1373,10 +1373,13 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari_download'] ) ) {
+        $args = [];
 
-        $args = [
-            'pohja' => $_GET['laskuhari_template'] ?? "lasku",
-        ];
+        if( isset( $_GET['laskuhari_template'] ) ) {
+            $args = [
+                'pohja' => $_GET['laskuhari_template'],
+            ];
+        }
 
         if( $_GET['laskuhari_download'] === "current" ) {
             $lh = laskuhari_download( $_GET['post'], true, $args );
