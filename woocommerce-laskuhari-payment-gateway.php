@@ -1515,10 +1515,12 @@ function laskuhari_notices() {
 }
 
 function laskuhari_add_styles() {
+    global $laskuhari_plugin_version;
     wp_enqueue_style(
         'laskuhari-css',
         plugins_url( 'css/staili.css' , __FILE__ ),
-        array()
+        array(),
+        $laskuhari_plugin_version
     );
 }
 
