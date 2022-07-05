@@ -22,7 +22,7 @@ function check_for_plugin_update($checked_data) {
 	
 	$args = array(
 		'slug' => $plugin_slug,
-		'version' => $checked_data->checked[$plugin_slug .'/'. $plugin_slug .'.php'],
+		'version' => $checked_data->checked[$plugin_slug .'/'. $plugin_slug .'.php'] ?? "",
 	);
 	$request_string = array(
 			'body' => array(
