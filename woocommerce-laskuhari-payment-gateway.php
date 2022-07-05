@@ -1884,7 +1884,7 @@ function laskuhari_send_invoice_attached( $order ) {
     $args = [];
     $template_name = "lasku";
 
-    if( laskuhari_order_is_paid_by_other_method( $order_id ) ) {
+    if( laskuhari_order_is_paid_by_other_method( $order ) ) {
         if( $laskuhari_gateway_object->receipt_template === "yes" ) {
             $template_name = "kuitti";
         }
