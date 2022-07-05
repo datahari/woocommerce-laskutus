@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.4.2
+Version: 1.4.3
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$laskuhari_plugin_version = "1.4.2";
+$laskuhari_plugin_version = "1.4.3";
 
 $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
@@ -1373,10 +1373,13 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari_download'] ) ) {
+        $args = [];
 
-        $args = [
-            'pohja' => $_GET['laskuhari_template'] ?? "lasku",
-        ];
+        if( isset( $_GET['laskuhari_template'] ) ) {
+            $args = [
+                'pohja' => $_GET['laskuhari_template'],
+            ];
+        }
 
         if( $_GET['laskuhari_download'] === "current" ) {
             $lh = laskuhari_download( $_GET['post'], true, $args );
@@ -1673,7 +1676,6 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         }
 
         if( $laskuhari_gateway_object->receipt_template === "yes" ) {
-            $template_name = "kuitti";
             $args['pohja'] = "kuitti";
         }
     }
@@ -1881,6 +1883,12 @@ function laskuhari_send_invoice_attached( $order ) {
 
     $args = [];
     $template_name = "lasku";
+
+    if( laskuhari_order_is_paid_by_other_method( $order_id ) ) {
+        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+            $template_name = "kuitti";
+        }
+    }
 
     $template_name = apply_filters( "laskuhari_attachment_template_name", $template_name, $order );
 
