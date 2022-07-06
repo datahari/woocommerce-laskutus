@@ -37,6 +37,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->create_webhooks          = $this->lh_get_option( 'create_webhooks' ) === 'yes' ? true : false;
         $this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'yes' ? true : false;
 
+        $this->set_max_and_min_amounts();
+
         if( $this->demotila == "yes" ) {
             $this->uid    = "3175";
             $this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
@@ -105,6 +107,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         }
 
         return parent::generate_multiselect_html( $key, $data );
+    }
+
+    private function set_max_and_min_amounts() {
+        $max_amount = (string)$this->lh_get_option( 'max_amount' );
+        $min_amount = 0;
+
+        if( strpos( $max_amount, "-" ) ) {
+            $amounts = explode( "-", $max_amount );
+            $min_amount = $amounts[0];
+            $max_amount = $amounts[1];
+        }
+
+        $this->min_amount = intval( apply_filters( "laskuhari_min_amount", $min_amount ) );
+        $this->max_amount = intval( apply_filters( "laskuhari_max_amount", $max_amount ) );
     }
 
     public function lh_get_option( $option, $default = null ) {
@@ -528,7 +544,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'type'              => 'checkbox',
                 'description'       => 'Toiminto vaatii yhteensopivan lisäosan (esim. Woocommerce Advanced Quantity tai Quantities and Units for WooCommerce)',
                 'default'           => 'yes'
-            )
+            ),
+            'max_amount' => array(
+                'title'       => __( 'Laskutusraja', 'laskuhari' ),
+                'type'        => 'text',
+                'description' => __( 'Älä salli laskutus-maksutapaa, jos tilauksen summa ylittää tämän (0 = ei rajaa) (voit myös käyttää muotoa min-max, esim. 50-500)', 'laskuhari' ),
+                'default'     => '0',
+            ),
         );
     }
 
@@ -538,8 +560,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return bool
      */
     public function is_available() {
+        if( apply_filters( "laskuhari_pre_is_available", true ) === false ) {
+            return false;
+        }
 
         if( $this->lh_get_option( 'gateway_enabled' ) == 'no' ) {
+            return false;
+        }
+
+        if ( WC()->cart && 0 < $this->min_amount && $this->min_amount > $this->get_order_total() ) {
             return false;
         }
 
@@ -641,7 +670,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
-        return parent::is_available();
+        return apply_filters( "laskuhari_is_available", parent::is_available() );
     }
 
 
