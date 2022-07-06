@@ -150,5 +150,6 @@ exports.reset_settings = async function( page ) {
         $("#woocommerce_laskuhari_invoice_email_text_for_other_payment_methods").val("Attached you will find an invoice as a receipt");
         $("#woocommerce_laskuhari_salli_laskutus_erikseen").prop( "checked", false );
         $("#woocommerce_laskuhari_enable_for_virtual").prop( "checked", true );
+        $("#woocommerce_laskuhari_max_amount").val("0");
     } );
 }
