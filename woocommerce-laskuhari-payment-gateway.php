@@ -489,6 +489,41 @@ function laskuhari_get_customer_payment_terms_default( $customerID ) {
     return get_user_meta( $customerID, "laskuhari_payment_terms_default", true );
 }
 
+function laskuhari_common_vat_rates( $product = null ) {
+    $common_vat_rates = [24, 14, 10];
+    $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
+
+    return $common_vat_rates;
+}
+
+/**
+ * Convert a calculated VAT rate into one of common VAT rates
+ *
+ * @param float $percent
+ * @return float
+ */
+function laskuhari_vat_percent( $percent ) {
+    $diff = [];
+
+    // calculate difference between given percent and common vat rates
+    foreach( laskuhari_common_vat_rates() as $vat_rate ) {
+        $diff[$vat_rate] = abs( $vat_rate - $percent );
+    }
+
+    // sort differences smallest to largest
+    asort( $diff, SORT_NUMERIC );
+
+    // if the difference is larger than 2 %
+    if( current( $diff ) > 2 ) {
+        return round( $percent ); // return original percent
+    }
+
+    // go back to first vat rate
+    reset( $diff );
+
+    return key( $diff ); // return closest common vat rate
+}
+
 function laskuhari_get_vat_rate( $product = null ) {
     $taxes = null;
 
@@ -513,8 +548,7 @@ function laskuhari_get_vat_rate( $product = null ) {
         }
     }
 
-    $common_vat_rates = [24, 14, 10];
-    $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
+    $common_vat_rates = laskuhari_common_vat_rates( $product );
 
     foreach( $taxes as $rate ) {
         if( in_array( $rate['rate'], $common_vat_rates ) ) {
@@ -1793,7 +1827,7 @@ function laskuhari_invoice_row( $data ) {
         "maara" => $data['maara'],
         "yks" => $data['yks'] ?? "",
         "veroton" => $data['veroton'],
-        "alv" => $data['alv'],
+        "alv" => laskuhari_vat_percent( $data['alv'] ),
         "ale" => $data['ale'],
         "verollinen" => $data['verollinen'],
         "yhtveroton" => $data['yhtveroton'],
