@@ -25,7 +25,7 @@ rm -rf woocommerce-laskuhari-payment-gateway/README.md
 rm -rf woocommerce-laskuhari-payment-gateway/test
 
 # remove scripts
-rm woocommerce-laskuhari-payment-gateway/scripts
+rm -rf woocommerce-laskuhari-payment-gateway/scripts
 
 # get version number
 VERSION=`grep "Version: " woocommerce-laskuhari-payment-gateway/woocommerce-laskuhari-payment-gateway.php | awk '{print $2}'`
