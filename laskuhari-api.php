@@ -108,7 +108,7 @@ function laskuhari_api_handle_request() {
             }
 
             laskuhari_update_payment_status(
-                $order_id,
+                $json['wc_order_id'],
                 $status['code'],
                 $status['name'],
                 $status['id']
