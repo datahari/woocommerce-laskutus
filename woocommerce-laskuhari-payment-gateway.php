@@ -2558,8 +2558,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
         if( ! is_laskuhari_allowed_order_status( $order->get_status() ) && $order->get_payment_method() === "laskuhari" ) {
-            $status_after_creation = apply_filters( "laskuhari_status_after_creation", "processing", $order->get_id() );
-            $order->update_status( $status_after_creation );
+            $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id() );
+            if( $status_after_creation ) {
+                $order->update_status( $status_after_creation );
+            }
         }
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
@@ -2792,8 +2794,10 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
 
         if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
-            $status_after_sending = apply_filters( "laskuhari_status_after_sending", "processing", $order->get_id() );
-            $order->update_status( $status_after_sending );
+            $status_after_sending = apply_filters( "laskuhari_status_after_sending", false, $order->get_id() );
+            if( $status_after_sending ) {
+                $order->update_status( $status_after_sending );
+            }
         }
 
         $sent_order = $order->get_id();
@@ -2806,8 +2810,10 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
 
         if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
-            $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", "processing", $order->get_id() );
-            $order->update_status( $status_after_unsent_creation );
+            $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", false, $order->get_id() );
+            if( $status_after_unsent_creation ) {
+                $order->update_status( $status_after_unsent_creation );
+            }
         }
 
         do_action( "laskuhari_invoice_created_but_not_sent", $sent_order, $invoice_id );
