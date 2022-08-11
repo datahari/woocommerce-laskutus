@@ -1030,9 +1030,7 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
 }
 
 function laskuhari_reset_order_metadata( $order_id ) {
-    update_post_meta( $order_id, '_laskuhari_payment_status', "" );
-    update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
-    update_post_meta( $order_id, '_laskuhari_payment_status_id', "" );
+    laskuhari_update_payment_status( $order_id, "", "", "" );
     update_post_meta( $order_id, '_laskuhari_payment_terms_name', "" );
     update_post_meta( $order_id, '_laskuhari_payment_terms', "" );
     update_post_meta( $order_id, '_laskuhari_sent', "" );
@@ -1426,9 +1424,7 @@ function laskuhari_actions() {
     // update saved metadata retrieved through the API
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "update_metadata" ) {
         // reset payment status metadata
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status', "" );
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status_name', "" );
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status_id', "" );
+        laskuhari_update_payment_status( $order_id, "", "", "" );
 
         // update payment status metadata
         laskuhari_get_invoice_payment_status( $_GET['post'] );
@@ -1600,9 +1596,12 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
 
         // save payment status to post_meta
         if ( isset( $status['maksustatus']['koodi'] ) ) {
-            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
+            laskuhari_update_payment_status(
+                $order_id,
+                $status['maksustatus']['koodi'],
+                $status['status']['nimi'],
+                $status['status']['id']
+            );
         }
 
         // return payment status
@@ -1610,6 +1609,14 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     }
 
     return false;
+}
+
+function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
+    update_post_meta( $order_id, '_laskuhari_payment_status', $status_code );
+    update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
+    update_post_meta( $order_id, '_laskuhari_payment_status_id', $status_id );
+
+    do_action( "laskuhari_payment_status_updated", $order_id, $status_code, $status_name, $status_id );
 }
 
 function laskuhari_get_payment_terms( $force = false ) {

@@ -107,9 +107,12 @@ function laskuhari_api_handle_request() {
                 exit;
             }
 
-            update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status', $status['code'] );
-            update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status_name', $status['name'] );
-            update_post_meta( $json['wc_order_id'], '_laskuhari_payment_status_id', $status['id'] );
+            laskuhari_update_payment_status(
+                $order_id,
+                $status['code'],
+                $status['name'],
+                $status['id']
+            );
     
             http_response_code( 200 );
     
