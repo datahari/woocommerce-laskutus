@@ -895,7 +895,8 @@ function laskuhari_add_bulk_action_for_invoicing( $actions ) {
 function is_laskuhari_allowed_order_status( $status ) {
     return in_array( $status, [
         "processing",
-        "completed"
+        "completed",
+        "on-hold"
     ] );
 }
 
