@@ -1181,7 +1181,7 @@ function laskuhari_order_payment_status( $order_id ) {
     $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
     $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
 
-    if ( "1" === $payment_status ) {
+    if ( 1 == $payment_status ) {
         $payment_status_class = "laskuhari-paid";
     } else {
         $payment_status_class = "laskuhari-not-paid";
