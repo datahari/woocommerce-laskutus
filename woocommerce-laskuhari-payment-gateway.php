@@ -1388,8 +1388,9 @@ function laskuhari_actions() {
         return false;
     }
 
+    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? 0;
+
     if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
-        $order_id = $_GET['order_id'] ?? $_GET['post'];
         $lh = laskuhari_send_invoice( wc_get_order( $order_id ) );
         laskuhari_go_back( $lh );
         exit;
@@ -1397,7 +1398,6 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
-        $order_id   = $_GET['order_id'] ?? $_GET['post'];
         $lh         = laskuhari_process_action( $order_id, $send );
 
         laskuhari_go_back( $lh );
