@@ -1611,10 +1611,45 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     return false;
 }
 
+/**
+ * Update the payment status metadata of an invoice attached to an order
+ * 
+ * @param $order_id Order ID
+ * @param $status_code Status code (0 = unpaid / 1 = paid)
+ * @param $status_name Human readable name of status
+ * @param $status_id ID of status in Laskuhari system
+ * 
+ * @return void
+ */
 function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
+    global $laskuhari_gateway_object;
+
     update_post_meta( $order_id, '_laskuhari_payment_status', $status_code );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
     update_post_meta( $order_id, '_laskuhari_payment_status_id', $status_id );
+
+    if( 1 == $status_code ) {
+        // if invoice status is changed to paid, change order status based on settings
+        $status_after_paid = $laskuhari_gateway_object->lh_get_option( "status_after_paid" );
+        $status_after_paid = apply_filters( "laskuhari_status_after_update_status_paid", $status_after_paid, $order_id );
+        if( $status_after_paid ) {
+            $order = wc_get_order( $order_id );
+            $order->update_status( $status_after_paid );
+        }
+    } else {
+        // if invoice status is changed to unpaid, change order status based on settings
+        // only if order was made by payment gateway
+        $order = wc_get_order( $order_id );
+        if( $order->get_payment_method() === "laskuhari" ) {
+            $status_after_unpaid = $laskuhari_gateway_object->lh_get_option( "status_after_gateway" );
+        } else {
+            $status_after_unpaid = false;
+        }
+        $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
+        if( $status_after_unpaid ) {
+            $order->update_status( $status_after_unpaid );
+        }
+    }
 
     do_action( "laskuhari_payment_status_updated", $order_id, $status_code, $status_name, $status_id );
 }
