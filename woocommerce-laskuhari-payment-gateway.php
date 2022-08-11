@@ -2562,6 +2562,8 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             $order->update_status( $status_after_creation );
         }
 
+        do_action( "laskuhari_invoice_created", $order->get_id(), $laskuid );
+
         laskuhari_get_invoice_payment_status( $order->get_id() );
 
         $send_method = laskuhari_get_order_send_method( $order->get_id() );
