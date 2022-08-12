@@ -1625,6 +1625,8 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
 function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
     global $laskuhari_gateway_object;
 
+    $old_status = get_post_meta( $order_id, '_laskuhari_payment_status', true );
+
     update_post_meta( $order_id, '_laskuhari_payment_status', $status_code );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
     update_post_meta( $order_id, '_laskuhari_payment_status_id', $status_id );
@@ -1637,7 +1639,7 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
             $order = wc_get_order( $order_id );
             $order->update_status( $status_after_paid );
         }
-    } else {
+    } elseif( $old_status != "" ) {
         // if invoice status is changed to unpaid, change order status based on settings
         // only if order was made by payment gateway
         $order = wc_get_order( $order_id );
