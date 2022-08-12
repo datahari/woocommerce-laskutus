@@ -78,7 +78,9 @@ exports.place_order = async function( page ) {
     await page.click( "#place_order" );
 
     // wait for order to complete
-    await page.waitFor( ".woocommerce-order-received" );
+    await page.waitForSelector( ".woocommerce-order-received", {
+        timeout: 45000
+    } );
 }
 
 exports.make_order = async function( page ) {
