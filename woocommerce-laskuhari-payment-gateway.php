@@ -1631,26 +1631,23 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
     update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
     update_post_meta( $order_id, '_laskuhari_payment_status_id', $status_id );
 
-    if( 1 == $status_code ) {
-        // if invoice status is changed to paid, change order status based on settings
-        $status_after_paid = $laskuhari_gateway_object->lh_get_option( "status_after_paid" );
-        $status_after_paid = apply_filters( "laskuhari_status_after_update_status_paid", $status_after_paid, $order_id );
-        if( $status_after_paid ) {
-            $order = wc_get_order( $order_id );
-            $order->update_status( $status_after_paid );
-        }
-    } elseif( $old_status != "" ) {
-        // if invoice status is changed to unpaid, change order status based on settings
-        // only if order was made by payment gateway
-        $order = wc_get_order( $order_id );
-        if( $order->get_payment_method() === "laskuhari" ) {
-            $status_after_unpaid = $laskuhari_gateway_object->lh_get_option( "status_after_gateway" );
-        } else {
-            $status_after_unpaid = false;
-        }
-        $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
-        if( $status_after_unpaid ) {
-            $order->update_status( $status_after_unpaid );
+    $order = wc_get_order( $order_id );
+
+    if( $order->get_payment_method() === "laskuhari" ) {
+        if( 1 == $status_code ) {
+            // if invoice status is changed to paid, change order status based on settings
+            $status_after_paid = $laskuhari_gateway_object->lh_get_option( "status_after_paid" );
+            $status_after_paid = apply_filters( "laskuhari_status_after_update_status_paid", $status_after_paid, $order_id );
+            if( $status_after_paid ) {
+                $order->update_status( $status_after_paid );
+            }
+        } elseif( $old_status != "" ) {
+            // if invoice status is changed to unpaid, change order status based on settings
+            // only if order was made by payment gateway
+            $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
+            if( $status_after_unpaid ) {
+                $order->update_status( $status_after_unpaid );
+            }
         }
     }
 
