@@ -506,6 +506,31 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
                 )
             ),
+            'status_after_gateway' => array(
+                'title'       => __( 'Tilauksen tila laskutuksen jälkeen', 'laskuhari' ),
+                'label'       => __( 'Valitse tilauksen tila laskutuksen jälkeen', 'laskuhari' ),
+                'type'        => 'select',
+                'description' => __( 'Mihin tilaan haluat asettaa tilauksen, kun tilaus tehdään kassan kautta laskutus-maksutavalla?', 'laskuhari' ),
+                'default'     => 'processing',
+                'options'     => array(
+                    'processing' => __( 'Käsittelyssä', 'laskuhari' ),
+                    'completed' => __( 'Valmis', 'laskuhari' ),
+                    'on-hold' => __( 'Jonossa', 'laskuhari' )
+                )
+            ),
+            'status_after_paid' => array(
+                'title'       => __( 'Tilauksen tila laskun maksun jälkeen', 'laskuhari' ),
+                'label'       => __( 'Valitse tilauksen tila laskun maksun jälkeen', 'laskuhari' ),
+                'type'        => 'select',
+                'description' => __( 'Mihin tilaan haluat asettaa tilauksen, kun siihen liitetty lasku maksetaan?', 'laskuhari' ),
+                'default'     => '',
+                'options'     => array(
+                    '' => __( 'Ei muutosta', 'laskuhari' ),
+                    'processing' => __( 'Käsittelyssä', 'laskuhari' ),
+                    'completed' => __( 'Valmis', 'laskuhari' ),
+                    'on-hold' => __( 'Jonossa', 'laskuhari' )
+                )
+            ),
             'paid_stamp' => array(
                 'title'             => __( 'Maksettu-leima', 'laskuhari' ),
                 'label'             => __( 'Lisää maksettu-leima muilla maksutavoilla maksettuihin laskuihin', 'laskuhari' ),
@@ -701,7 +726,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         do_action( "laskuhari_action_after_payment_completed_before_update_status" );
 
-        $status_after_payment = apply_filters( "laskuhari_status_after_payment", "processing", $order_id );
+        $status_after_payment = $this->lh_get_option( "status_after_gateway" );
+        $status_after_payment = apply_filters( "laskuhari_status_after_payment", $status_after_payment, $order_id );
 
         $order->update_status( $status_after_payment );
 

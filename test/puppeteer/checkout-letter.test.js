@@ -77,7 +77,7 @@ test("checkout-letter", async () => {
     // check that the invoice was tried to send as letter
     // note: invoice won't be sent with demo credentials
     // so we just check for the correct error notice
-    element = await page.$('#woocommerce-order-notes .note_content');
+    element = await page.$('#woocommerce-order-notes');
     val = await page.evaluate(el => el.textContent, element);
     expect( val ).toMatch( /.*Virhe laskun lähetyksessä.*KEY_ERROR.*/ );
 

@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.4.8
+Version: 1.5
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -895,7 +895,8 @@ function laskuhari_add_bulk_action_for_invoicing( $actions ) {
 function is_laskuhari_allowed_order_status( $status ) {
     return in_array( $status, [
         "processing",
-        "completed"
+        "completed",
+        "on-hold"
     ] );
 }
 
@@ -1030,9 +1031,7 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
 }
 
 function laskuhari_reset_order_metadata( $order_id ) {
-    update_post_meta( $order_id, '_laskuhari_payment_status', "" );
-    update_post_meta( $order_id, '_laskuhari_payment_status_name', "" );
-    update_post_meta( $order_id, '_laskuhari_payment_status_id', "" );
+    laskuhari_update_payment_status( $order_id, "", "", "" );
     update_post_meta( $order_id, '_laskuhari_payment_terms_name', "" );
     update_post_meta( $order_id, '_laskuhari_payment_terms', "" );
     update_post_meta( $order_id, '_laskuhari_sent', "" );
@@ -1182,7 +1181,7 @@ function laskuhari_order_payment_status( $order_id ) {
     $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
     $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
 
-    if ( "1" === $payment_status ) {
+    if ( 1 == $payment_status ) {
         $payment_status_class = "laskuhari-paid";
     } else {
         $payment_status_class = "laskuhari-not-paid";
@@ -1389,8 +1388,9 @@ function laskuhari_actions() {
         return false;
     }
 
+    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? 0;
+
     if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
-        $order_id = $_GET['order_id'] ?? $_GET['post'];
         $lh = laskuhari_send_invoice( wc_get_order( $order_id ) );
         laskuhari_go_back( $lh );
         exit;
@@ -1398,7 +1398,6 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
-        $order_id   = $_GET['order_id'] ?? $_GET['post'];
         $lh         = laskuhari_process_action( $order_id, $send );
 
         laskuhari_go_back( $lh );
@@ -1426,9 +1425,7 @@ function laskuhari_actions() {
     // update saved metadata retrieved through the API
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "update_metadata" ) {
         // reset payment status metadata
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status', "" );
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status_name', "" );
-        update_post_meta( $_GET['post'], '_laskuhari_payment_status_id', "" );
+        laskuhari_update_payment_status( $order_id, "", "", "" );
 
         // update payment status metadata
         laskuhari_get_invoice_payment_status( $_GET['post'] );
@@ -1600,9 +1597,12 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
 
         // save payment status to post_meta
         if ( isset( $status['maksustatus']['koodi'] ) ) {
-            update_post_meta( $order_id, '_laskuhari_payment_status', $status['maksustatus']['koodi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_name', $status['status']['nimi'] );
-            update_post_meta( $order_id, '_laskuhari_payment_status_id', $status['status']['id'] );
+            laskuhari_update_payment_status(
+                $order_id,
+                $status['maksustatus']['koodi'],
+                $status['status']['nimi'],
+                $status['status']['id']
+            );
         }
 
         // return payment status
@@ -1610,6 +1610,51 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     }
 
     return false;
+}
+
+/**
+ * Update the payment status metadata of an invoice attached to an order
+ * 
+ * @param $order_id Order ID
+ * @param $status_code Status code (0 = unpaid / 1 = paid)
+ * @param $status_name Human readable name of status
+ * @param $status_id ID of status in Laskuhari system
+ * 
+ * @return void
+ */
+function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
+    global $laskuhari_gateway_object;
+
+    $old_status = get_post_meta( $order_id, '_laskuhari_payment_status', true );
+
+    update_post_meta( $order_id, '_laskuhari_payment_status', $status_code );
+    update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
+    update_post_meta( $order_id, '_laskuhari_payment_status_id', $status_id );
+
+    if( 1 == $status_code ) {
+        // if invoice status is changed to paid, change order status based on settings
+        $status_after_paid = $laskuhari_gateway_object->lh_get_option( "status_after_paid" );
+        $status_after_paid = apply_filters( "laskuhari_status_after_update_status_paid", $status_after_paid, $order_id );
+        if( $status_after_paid ) {
+            $order = wc_get_order( $order_id );
+            $order->update_status( $status_after_paid );
+        }
+    } elseif( $old_status != "" ) {
+        // if invoice status is changed to unpaid, change order status based on settings
+        // only if order was made by payment gateway
+        $order = wc_get_order( $order_id );
+        if( $order->get_payment_method() === "laskuhari" ) {
+            $status_after_unpaid = $laskuhari_gateway_object->lh_get_option( "status_after_gateway" );
+        } else {
+            $status_after_unpaid = false;
+        }
+        $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
+        if( $status_after_unpaid ) {
+            $order->update_status( $status_after_unpaid );
+        }
+    }
+
+    do_action( "laskuhari_payment_status_updated", $order_id, $status_code, $status_name, $status_id );
 }
 
 function laskuhari_get_payment_terms( $force = false ) {
@@ -2000,7 +2045,9 @@ function laskuhari_send_invoice_attached( $order ) {
 
         // make sure to delete temporary file
         add_action( "shutdown", function() use ( $temp_file ) {
-            unlink( $temp_file );
+            if( file_exists( $temp_file ) ) {
+                unlink( $temp_file );
+            }
         } );
     } else {
         $order->add_order_note( __( "Laskun liittäminen tilausvahvistuksen liitteeksi epäonnistui (Laskuhari)", "laskuhari" ) );
@@ -2514,10 +2561,12 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
-        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) && $order->get_payment_method() === "laskuhari" ) {
-            $status_after_creation = apply_filters( "laskuhari_status_after_creation", "processing", $order->get_id() );
+        $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id() );
+        if( $status_after_creation ) {
             $order->update_status( $status_after_creation );
         }
+
+        do_action( "laskuhari_invoice_created", $order->get_id(), $laskuid );
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
 
@@ -2748,8 +2797,8 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $order->add_order_note( __( 'Lasku lähetetty ' . $miten . $mihin, 'laskuhari' ) );
         update_post_meta( $order->get_id(), '_laskuhari_sent', 'yes' );
 
-        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
-            $status_after_sending = apply_filters( "laskuhari_status_after_sending", "processing", $order->get_id() );
+        $status_after_sending = apply_filters( "laskuhari_status_after_sending", false, $order->get_id() );
+        if( $status_after_sending ) {
             $order->update_status( $status_after_sending );
         }
 
@@ -2762,8 +2811,8 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $sent_order = "";
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
 
-        if( ! is_laskuhari_allowed_order_status( $order->get_status() ) ) {
-            $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", "processing", $order->get_id() );
+        $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", false, $order->get_id() );
+        if( $status_after_unsent_creation ) {
             $order->update_status( $status_after_unsent_creation );
         }
 

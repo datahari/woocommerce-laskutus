@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
 
-test("checkout-create-and-send", async () => {
+test("checkout-change-order-status-when-invoicing", async () => {
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: {
@@ -32,6 +32,8 @@ test("checkout-create-and-send", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_status_after_gateway").val( "on-hold" );
+        $("#woocommerce_laskuhari_status_after_paid").val( "processing" );
     } );
 
     // save settings
@@ -58,7 +60,7 @@ test("checkout-create-and-send", async () => {
     // check that order status was set to processing
     element = await page.$('#select2-order_status-container');
     let order_status = await page.evaluate(el => el.textContent, element);
-    expect( order_status ).toBe( "Käsittelyssä" );
+    expect( order_status ).toBe( "Jonossa" );
 
     // wait for a while so we can inspect the result
     await page.waitFor( 5000 );
