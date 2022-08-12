@@ -2045,7 +2045,9 @@ function laskuhari_send_invoice_attached( $order ) {
 
         // make sure to delete temporary file
         add_action( "shutdown", function() use ( $temp_file ) {
-            unlink( $temp_file );
+            if( file_exists( $temp_file ) ) {
+                unlink( $temp_file );
+            }
         } );
     } else {
         $order->add_order_note( __( "Laskun liittäminen tilausvahvistuksen liitteeksi epäonnistui (Laskuhari)", "laskuhari" ) );
