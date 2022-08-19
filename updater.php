@@ -8,7 +8,7 @@ Plugin updater by Jeremy Clark: https://github.com/jeremyclark13/automatic-theme
 */
 
 $api_url = 'https://www.laskuhari.fi/wc/api/';
-$plugin_slug = basename( dirname( __FILE__ ) );
+$plugin_slug = plugin_basename( dirname( __FILE__ ) );
 
 // Take over the update check
 add_filter( 'pre_set_site_transient_update_plugins', 'check_for_plugin_update' );
