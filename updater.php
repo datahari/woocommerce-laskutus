@@ -15,11 +15,11 @@ add_filter('pre_set_site_transient_update_plugins', 'check_for_plugin_update');
 
 function check_for_plugin_update($checked_data) {
 	global $api_url, $plugin_slug, $wp_version;
-	
-	//Comment out these two lines during testing.
-	if (empty($checked_data->checked))
+
+	if ( empty( $checked_data->checked[$plugin_slug .'/'. $plugin_slug .'.php'] ) ) {
 		return $checked_data;
-	
+	}
+
 	$args = array(
 		'slug' => $plugin_slug,
 		'version' => $checked_data->checked[$plugin_slug .'/'. $plugin_slug .'.php'] ?? "",
