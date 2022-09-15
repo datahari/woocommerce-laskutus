@@ -2155,6 +2155,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         laskuhari_set_order_meta( $order_id, '_laskuhari_email', $_REQUEST['laskuhari-email'], false );
     }
 
+    if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
+        laskuhari_set_order_meta( $order_id, "_laskuhari_laskutustapa", $_REQUEST['laskuhari-laskutustapa'], true );
+    }
+
     $prices_include_tax = get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
 
     $send_method = laskuhari_get_order_send_method( $order->get_id() );
