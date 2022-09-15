@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.5.2
+Version: 1.5.3
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -71,6 +71,7 @@ function laskuhari_payment_gateway_load() {
     add_action( 'admin_print_scripts', 'laskuhari_add_admin_scripts' );
     add_action( 'admin_print_styles', 'laskuhari_add_styles' );
     add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
+    add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
     add_action( 'show_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'edit_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'personal_options_update', 'laskuhari_update_user_meta' );
@@ -1346,14 +1347,26 @@ function laskuhari_add_invoice_surcharge( $cart ) {
         return;
     }
 
-    $laskutuslisa = $laskuhari->laskutuslisa;
+    $send_method = WC()->session->get( "laskuhari-laskutustapa" );
+
+    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
+
+    $laskutuslisa = $laskuhari->veroton_laskutuslisa( $prices_include_tax, $send_method );
 
     if( $laskutuslisa == 0 ) {
         return;
     }
 
-    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
-    $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskuhari->veroton_laskutuslisa( $prices_include_tax ), true );
+    if( true === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa, $cart ) ) {
+        return false;
+    }
+
+    $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskutuslisa, true );
+}
+
+function laskuhari_checkout_update_order_review( $post_data ) {
+    parse_str( $post_data, $result );
+    WC()->session->set( "laskuhari-laskutustapa", isset( $result['laskuhari-laskutustapa'] ) ? $result['laskuhari-laskutustapa'] : "" );
 }
 
 function laskuhari_fallback_notice() {
@@ -2142,15 +2155,23 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         laskuhari_set_order_meta( $order_id, '_laskuhari_email', $_REQUEST['laskuhari-email'], false );
     }
 
+    if ( isset( $_REQUEST['laskuhari-laskutustapa'] ) ) {
+        laskuhari_set_order_meta( $order_id, "_laskuhari_laskutustapa", $_REQUEST['laskuhari-laskutustapa'], false );
+    }
+
     $prices_include_tax = get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
+
+    $send_method = laskuhari_get_order_send_method( $order->get_id() );
 
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid           = $info->uid;
     $laskutuslisa            = $info->laskutuslisa;
     $laskutuslisa_alv        = $info->laskutuslisa_alv;
-    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax );
-    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax );
+    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax, $send_method );
+    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax, $send_method );
+
+    $add_surcharge = ($laskutuslisa_veroton && false === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa ));
 
     if( ! $laskuhari_uid ) {
         return laskuhari_uid_error();
@@ -2462,7 +2483,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     // lisätään laskutuslisä, jos lasku on tehty kassan kautta
     // tai manuaalisesti hallintapaneelin kautta
-    if( $laskutuslisa && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
+    if( $add_surcharge && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
         $laskurivit[] = laskuhari_invoice_row( [
             "nimike"        => "Laskutuslisä",
             "maara"         => 1,
@@ -2566,8 +2587,6 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         do_action( "laskuhari_invoice_created", $order->get_id(), $laskuid );
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
-
-        $send_method = laskuhari_get_order_send_method( $order->get_id() );
 
         if( apply_filters( 'laskuhari_send_after_creation', $send, $send_method, $order ) ) {
             return laskuhari_send_invoice( $order, $bulk_action );
