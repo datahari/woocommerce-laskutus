@@ -176,13 +176,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function lahetystapa_lomake( $order_id = false ) {
         $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa', true );
         $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
+
+        $email_method_text    = apply_filters( "laskuhari_email_method_text", "Sähköposti", $order_id );
+        $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", "Verkkolasku", $order_id );
+        $letter_method_text   = apply_filters( "laskuhari_letter_method_text", "Kirje", $order_id );
+
         ?>
             <div id="laskuhari-lahetystapa-lomake">
             <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
                 <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
-                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __('Sähköposti', 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __('Verkkolasku', 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __('Kirje', 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __($email_method_text, 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __($einvoice_method_text, 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __($letter_method_text, 'laskuhari'); ?></option><?php endif; ?>
             </select>
             <?php
             if( is_admin() ) {
