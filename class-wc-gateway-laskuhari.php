@@ -153,18 +153,24 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return $payment_methods;
     }
 
-    public function veroton_laskutuslisa( $sis_alv ) {
+    public function veroton_laskutuslisa( $sis_alv, $send_method ) {
+        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
+
         if( $sis_alv ) {
-            return $this->laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
+            return $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
         }
-        return $this->laskutuslisa;
+
+        return $laskutuslisa;
     }
 
-    public function verollinen_laskutuslisa( $sis_alv ) {
+    public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
+        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
+
         if( $sis_alv ) {
-            return $this->laskutuslisa;
+            return $laskutuslisa;
         }
-        return $this->laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
+
+        return $laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
     }
 
     public function lahetystapa_lomake( $order_id = false ) {
