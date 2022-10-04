@@ -20,11 +20,8 @@ var laskuhari_viime_maksutapa = false;
         }
 
         if( ! laskuhari_updating_checkout ) {
-            $('body').trigger('update_checkout');
             laskuhari_updating_checkout = true;
-            setTimeout( function() {
-                laskuhari_updating_checkout = false;
-            }, 1000 );
+            $('body').trigger('update_checkout');
         }
     }
     function laskuhari_tarkista_laskutustapa(){
@@ -42,6 +39,9 @@ var laskuhari_viime_maksutapa = false;
         });
         $("body").bind("updated_checkout", function(){
             laskuhari_tarkista_laskutustapa();
+            setTimeout(function() {
+                laskuhari_updating_checkout = false;
+            }, 1000);
         });
         $(".woocommerce-checkout").on("checkout_place_order", function() {
             if( $(".laskuhari-place-order-disabled").length ) {
