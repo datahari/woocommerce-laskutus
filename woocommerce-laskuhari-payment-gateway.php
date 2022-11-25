@@ -1016,10 +1016,39 @@ function laskuhari_einvoice_notices( $fields, $errors ) {
         if ( ! $_POST['laskuhari-laskutustapa'] ) {
             $errors->add( 'validation', __( 'Ole hyvä ja valitse laskutustapa' ) );
         }
-        if ( mb_strlen( laskuhari_vat_id_at_checkout() ) < 6 && $_POST['laskuhari-laskutustapa'] == "verkkolasku" ) {
-            $errors->add( 'validation', __( 'Ole hyvä ja syötä y-tunnus verkkolaskun lähetystä varten' ) );
+        if ( ! laskuhari_is_valid_vat_id( laskuhari_vat_id_at_checkout() ) && in_array( $_POST['laskuhari-laskutustapa'], laskuhari_vat_id_mandatory_for_methods() ) ) {
+            $errors->add( 'validation', __( 'Y-tunnus on pakollinen '.laskuhari_method_name_by_slug( $_POST['laskuhari-laskutustapa'] ).'-laskutustavalla' ) );
         }
     }
+}
+
+// Check if a VAT ID is valid
+
+function laskuhari_is_valid_vat_id( $vat_id ) {
+    $is_valid = mb_strlen( laskuhari_vat_id_at_checkout() ) >= 6;
+    return apply_filters( "laskuhari_is_valid_vat_id", $is_valid, $vat_id );
+}
+
+// Set which invoicing methods require VAT ID
+
+function laskuhari_vat_id_mandatory_for_methods() {
+    return apply_filters( "laskuhari_vat_id_mandatory_for_methods", [
+        "verkkolasku",
+        //"kirje",
+        //"email",
+    ] );
+}
+
+// Return name of invoicing method by slug
+
+function laskuhari_method_name_by_slug( $slug ) {
+    $names = apply_filters( "laskuhari_method_names_by_slug", [
+        "verkkolasku" => "verkkolasku",
+        "kirje" => "kirje",
+        "email" => "sähköposti",
+    ] );
+
+    return $names[$slug];
 }
 
 // Päivitä Laskuharista tuleva metadata
