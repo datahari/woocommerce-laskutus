@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
 
-test("checkout-create-and-send", async () => {
+test("checkout-create-and-send-as-attachment", async () => {
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: {
