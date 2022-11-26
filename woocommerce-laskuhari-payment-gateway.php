@@ -1062,14 +1062,35 @@ function laskuhari_maybe_add_vat_id_field() {
     add_filter( 'woocommerce_billing_fields', function( $fields ) {
         $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
 
+        // insert vat id field after field with this key
+        $insert_after = apply_filters( "laskuhari_insert_vat_id_after_field", "billing_company", $fields );
+
+        // vat id field details
+        $billing_field = apply_filters( "laskuhari_vat_id_field", [
+            'label' => __('Y-tunnus', 'laskuhari'),
+            'required' => false,
+            'type' => 'text',
+        ] );
+
         foreach( $mandatory_for_methods as $method ) {
+            // if a method other than eInvoice is found
             if( $method !== "verkkolasku" ) {
-                $fields['billing_ytunnus'] = [
-                    'label' => __('Y-tunnus', 'woocommerce'),
-                    'required' => false,
-                    'type' => 'text',
-                ];
-                break;
+                $new_fields = [];
+
+                // insert vat id field after specified field
+                foreach( $fields as $name => $data ) {
+                    $new_fields[$name] = $data;
+                    if( $name === $insert_after ) {
+                        $new_fields['billing_ytunnus'] = $billing_field;
+                    }
+                }
+
+                // if specified field was not found, add field to the end
+                if( ! isset( $fields['billing_ytunnus'] ) ) {
+                    $new_fields['billing_ytunnus'] = $billing_field;
+                }
+
+                return $new_fields;
             }
         }
 
