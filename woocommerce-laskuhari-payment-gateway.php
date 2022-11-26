@@ -24,8 +24,6 @@ $__laskuhari_api_query_limit = 2;
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
-laskuhari_maybe_add_vat_id_field();
-
 add_action( 'woocommerce_init', function() {
     global $laskuhari_gateway_object;
 
@@ -56,6 +54,10 @@ function laskuhari_payment_gateway_load() {
         return;
     } elseif ( $laskuhari_gateway_object->demotila ) {
         add_action( 'admin_notices', 'laskuhari_demo_notice' );
+    }
+
+    if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
+        laskuhari_maybe_add_vat_id_field();
     }
 
     laskuhari_actions();
