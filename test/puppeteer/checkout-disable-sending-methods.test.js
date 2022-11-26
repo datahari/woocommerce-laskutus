@@ -34,6 +34,14 @@ test("checkout-disable-sending-methods", async () => {
         $("#woocommerce_laskuhari_email_lasku_kaytossa").prop( "checked", true );
         $("#woocommerce_laskuhari_verkkolasku_kaytossa").prop( "checked", false );
         $("#woocommerce_laskuhari_kirjelasku_kaytossa").prop( "checked", false );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-disable-sending-methods)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-disable-sending-methods)"
+        );
     } );
 
     // save settings

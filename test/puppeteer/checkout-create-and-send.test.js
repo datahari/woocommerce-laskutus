@@ -32,6 +32,14 @@ test("checkout-create-and-send", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-create-and-send)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-create-and-send)"
+        );
     } );
 
     // save settings

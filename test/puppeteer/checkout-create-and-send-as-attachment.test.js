@@ -33,6 +33,14 @@ test("checkout-create-and-send", async () => {
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_attach_invoice_to_wc_email").prop( "checked", true );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-create-and-send-as-attachment)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-create-and-send-as-attachment)"
+        );
     } );
 
     // save settings

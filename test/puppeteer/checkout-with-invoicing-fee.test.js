@@ -34,6 +34,14 @@ test("checkout-with-invoicing-fee", async () => {
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", false );
         $("#woocommerce_laskuhari_laskutuslisa").val("1,65");
         $("#woocommerce_laskuhari_laskutuslisa_alv").val("24");
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-with-invoicing-fee)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-with-invoicing-fee)"
+        );
     } );
 
     // save settings
