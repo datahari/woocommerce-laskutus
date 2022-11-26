@@ -24,6 +24,8 @@ $__laskuhari_api_query_limit = 2;
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 
+laskuhari_maybe_add_vat_id_field();
+
 add_action( 'woocommerce_init', function() {
     global $laskuhari_gateway_object;
 
@@ -1049,6 +1051,28 @@ function laskuhari_method_name_by_slug( $slug ) {
     ] );
 
     return $names[$slug];
+}
+
+// add a separate vat id field to billing details if vat id
+// is required for other invoicing methods than eInvoice
+
+function laskuhari_maybe_add_vat_id_field() {
+    add_filter( 'woocommerce_billing_fields', function( $fields ) {
+        $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
+
+        foreach( $mandatory_for_methods as $method ) {
+            if( $method !== "verkkolasku" ) {
+                $fields['billing_ytunnus'] = [
+                    'label' => __('Y-tunnus', 'woocommerce'),
+                    'required' => false,
+                    'type' => 'text',
+                ];
+                break;
+            }
+        }
+
+        return $fields;
+    });
 }
 
 // Päivitä Laskuharista tuleva metadata
