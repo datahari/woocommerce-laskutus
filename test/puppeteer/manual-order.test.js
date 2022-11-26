@@ -38,7 +38,7 @@ test("manual-order", async () => {
     await functions.reset_settings( page );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // go to new order creation
     await page.goto( config.wordpress_url + "/wp-admin/post-new.php?post_type=shop_order" );
