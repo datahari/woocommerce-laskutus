@@ -51,7 +51,7 @@ test("checkout-einvoice", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("verkkolasku").change();
     });
-    await page.waitFor( 500 );
+    await page.waitFor( 1000 );
 
     // insert business id
     await page.click( "#laskuhari-ytunnus" );

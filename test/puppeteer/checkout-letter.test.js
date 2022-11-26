@@ -51,7 +51,7 @@ test("checkout-letter", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("kirje").change();
     });
-    await page.waitFor( 500 );
+    await page.waitFor( 1000 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
