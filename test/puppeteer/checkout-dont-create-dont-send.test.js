@@ -32,14 +32,22 @@ test("checkout-dont-create-dont-send", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", false );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", false );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-dont-create-dont-send)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-dont-create-dont-send)"
+        );
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );

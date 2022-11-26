@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
 
-test("checkout-create-and-send", async () => {
+test("checkout-create-and-send-as-attachment", async () => {
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: {
@@ -33,14 +33,22 @@ test("checkout-create-and-send", async () => {
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_attach_invoice_to_wc_email").prop( "checked", true );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-create-and-send-as-attachment)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-create-and-send-as-attachment)"
+        );
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );

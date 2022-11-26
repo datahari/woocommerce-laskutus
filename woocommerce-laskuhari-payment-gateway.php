@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.5.5
+Version: 1.5.6
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -56,6 +56,16 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_demo_notice' );
     }
 
+    if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
+        laskuhari_maybe_add_vat_id_field();
+        add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
+        add_action( 'woocommerce_after_checkout_validation', 'laskuhari_einvoice_notices', 10, 2);
+        add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
+        add_action( 'wp_footer', 'laskuhari_add_styles' );
+        add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
+        add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
+    }
+
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
@@ -65,20 +75,14 @@ function laskuhari_payment_gateway_load() {
         add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
 
-    add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
-    add_action( 'wp_footer', 'laskuhari_add_styles' );
     add_action( 'admin_print_scripts', 'laskuhari_add_public_scripts' );
     add_action( 'admin_print_scripts', 'laskuhari_add_admin_scripts' );
     add_action( 'admin_print_styles', 'laskuhari_add_styles' );
-    add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
-    add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
     add_action( 'show_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'edit_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'personal_options_update', 'laskuhari_update_user_meta' );
     add_action( 'edit_user_profile_update', 'laskuhari_update_user_meta' );
     add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column' );
-    add_action( 'woocommerce_after_checkout_validation', 'laskuhari_einvoice_notices', 10, 2);
-    add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
 
     add_action( 'woocommerce_order_status_cancelled_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
@@ -1016,10 +1020,82 @@ function laskuhari_einvoice_notices( $fields, $errors ) {
         if ( ! $_POST['laskuhari-laskutustapa'] ) {
             $errors->add( 'validation', __( 'Ole hyvä ja valitse laskutustapa' ) );
         }
-        if ( mb_strlen( laskuhari_vat_id_at_checkout() ) < 6 && $_POST['laskuhari-laskutustapa'] == "verkkolasku" ) {
-            $errors->add( 'validation', __( 'Ole hyvä ja syötä y-tunnus verkkolaskun lähetystä varten' ) );
+        if ( ! laskuhari_is_valid_vat_id( laskuhari_vat_id_at_checkout() ) && in_array( $_POST['laskuhari-laskutustapa'], laskuhari_vat_id_mandatory_for_methods() ) ) {
+            $errors->add( 'validation', __( 'Y-tunnus on pakollinen '.laskuhari_method_name_by_slug( $_POST['laskuhari-laskutustapa'] ).'-laskutustavalla' ) );
         }
     }
+}
+
+// Check if a VAT ID is valid
+
+function laskuhari_is_valid_vat_id( $vat_id ) {
+    $is_valid = mb_strlen( laskuhari_vat_id_at_checkout() ) >= 6;
+    return apply_filters( "laskuhari_is_valid_vat_id", $is_valid, $vat_id );
+}
+
+// Set which invoicing methods require VAT ID
+
+function laskuhari_vat_id_mandatory_for_methods() {
+    return apply_filters( "laskuhari_vat_id_mandatory_for_methods", [
+        "verkkolasku",
+        //"kirje",
+        //"email",
+    ] );
+}
+
+// Return name of invoicing method by slug
+
+function laskuhari_method_name_by_slug( $slug ) {
+    $names = apply_filters( "laskuhari_method_names_by_slug", [
+        "verkkolasku" => "verkkolasku",
+        "kirje" => "kirje",
+        "email" => "sähköposti",
+    ] );
+
+    return $names[$slug];
+}
+
+// add a separate vat id field to billing details if vat id
+// is required for other invoicing methods than eInvoice
+
+function laskuhari_maybe_add_vat_id_field() {
+    add_filter( 'woocommerce_billing_fields', function( $fields ) {
+        $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
+
+        // insert vat id field after field with this key
+        $insert_after = apply_filters( "laskuhari_insert_vat_id_after_field", "billing_company", $fields );
+
+        // vat id field details
+        $billing_field = apply_filters( "laskuhari_vat_id_field", [
+            'label' => __('Y-tunnus', 'laskuhari'),
+            'required' => false,
+            'type' => 'text',
+        ] );
+
+        foreach( $mandatory_for_methods as $method ) {
+            // if a method other than eInvoice is found
+            if( $method !== "verkkolasku" ) {
+                $new_fields = [];
+
+                // insert vat id field after specified field
+                foreach( $fields as $name => $data ) {
+                    $new_fields[$name] = $data;
+                    if( $name === $insert_after ) {
+                        $new_fields['billing_ytunnus'] = $billing_field;
+                    }
+                }
+
+                // if specified field was not found, add field to the end
+                if( ! isset( $fields['billing_ytunnus'] ) ) {
+                    $new_fields['billing_ytunnus'] = $billing_field;
+                }
+
+                return $new_fields;
+            }
+        }
+
+        return $fields;
+    });
 }
 
 // Päivitä Laskuharista tuleva metadata

@@ -34,14 +34,22 @@ test("checkout-disable-sending-methods", async () => {
         $("#woocommerce_laskuhari_email_lasku_kaytossa").prop( "checked", true );
         $("#woocommerce_laskuhari_verkkolasku_kaytossa").prop( "checked", false );
         $("#woocommerce_laskuhari_kirjelasku_kaytossa").prop( "checked", false );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-disable-sending-methods)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-disable-sending-methods)"
+        );
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -67,11 +75,11 @@ test("checkout-disable-sending-methods", async () => {
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -97,11 +105,11 @@ test("checkout-disable-sending-methods", async () => {
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );

@@ -32,14 +32,22 @@ test("checkout-einvoice", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
         $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (checkout-einvoice)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (checkout-einvoice)"
+        );
     } );
 
     // save settings
-    await page.click( ".submit .button-primary" );
+    await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.woocommerce-message" );
+    await page.waitFor( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -51,7 +59,7 @@ test("checkout-einvoice", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("verkkolasku").change();
     });
-    await page.waitFor( 500 );
+    await page.waitFor( 1000 );
 
     // insert business id
     await page.click( "#laskuhari-ytunnus" );

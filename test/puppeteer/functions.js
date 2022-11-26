@@ -90,7 +90,7 @@ exports.make_order = async function( page ) {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("email").change();
     });
-    await page.waitFor( 500 );
+    await page.waitFor( 1000 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
