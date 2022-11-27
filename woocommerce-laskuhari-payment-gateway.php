@@ -1060,6 +1060,10 @@ function laskuhari_method_name_by_slug( $slug ) {
 
 function laskuhari_maybe_add_vat_id_field() {
     add_filter( 'woocommerce_billing_fields', function( $fields ) {
+        if( laskuhari_vat_id_custom_field_exists( ["billing" => $fields] ) ) {
+            return $fields;
+        }
+
         $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
 
         // insert vat id field after field with this key
@@ -1177,8 +1181,10 @@ function laskuhari_update_order_meta( $order_id )  {
     }
 }
 
-function laskuhari_vat_id_custom_field_exists() {
-    $field_data = WC()->checkout->get_checkout_fields();
+function laskuhari_vat_id_custom_field_exists( $field_data = null ) {
+    if( null === $field_data ) {
+        $field_data = WC()->checkout->get_checkout_fields();
+    }
     foreach( $field_data as $type => $fields ) {
         foreach( $fields as $field_name => $field_settings ) {
             if( lh_is_vat_id_field( $field_name ) ) {
