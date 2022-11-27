@@ -1090,7 +1090,7 @@ function laskuhari_maybe_add_vat_id_field() {
                 }
 
                 // if specified field was not found, add field to the end
-                if( ! isset( $fields['billing_ytunnus'] ) ) {
+                if( ! isset( $new_fields['billing_ytunnus'] ) ) {
                     $new_fields['billing_ytunnus'] = $billing_field;
                 }
 
