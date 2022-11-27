@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.5.6
+Version: 1.5.7
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -1059,7 +1059,13 @@ function laskuhari_method_name_by_slug( $slug ) {
 // is required for other invoicing methods than eInvoice
 
 function laskuhari_maybe_add_vat_id_field() {
+    $priority = apply_filters( "laskuhari_woocommerce_billing_fields_filter_priority", 1100 );
+
     add_filter( 'woocommerce_billing_fields', function( $fields ) {
+        if( laskuhari_vat_id_custom_field_exists( ["billing" => $fields] ) ) {
+            return $fields;
+        }
+
         $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
 
         // insert vat id field after field with this key
@@ -1086,7 +1092,7 @@ function laskuhari_maybe_add_vat_id_field() {
                 }
 
                 // if specified field was not found, add field to the end
-                if( ! isset( $fields['billing_ytunnus'] ) ) {
+                if( ! isset( $new_fields['billing_ytunnus'] ) ) {
                     $new_fields['billing_ytunnus'] = $billing_field;
                 }
 
@@ -1095,7 +1101,7 @@ function laskuhari_maybe_add_vat_id_field() {
         }
 
         return $fields;
-    });
+    }, $priority );
 }
 
 // Päivitä Laskuharista tuleva metadata
@@ -1177,8 +1183,10 @@ function laskuhari_update_order_meta( $order_id )  {
     }
 }
 
-function laskuhari_vat_id_custom_field_exists() {
-    $field_data = WC()->checkout->get_checkout_fields();
+function laskuhari_vat_id_custom_field_exists( $field_data = null ) {
+    if( null === $field_data ) {
+        $field_data = WC()->checkout->get_checkout_fields();
+    }
     foreach( $field_data as $type => $fields ) {
         foreach( $fields as $field_name => $field_settings ) {
             if( lh_is_vat_id_field( $field_name ) ) {
