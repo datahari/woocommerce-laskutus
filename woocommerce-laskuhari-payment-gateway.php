@@ -1059,6 +1059,8 @@ function laskuhari_method_name_by_slug( $slug ) {
 // is required for other invoicing methods than eInvoice
 
 function laskuhari_maybe_add_vat_id_field() {
+    $priority = apply_filters( "laskuhari_woocommerce_billing_fields_filter_priority", 1100 );
+
     add_filter( 'woocommerce_billing_fields', function( $fields ) {
         if( laskuhari_vat_id_custom_field_exists( ["billing" => $fields] ) ) {
             return $fields;
@@ -1099,7 +1101,7 @@ function laskuhari_maybe_add_vat_id_field() {
         }
 
         return $fields;
-    });
+    }, $priority );
 }
 
 // Päivitä Laskuharista tuleva metadata
