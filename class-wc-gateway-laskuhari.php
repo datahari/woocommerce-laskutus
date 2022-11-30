@@ -176,6 +176,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function lahetystapa_lomake( $order_id = false ) {
         $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa', true );
         $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
+        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
+        $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true );
 
         $email_method_text    = apply_filters( "laskuhari_email_method_text", "Sähköposti", $order_id );
         $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", "Verkkolasku", $order_id );
@@ -205,12 +207,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 if( ! is_checkout() || ! laskuhari_vat_id_custom_field_exists() ) {
                     ?>
                     <div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
-                    <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true ) ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+                    <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
                     <?php
                 }
                 ?>
                 <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>
-                <input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true ) ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
+                <input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( $verkkolaskuosoite ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
                 <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
                 <select id="laskuhari-valittaja" name="laskuhari-valittaja">
                     <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
@@ -256,9 +258,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     public function viitteenne_lomake( $order_id = false ) {
+        $viitteenne = get_laskuhari_meta( $order_id, '_laskuhari_viitteenne', true );
         ?>
         <div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
-        <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( get_laskuhari_meta( $order_id, '_laskuhari_viitteenne', true ) ); ?>" name="laskuhari-viitteenne" />
+        <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
         <?php
     }
 

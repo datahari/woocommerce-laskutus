@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.5.7
+Version: 1.6
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -64,6 +64,7 @@ function laskuhari_payment_gateway_load() {
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
         add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
+        add_action( 'woocommerce_checkout_update_customer', 'laskuhari_checkout_update_customer', 10, 2 );
     }
 
     laskuhari_actions();
@@ -139,6 +140,58 @@ function lh_create_select_box( $name, $options, $current = '' ) {
     }
     $html .= '</select>';
     return $html;
+}
+
+// get the newest address book prefix of WooCommerce Address Book plugin
+function laskuhari_get_newest_address_book_prefix( $customer ) {
+    $address_book_prefix = "";
+
+    $address_names = $customer->get_meta( 'wc_address_book_billing', true );
+
+    if( empty( $address_names ) ) {
+        $address_book_prefix = "billing_";
+    } elseif( is_array( $address_names ) ) {
+        $latest = 0;
+        foreach( $address_names as $address_name ) {
+            if( $address_name > $latest ) {
+                $address_book_prefix = $address_name."_";
+            }
+        }
+    }
+
+    return $address_book_prefix;
+}
+
+// save customer specific laskuhari meta data when customer is updated
+function laskuhari_checkout_update_customer( $customer ) {
+    $meta_data_to_save = [
+        "laskuhari-laskutustapa" => "_laskuhari_laskutustapa",
+        "laskuhari-valittaja" => "_laskuhari_valittaja",
+        "laskuhari-verkkolaskuosoite" => "_laskuhari_verkkolaskuosoite",
+        "laskuhari-ytunnus" => "_laskuhari_ytunnus",
+    ];
+
+    // for compatibility with WooCommerce Address Book plugin
+    if( isset( $_POST['billing_address_book'] ) ) {
+        if( $_POST['billing_address_book'] === "add_new" ) {
+            $address_book_prefix = laskuhari_get_newest_address_book_prefix( $customer );
+        } else {
+            $address_book_prefix = $_POST['billing_address_book']."_";
+        }
+
+        $meta_data_to_save["laskuhari-viitteenne"] = "_laskuhari_viitteenne";
+    } else {
+        $address_book_prefix = "";
+    }
+
+    $meta_data_to_save = apply_filters( "laskuhari_checkout_meta_data_to_save", $meta_data_to_save, $customer );
+
+    foreach( $_POST as $key => $value ) {
+        if( array_key_exists( $key, $meta_data_to_save ) ) {
+            $meta_key = $meta_data_to_save[$key];
+            $customer->update_meta_data( $address_book_prefix.$meta_key, $value );
+        }
+    }
 }
 
 // handle invoice creation & sending from other payment methods
@@ -1150,7 +1203,19 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
     } else {
         return false;
     }
-    return get_user_meta( $user_id, $meta_key, $single );
+
+    // for compatibility with WooCommerce Address Book plugin
+    if( isset( $_POST['post_data'] ) ) {
+        parse_str( $_POST['post_data'], $data );
+
+        if( isset( $data['billing_address_book'] ) ) {
+            $address_book_prefix = $data['billing_address_book']."_";
+        }
+    } else {
+        $address_book_prefix = "";
+    }
+
+    return get_user_meta( $user_id, $address_book_prefix.$meta_key, $single );
 }
 
 // Lisää tilauslomakkessa annetut lisätiedot metadataan
