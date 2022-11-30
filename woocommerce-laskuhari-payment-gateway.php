@@ -1210,9 +1210,9 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 
         if( isset( $data['billing_address_book'] ) ) {
             $address_book_prefix = $data['billing_address_book']."_";
-        } else {
-            $address_book_prefix = "";
         }
+    } else {
+        $address_book_prefix = "";
     }
 
     return get_user_meta( $user_id, $address_book_prefix.$meta_key, $single );
