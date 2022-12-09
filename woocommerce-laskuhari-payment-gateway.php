@@ -946,7 +946,8 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
 }
 
 function laskuhari_add_bulk_action_for_invoicing( $actions ) {
-    $actions['laskuhari-batch-send'] = __( 'Laskuta valitut tilaukset (Laskuhari)', 'laskuhari' );
+    $actions['laskuhari_batch_send'] = __( 'Luo ja lähetä laskut valituista tilauksista (Laskuhari)', 'laskuhari' );
+    $actions['laskuhari_batch_create'] = __( 'Luo laskut valituista tilauksista (älä lähetä) (Laskuhari)', 'laskuhari' );
     return $actions;
 }
 
@@ -963,11 +964,16 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         return false;
     }
 
-    if ( $action !== 'laskuhari-batch-send' ) {
+    $allowed_actions = [
+        "laskuhari_batch_send",
+        "laskuhari_batch_create",
+    ];
+
+    if ( ! in_array( $action, $allowed_actions ) ) {
         return $redirect_to;
     }
 
-    $send = apply_filters( "laskuhari_bulk_action_send", true, $order_ids );
+    $send = $action === "laskuhari_batch_send";
 
     $data = array();
 
@@ -989,6 +995,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     }
 
     foreach( $_GET['post'] as $order_id ) {
+        $send   = apply_filters( "laskuhari_bulk_action_send", $send, $order_id );
         $lh     = laskuhari_process_action( $order_id, $send, true );
         $data[] = $lh;
     }

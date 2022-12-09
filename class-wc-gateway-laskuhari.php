@@ -437,7 +437,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'       => __( 'Lähetystapa (fallback)', 'laskuhari' ),
                 'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
                 'type'        => 'select',
-                'description' => __( 'Valitse tapa, jolla haluat lähettää massatoiminnolla lähetettävät laskut ja laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
+                'description' => __( 'Valitse tapa, jolla haluat lähettää laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
                 'default'     => $this->lh_get_option( 'lahetystapa_manuaalinen', 'ei' ),
                 'options'     => array(
                     'email' => __( 'Sähköpostilasku', 'laskuhari' ),
