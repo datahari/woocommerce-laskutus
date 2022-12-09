@@ -1696,21 +1696,21 @@ function laskuhari_notices() {
 
     foreach ( $successes as $key => $notice ) {
         if( $notice != "" ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $notice ) . '</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="laskuhari-success"><p>' . esc_html( $notice ) . '</p></div>';
         }
     }
 
     foreach ( $orders as $key => $notice ) {
         if( $notice != "" ) {
             $order = wc_get_order( $notice );
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' luotu lasku</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="invoice-created" data-order-id="'.$order->get_id().'"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' luotu lasku</p></div>';
         }
     }
 
     foreach ( $orders2 as $key => $notice ) {
         if( $notice != "" ) {
             $order = wc_get_order( $notice );
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' lähetetty lasku</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="invoice-sent" data-order-id="'.$order->get_id().'"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' lähetetty lasku</p></div>';
         }
     }
 }
