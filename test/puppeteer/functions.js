@@ -246,3 +246,15 @@ exports.create_manual_order = async function( page ) {
     // wait for page to load
     await page.waitFor( "#laskuhari_metabox" );
 }
+
+exports.set_field_value = async function( page, selector, text ) {
+    let element = await page.waitForSelector( selector, {
+        visible: true
+    } );
+    let type = await element.evaluate( el => el.type );
+    if( ["select-one"].includes( type ) ) {
+        await element.select( text );
+    } else {
+        await element.type( text );
+    }
+}
