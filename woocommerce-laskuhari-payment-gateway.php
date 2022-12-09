@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.6
+Version: 1.6.1
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -946,7 +946,8 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
 }
 
 function laskuhari_add_bulk_action_for_invoicing( $actions ) {
-    $actions['laskuhari-batch-send'] = __( 'Laskuta valitut tilaukset (Laskuhari)', 'laskuhari' );
+    $actions['laskuhari_batch_send'] = __( 'Luo ja lähetä laskut valituista tilauksista (Laskuhari)', 'laskuhari' );
+    $actions['laskuhari_batch_create'] = __( 'Luo laskut valituista tilauksista (älä lähetä) (Laskuhari)', 'laskuhari' );
     return $actions;
 }
 
@@ -963,11 +964,16 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         return false;
     }
 
-    if ( $action !== 'laskuhari-batch-send' ) {
+    $allowed_actions = [
+        "laskuhari_batch_send",
+        "laskuhari_batch_create",
+    ];
+
+    if ( ! in_array( $action, $allowed_actions ) ) {
         return $redirect_to;
     }
 
-    $send = apply_filters( "laskuhari_bulk_action_send", true, $order_ids );
+    $send = $action === "laskuhari_batch_send";
 
     $data = array();
 
@@ -989,6 +995,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     }
 
     foreach( $_GET['post'] as $order_id ) {
+        $send   = apply_filters( "laskuhari_bulk_action_send", $send, $order_id );
         $lh     = laskuhari_process_action( $order_id, $send, true );
         $data[] = $lh;
     }
@@ -1689,21 +1696,21 @@ function laskuhari_notices() {
 
     foreach ( $successes as $key => $notice ) {
         if( $notice != "" ) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $notice ) . '</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="laskuhari-success"><p>' . esc_html( $notice ) . '</p></div>';
         }
     }
 
     foreach ( $orders as $key => $notice ) {
         if( $notice != "" ) {
             $order = wc_get_order( $notice );
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' luotu lasku</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="invoice-created" data-order-id="'.$order->get_id().'"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' luotu lasku</p></div>';
         }
     }
 
     foreach ( $orders2 as $key => $notice ) {
         if( $notice != "" ) {
             $order = wc_get_order( $notice );
-            echo '<div class="notice notice-success is-dismissible"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' lähetetty lasku</p></div>';
+            echo '<div class="notice notice-success is-dismissible" data-testid="invoice-sent" data-order-id="'.$order->get_id().'"><p>Tilauksesta #' . esc_html( $order->get_order_number() ) . ' lähetetty lasku</p></div>';
         }
     }
 }

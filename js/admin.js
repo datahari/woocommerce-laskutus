@@ -36,6 +36,14 @@
 		$("body").on( "click", ".laskuhari-sidebutton-menu a", function() {
 			$("#"+$(this).closest(".laskuhari-sidebutton-menu").attr("id")).slideUp();
 		} );
+		$("body").on( "submit", "#posts-filter", function() {
+			if( $("#bulk-action-selector-top").val() === "laskuhari_batch_send" && ! confirm( "Haluatko varmasti luoda ja LÄHETTÄÄ laskut valituista tilauksista?" ) ) {
+				return false;
+			}
+			if( $("#bulk-action-selector-top").val() === "laskuhari_batch_create" && ! confirm( "Haluatko varmasti luoda laskut valituista tilauksista? (laskuja ei lähetetä)" ) ) {
+				return false;
+			}
+		} );
 	});
 })(jQuery);
 

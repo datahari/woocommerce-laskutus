@@ -1,0 +1,247 @@
+const puppeteer = require('puppeteer');
+const functions = require('./functions.js');
+const config    = require('./config.js');
+
+test("bulk-actions", async () => {
+    const browser = await puppeteer.launch({
+        headless: false,
+        defaultViewport: {
+            width: 1452,
+            height: 768
+        },
+        args:[
+            '--start-maximized'
+        ]
+    });
+
+    const page = await browser.newPage();
+
+    page.on("pageerror", function(err) {  
+            theTempValue = err.toString();
+            console.log("Page error: " + theTempValue);
+            browser.close();
+    });
+
+    // log in to plugin settings page
+    await functions.open_settings( page );
+
+    // reset settings
+    await functions.reset_settings( page );
+
+    // select settings
+    await page.evaluate( function() {
+        let $ = jQuery;
+        $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_status_after_gateway").val( "on-hold" );
+        $("#woocommerce_laskuhari_status_after_paid").val( "processing" );
+        $("#woocommerce_laskuhari_send_method_fallback").val( "ei" );
+        $("#woocommerce_laskuhari_laskuviesti").val( "(bulk-actions-dont-send)" );
+        $("#woocommerce_laskuhari_instructions").val( "(bulk-actions-dont-send)" );
+    } );
+
+    // save settings
+    await page.click( ".woocommerce-save-button" );
+
+    // wait for settings to be saved
+    await page.waitForNavigation();
+    await page.waitForSelector( ".updated.inline" );
+
+    /**
+     * 
+     * Create an invoice from a manual order using the bulk action "create" while fallback sending method is "don't send".
+     * The invoice should only be created and not sent
+     * 
+     */
+
+    // create manual order
+    await functions.create_manual_order( page );
+
+    // change status of order
+    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
+    await page.waitFor( 200 );
+    await page.click( ".select2-results__option[id*=processing]" );
+
+    // save order
+    await page.click( ".button.save_order.button-primary" )
+    await page.waitForNavigation();
+
+    // go to orders list
+    await page.goto( config.wordpress_url + "/wp-admin/edit.php?post_type=shop_order" );
+
+    // select the latest order
+    await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
+
+    // select bulk action "create"
+    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
+
+    // submit
+    await page.click( "#doaction" );
+
+    // get order id from notice
+    let notice_element = await page.waitForSelector( "[data-testid='invoice-created']" );
+    let order_id = await page.evaluate( element => {
+        return element.getAttribute( "data-order-id" );
+    }, notice_element );
+
+    // go to order page
+    await page.click( "#post-"+order_id+" a.order-view" );
+    await page.waitForNavigation();
+
+    // check that invoice was created but not sent
+    let element = await page.$('.laskuhari-tila');
+    let invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toBe( "LASKU LUOTU" );
+
+    /**
+     * 
+     * Create (and try to send) an invoice from a manual order using the bulk action "send" while fallback sending method is "don't send".
+     * The invoice should only be created and NOT SENT because fallback method is "don't send" and the manual order
+     * does not have an invoicing method yet
+     * 
+     */
+
+    // create another manual order
+    await functions.create_manual_order( page );
+
+    // change status of order
+    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
+    await page.waitFor( 200 );
+    await page.click( ".select2-results__option[id*=processing]" );
+
+    // save order
+    await page.click( ".button.save_order.button-primary" );
+    await page.waitForNavigation();
+
+    // go to orders list
+    await page.goto( config.wordpress_url + "/wp-admin/edit.php?post_type=shop_order" );
+
+    // select the latest order
+    await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
+
+    // select bulk action "send"
+    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
+
+    // submit
+    await page.click( "#doaction" );
+
+    // wait for order success notice
+    await page.waitForSelector( "[data-testid='laskuhari-success']" );
+    
+    // click latest order
+    await page.click( '.wp-list-table tbody a.order-view' );
+    await page.waitForNavigation();
+
+    // check that invoice was created but not sent
+    element = await page.$('.laskuhari-tila');
+    invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toBe( "LASKU LUOTU" );
+
+    // log in to plugin settings page
+    await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari" );
+
+    // set send fallback to "email"
+    await page.evaluate( function() {
+        let $ = jQuery;
+        $("#woocommerce_laskuhari_send_method_fallback").val("email");
+        $("#woocommerce_laskuhari_laskuviesti").val("(bulk-actions-send)");
+        $("#woocommerce_laskuhari_instructions").val("(bulk-actions-send)");
+    } );
+
+    // save settings
+    await page.click( ".woocommerce-save-button" );
+
+    // wait for settings to be saved
+    await page.waitForNavigation();
+    await page.waitForSelector( ".updated.inline" );
+
+    /**
+     * 
+     * Create and send an invoice from a manual order using the bulk action "send" while fallback sending method is "email".
+     * The invoice should be created and sent
+     * 
+     */
+
+    // create yet another manual order
+    await functions.create_manual_order( page );
+
+    // change status of order
+    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
+    await page.waitFor( 200 );
+    await page.click( ".select2-results__option[id*=processing]" );
+
+    // save order
+    await page.click( ".button.save_order.button-primary" );
+    await page.waitForNavigation();
+
+    // go to orders list
+    await page.goto( config.wordpress_url + "/wp-admin/edit.php?post_type=shop_order" );
+
+    // select the latest order
+    await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
+
+    // select bulk action "send"
+    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
+
+    // submit
+    await page.click( "#doaction" );
+
+    // get order id from notice
+    notice_element = await page.waitForSelector( "[data-testid='invoice-sent']" );
+    order_id = await page.evaluate( element => {
+        return element.getAttribute( "data-order-id" );
+    }, notice_element );
+
+    // go to order page
+    await page.click( "#post-"+order_id+" a.order-view" );
+    await page.waitForNavigation();
+
+    // check that invoice was sent
+    element = await page.$('.laskuhari-tila');
+    invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toBe( "LASKUTETTU" );
+
+    /**
+     * 
+     * Create an invoice from a manual order using the bulk action while fallback sending method is "email".
+     * The invoice should only be created and not sent
+     * 
+     */
+
+    // create a final manual order
+    await functions.create_manual_order( page );
+
+    // change status of order
+    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
+    await page.waitFor( 200 );
+    await page.click( ".select2-results__option[id*=processing]" );
+
+    // save order
+    await page.click( ".button.save_order.button-primary" );
+    await page.waitForNavigation();
+
+    // go to orders list
+    await page.goto( config.wordpress_url + "/wp-admin/edit.php?post_type=shop_order" );
+
+    // select the latest order
+    await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
+
+    // select bulk action "create"
+    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
+
+    // submit
+    await page.click( "#doaction" );
+    await page.waitForNavigation();
+
+    // click latest order
+    await page.click( '.wp-list-table tbody a.order-view' );
+    await page.waitForNavigation();
+
+    // check that invoice was created but not sent
+    element = await page.$('.laskuhari-tila');
+    invoice_status = await page.evaluate(el => el.textContent, element);
+    expect( invoice_status ).toBe( "LASKU LUOTU" );
+
+    // close browser
+    await browser.close();
+}, 600000);
