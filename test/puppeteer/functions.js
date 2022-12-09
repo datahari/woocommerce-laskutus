@@ -74,6 +74,8 @@ exports.make_order_before_select_invoice_method = async function( page ) {
 }
 
 exports.place_order = async function( page ) {
+    await page.waitFor(2000);
+
     // send order
     await page.click( "#place_order" );
 
