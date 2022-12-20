@@ -62,6 +62,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->enable_for_customers        = $this->lh_get_option( 'enable_for_customers', array() );
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
         $this->show_quantity_unit          = $this->lh_get_option( 'show_quantity_unit' ) === 'yes' ? true : false;
+        $this->calculate_discount_percent  = $this->lh_get_option( 'calculate_discount_percent' ) === 'yes' ? true : false;
 
         $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
@@ -583,6 +584,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'type'              => 'checkbox',
                 'description'       => 'Toiminto vaatii yhteensopivan lisäosan (esim. Woocommerce Advanced Quantity tai Quantities and Units for WooCommerce)',
                 'default'           => 'yes'
+            ),
+            'calculate_discount_percent' => array(
+                'title'             => __( 'Laske alennus', 'laskuhari' ),
+                'label'             => __( 'Laske laskurivin aleprosentti tuotteen normaalista hinnasta', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'default'           => 'no'
             ),
             'max_amount' => array(
                 'title'       => __( 'Laskutusraja', 'laskuhari' ),
