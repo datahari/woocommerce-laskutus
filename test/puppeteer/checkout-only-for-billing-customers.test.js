@@ -52,6 +52,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.add_product_to_cart_and_go_to_checkout( page );
 
     // scroll invoicing method selection into view
+    await page.waitForSelector( ".order-total" );
     await page.click( ".order-total" );
 
     // check that the invoicing method is not available
@@ -86,6 +87,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.add_product_to_cart_and_go_to_checkout( page );
 
     // scroll invoicing method selection into view
+    await page.waitForSelector( ".order-total" );
     await page.click( ".order-total" );
 
     // check that the invoicing method is available
@@ -143,6 +145,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.add_product_to_cart_and_go_to_checkout( page );
 
     // scroll invoicing method selection into view
+    await page.waitForSelector( ".order-total" );
     await page.click( ".order-total" );
 
     // check that the invoicing method is available
@@ -185,6 +188,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.add_product_to_cart_and_go_to_checkout( page );
 
     // scroll invoicing method selection into view
+    await page.waitForSelector( ".order-total" );
     await page.click( ".order-total" );
 
     // check that the invoicing method is not available
