@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.6.1
+Version: 1.6.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -663,6 +663,35 @@ function laskuhari_sync_product_on_save( $product_id ) {
     }
 }
 
+function laskuhari_get_product_price( $product ) {
+    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) == 'yes' ? true : false;
+
+    $vat = laskuhari_get_vat_rate( $product );
+
+    $vat_multiplier = (100 + $vat) / 100;
+
+    if( $prices_include_tax ) {
+        $price_with_tax = $product->get_regular_price( 'edit' );
+        if( ! $price_with_tax ) {
+            $price_with_tax = 0;
+        }
+        $price_without_tax = $price_with_tax / $vat_multiplier;
+    } else {
+        $price_without_tax = $product->get_regular_price( 'edit' );
+        if( ! $price_without_tax ) {
+            $price_without_tax = 0;
+        }
+        $price_with_tax = $price_without_tax * $vat_multiplier;
+    }
+
+    return [
+        "price_with_tax" => $price_with_tax,
+        "price_without_tax" => $price_without_tax,
+        "prices_include_tax" => $prices_include_tax,
+        "vat" => $vat,
+    ];
+}
+
 function laskuhari_create_product( $product, $update = false ) {
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
@@ -692,25 +721,12 @@ function laskuhari_create_product( $product, $update = false ) {
 
     $api_url = apply_filters( "laskuhari_create_product_api_url", $api_url, $product );
 
-    $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) == 'yes' ? true : false;
+    $price = laskuhari_get_product_price( $product );
 
-    $vat = laskuhari_get_vat_rate( $product );
-
-    $vat_multiplier = (100 + $vat) / 100;
-
-    if( $prices_include_tax ) {
-        $price_with_tax = $product->get_regular_price( 'edit' );
-        if( ! $price_with_tax ) {
-            $price_with_tax = 0;
-        }
-        $price_without_tax = $price_with_tax / $vat_multiplier;
-    } else {
-        $price_without_tax = $product->get_regular_price( 'edit' );
-        if( ! $price_without_tax ) {
-            $price_without_tax = 0;
-        }
-        $price_with_tax = $price_without_tax * $vat_multiplier;
-    }
+    $price_with_tax = $price["price_with_tax"];
+    $price_without_tax = $price["price_without_tax"];
+    $vat = $price["vat"];
+    $prices_include_tax = $price["prices_include_tax"];
 
     $payload = [
         "koodi" => $product->get_sku(),
@@ -2519,6 +2535,20 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
             $product = wc_get_product( $product_id );
             $product_sku = $product->get_sku();
+
+            if( $laskuhari_gateway_object->calculate_discount_percent ) {
+                $price = laskuhari_get_product_price( $product );
+
+                if( $price['price_without_tax'] != 0 ) {
+                    $discount_percent = ( $price['price_without_tax'] - $yks_veroton ) / $price['price_without_tax'] * 100;
+                }
+
+                if( $discount_percent > 0.009 ) {
+                    $ale = $discount_percent;
+                    $yks_verollinen = $price["price_with_tax"];
+                    $yks_veroton = $price["price_without_tax"];
+                }
+            }
         }
 
         if( $laskuhari_gateway_object->show_quantity_unit ) {
