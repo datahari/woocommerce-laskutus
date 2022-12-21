@@ -4,20 +4,27 @@ const accept_dialog = dialog => {
     dialog.accept("1.43");
 };
 
-exports.login = async function( page ) {
-    await page.waitFor( "#user_login" );
-    await page.click( "#user_login" );
-    await page.waitFor( 100 );
-    await page.keyboard.type( config.wordpress_user );
-    await page.click( "#user_pass" );
-    await page.waitFor( 100 );
-    await page.keyboard.type( config.wordpress_password );
+exports.login = async function( page, user, password ) {
+    let user_login = await page.waitForSelector( "#user_login" );
+    let user_pass = await page.waitForSelector( "#user_pass" );
+
+    await page.waitFor( 1000 );
+
+    await page.evaluate( () => document.getElementById("user_login").value = "");
+    await page.evaluate( () => document.getElementById("user_pass").value = "");
+
+    await page.waitFor( 200 );
+
+    await user_login.type( user );
+    await user_pass.type( password );
+
     await page.click( "#wp-submit" );
+    await page.waitFor( 500 );
 }
 
 exports.open_settings = async function( page ) {
     await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-settings&tab=checkout&section=laskuhari" );
-    await exports.login( page );
+    await exports.login( page, config.wordpress_user, config.wordpress_password );
     await page.waitFor( "#woocommerce_laskuhari_enabled" );
 }
 
@@ -26,9 +33,10 @@ exports.logout = async function( page ) {
     await page.hover( "#wp-admin-bar-my-account" );
     await page.waitFor( 500 );
     await page.click( "#wp-admin-bar-logout a" );
+    await page.waitFor( 500 );
 }
 
-exports.make_order_before_select_invoice_method = async function( page ) {
+exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
     // go to shop page
     await page.goto( config.wordpress_url+"/?post_type=product" );
 
@@ -48,6 +56,10 @@ exports.make_order_before_select_invoice_method = async function( page ) {
 
     // wait for checkout form
     await page.waitFor( "#place_order" );
+}
+
+exports.make_order_before_select_invoice_method = async function( page ) {
+    await exports.add_product_to_cart_and_go_to_checkout( page );
 
     // insert first name
     await page.click( "#billing_first_name" );
@@ -112,7 +124,7 @@ exports.open_order_page = async function( page ) {
 
     // log in to order page
     await page.goto( config.wordpress_url+"/wp-admin/post.php?post="+order_id+"&action=edit" );
-    await exports.login( page );
+    await exports.login( page, config.wordpress_user, config.wordpress_password );
     await page.waitFor( ".laskuhari-tila" );
 }
 
