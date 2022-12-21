@@ -95,6 +95,7 @@ test("manual-order", async () => {
 
     // input email address
     await page.click( "#laskuhari-email" );
+    await page.evaluate(() => document.getElementById("laskuhari-email").value="");
     await page.keyboard.type( config.test_email );
 
     // click "send invoice"

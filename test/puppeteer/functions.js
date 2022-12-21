@@ -78,6 +78,7 @@ exports.make_order_before_select_invoice_method = async function( page ) {
     await page.keyboard.type( "Testplace" );
     await page.click( "#billing_phone" );
     await page.keyboard.type( "040 1234 567" );
+    await page.evaluate(() => document.getElementById("billing_email").value="");
     await page.click( "#billing_email" );
     await page.keyboard.type( config.test_email );
 
@@ -196,6 +197,7 @@ exports.create_manual_order = async function( page ) {
     await page.keyboard.type( "Jackcity" );
     await page.click( "#_billing_postcode" );
     await page.keyboard.type( "54321" );
+    await page.evaluate(() => document.getElementById("_billing_email").value="");
     await page.click( "#_billing_email" );
     await page.keyboard.type( config.test_email );
 
