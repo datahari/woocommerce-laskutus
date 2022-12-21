@@ -58,9 +58,8 @@ test("bulk-actions", async () => {
     await functions.create_manual_order( page );
 
     // change status of order
-    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
-    await page.waitFor( 200 );
-    await page.click( ".select2-results__option[id*=processing]" );
+    await page.waitForSelector( "#order_status" );
+    await page.select( "#order_status", "wc-processing" );
 
     // save order
     await page.click( ".button.save_order.button-primary" )
@@ -105,9 +104,8 @@ test("bulk-actions", async () => {
     await functions.create_manual_order( page );
 
     // change status of order
-    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
-    await page.waitFor( 200 );
-    await page.click( ".select2-results__option[id*=processing]" );
+    await page.waitForSelector( "#order_status" );
+    await page.select( "#order_status", "wc-processing" );
 
     // save order
     await page.click( ".button.save_order.button-primary" );
@@ -166,9 +164,8 @@ test("bulk-actions", async () => {
     await functions.create_manual_order( page );
 
     // change status of order
-    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
-    await page.waitFor( 200 );
-    await page.click( ".select2-results__option[id*=processing]" );
+    await page.waitForSelector( "#order_status" );
+    await page.select( "#order_status", "wc-processing" );
 
     // save order
     await page.click( ".button.save_order.button-primary" );
@@ -212,9 +209,8 @@ test("bulk-actions", async () => {
     await functions.create_manual_order( page );
 
     // change status of order
-    await page.click( ".select2-selection__rendered[title*=Odottaa]" );
-    await page.waitFor( 200 );
-    await page.click( ".select2-results__option[id*=processing]" );
+    await page.waitForSelector( "#order_status" );
+    await page.select( "#order_status", "wc-processing" );
 
     // save order
     await page.click( ".button.save_order.button-primary" );
