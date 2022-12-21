@@ -601,6 +601,28 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     /**
+     * Checks if logged in user can use this payment method
+     *
+     * @return boolean
+     */
+    private function can_use_billing() {
+        $can_use_billing = true;
+
+        if( $this->salli_laskutus_erikseen ) {
+            $current_user = wp_get_current_user();
+
+            if( ! $current_user->ID ) {
+                return false;
+            }
+
+            $can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) === "yes";
+            $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
+        }
+
+        return $can_use_billing;
+    }
+
+    /**
      * Check If The Gateway Is Available For Use.
      *
      * @return bool
@@ -653,13 +675,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             return false;
         }
 
-        $current_user = wp_get_current_user();
-
         // Tarkista käyttäjän laskutusasiakas-tieto
-        $can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) !== "yes";
-        $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
-
-        if( $this->salli_laskutus_erikseen && $can_use_billing ) {
+        if( ! $this->can_use_billing() ) {
             return false;
         }
 
