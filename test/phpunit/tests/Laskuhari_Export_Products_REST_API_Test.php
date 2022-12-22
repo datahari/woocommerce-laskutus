@@ -134,7 +134,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
     public function test_api_doesnt_allow_wrongly_authenticated_access()
     {
         // send request to /products/laskuhari-test endpoint
-        $response = $this->send_unauthenticated_api_request( "/wp-json/wc/v3/products/laskuhari-test" );
+        $response = $this->send_wrongly_authenticated_api_request( "/wp-json/wc/v3/products/laskuhari-test" );
 
         // expect a rest_forbidden code
         $this->assertEquals( "rest_forbidden", $response['code'] );
