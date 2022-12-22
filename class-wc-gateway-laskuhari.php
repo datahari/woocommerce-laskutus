@@ -746,18 +746,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function process_payment( $order_id ) {
 
         if( $this->auto_gateway_create_enabled ) {
-            // don't send separate email invoice if it is attached to confirmation email
             if( $this->attach_invoice_to_wc_email ) {
-                add_filter( "laskuhari_send_after_creation", function( $send, $send_method, $order ) {
-                    if( $send_method === "email" ) {
-                        $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
-                        return false;
-                    }
-                    return $send;
-                }, 10, 3 );
+                laskuhari_process_action( $order_id, $this->auto_gateway_enabled, false, true );
+            } else {
+                laskuhari_process_action_delayed( $order_id, $this->auto_gateway_enabled, false, true );
             }
-
-            laskuhari_process_action( $order_id, $this->auto_gateway_enabled );
         }
 
         $order = wc_get_order( $order_id );

@@ -101,6 +101,7 @@ function laskuhari_payment_gateway_load() {
 
     add_action( 'laskuhari_create_product_action', 'laskuhari_create_product', 10, 2 );
     add_action( 'laskuhari_update_stock_action', 'laskuhari_update_stock', 10, 1 );
+    add_action( 'laskuhari_process_action_delayed_action', 'laskuhari_process_action', 10, 3 );
 
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
         add_action( 'admin_notices', 'laskuhari_notices' );
@@ -241,7 +242,8 @@ function display_admin_shop_order_laskuhari_filter() {
             "lasku_luotu"          => 'Laskuhari: ' . __( 'Lasku luotu', 'laskuhari' ),
             "laskutettu"           => 'Laskuhari: ' . __( 'Laskutettu', 'laskuhari' ),
             "maksettu"             => 'Laskuhari: ' . __( 'Maksettu', 'laskuhari' ),
-            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' )
+            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' ),
+            "jonossa"              => 'Laskuhari: ' . __( 'Jonossa', 'laskuhari' ),
         ];
 
         echo lh_create_select_box( "filter_laskuhari_status", $options, $current );
@@ -256,6 +258,13 @@ function laskuhari_custom_status_filter( $query ) {
         "laskutettu" => [
             [
                 'key'     => '_laskuhari_sent',
+                'compare' => '=',
+                'value'   => "yes",
+            ]
+        ],
+        "jonossa" => [
+            [
+                'key'     => '_laskuhari_queued',
                 'compare' => '=',
                 'value'   => "yes",
             ]
@@ -1342,6 +1351,7 @@ function laskuhari_invoice_is_created_from_order( $order_id ) {
 function laskuhari_invoice_status( $order_id ) {
     $laskunumero = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
     $lahetetty   = get_post_meta( $order_id, '_laskuhari_sent', true ) == "yes";
+    $queued      = get_post_meta( $order_id, '_laskuhari_queued', true ) == "yes";
 
     if( $laskunumero > 0 ) {
         $lasku_luotu = true;
@@ -1356,6 +1366,10 @@ function laskuhari_invoice_status( $order_id ) {
         $lasku_luotu = false;
         $tila        = "EI LASKUTETTU";
         $tila_class  = " ei-laskutettu";
+    }
+
+    if( $queued ) {
+        $tila = "JONOSSA";
     }
 
     return [
@@ -2298,8 +2312,20 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     return $quantity_unit;
 }
 
-function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
+function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+    update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
+    laskuhari_schedule_background_event( 'laskuhari_process_action_delayed_action', [
+        $order_id,
+        $send,
+        $bulk_action,
+        $from_gateway,
+    ], false, 20, 1 );
+}
+
+function laskuhari_process_action( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
     global $laskuhari_gateway_object;
+
+    delete_post_meta( $order_id, '_laskuhari_queued' );
 
     $error_notice = "";
     $success      = "";
@@ -2757,7 +2783,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
-        $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id() );
+        $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id(), $from_gateway );
         if( $status_after_creation ) {
             $order->update_status( $status_after_creation );
         }
@@ -2765,6 +2791,14 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         do_action( "laskuhari_invoice_created", $order->get_id(), $laskuid );
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
+
+        // don't send separate email invoice if it is attached to confirmation email
+        if( $laskuhari_gateway_object->attach_invoice_to_wc_email && $from_gateway ) {
+            if( $send_method === "email" ) {
+                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                $send = false;
+            }
+        }
 
         if( apply_filters( 'laskuhari_send_after_creation', $send, $send_method, $order ) ) {
             return laskuhari_send_invoice( $order, $bulk_action );
@@ -3042,22 +3076,30 @@ function laskuhari_just_the_product_id( $product ) {
  * @param string $event Hook name of event
  * @param array $args Arguments to pass to event hook
  * @param boolean $no_duplicates Whether to create a new event if the same one already exists in the queue
+ * @param int $delay_time_seconds Amount of time to delay the execution from current moment
+ * @param int $interval_time_seconds Amount of time to add between scheduled events
  * @return void
  */
-function laskuhari_schedule_background_event( $event, $args, $no_duplicates = false ) {
+function laskuhari_schedule_background_event(
+    $event,
+    $args,
+    $no_duplicates = false,
+    $delay_time_seconds = 30,
+    $interval_time_seconds = 10
+) {
     // check for duplicate events
     if( $no_duplicates && wp_next_scheduled( $event, $args ) > time() ) {
         return false;
     }
 
-    // set starting time to now + 30 seconds
-    $time = time() + 30;
+    // set starting time to now + $delay_time_seconds seconds
+    $time = time() + $delay_time_seconds;
 
     // check last scheduled event of the same type
     $last_scheduled_time = laskuhari_wp_last_scheduled( $event );
 
-    // set the time to which ever is the latest and add 10 seconds
-    $time = max( $time, $last_scheduled_time ) + 10;
+    // set the time to which ever is the latest and add $interval_time_seconds seconds
+    $time = max( $time, $last_scheduled_time ) + $interval_time_seconds;
 
     // apply filters so other plugins can change this
     $time = apply_filters( "laskuhari_schedule_background_event_time", $time, $event, $args, $no_duplicates );
