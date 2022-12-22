@@ -19,9 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$__laskuhari_api_query_count = 0;
-$__laskuhari_api_query_limit = 2;
-
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
 
@@ -1860,8 +1857,6 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
 }
 
 function laskuhari_get_payment_terms( $force = false ) {
-    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
-
     if( $force !== true ) {
         $saved_terms = get_option( "_laskuhari_payment_terms" );
         if( $saved_terms ) {
@@ -1869,14 +1864,8 @@ function laskuhari_get_payment_terms( $force = false ) {
         }
     }
 
-    // don't make too many api queries on one page load as it slows execution time
-    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
-        return false;
-    }
-
     $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
     $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
-    $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
         update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
@@ -1885,23 +1874,6 @@ function laskuhari_get_payment_terms( $force = false ) {
 
     return false;
 }
-
-function laskuhari_get_payment_terms_name( $term_id, $terms = null ) {
-    if( null === $terms ) {
-        $terms = laskuhari_get_payment_terms();
-    }
-
-    if ( is_array( $terms ) ) {
-        foreach ( $terms as $term ) {
-            if ( $term['id'] == $term_id ) {
-                return $term['nimi'];
-            }
-        }
-    }
-
-    return false;
-}
-
 
 function laskuhari_invoice_id_by_order( $orderid ) {
     $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );
