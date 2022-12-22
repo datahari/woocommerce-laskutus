@@ -126,14 +126,16 @@ class Laskuhari_Export_Products_REST_API
      * @return array
      */
     public function export_callback( $request ) {
-        $page = $request->get_param( 'page', 1 );
-        $per_page = $request->get_param( 'per_page', 10 );
+        $page = $request->get_param( 'page' ) ?: 1;
+        $per_page = $request->get_param( 'per_page' ) ?: 10;
 
         $args = [
             'post_type' => [ 'product', 'product_variation' ],
             'post_status' => 'publish',
             'posts_per_page' => $per_page,
             'paged' => $page,
+            'orderby' => 'ID',
+            'order' => 'DESC',
         ];
 
         apply_filters( 'laskuhari_rest_api_export_get_products_args', $args, $request );
