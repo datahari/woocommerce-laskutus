@@ -144,10 +144,12 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * Helper function for generating an API request
      *
      * @param string $api_endpoint
+     * @param array $config
+     * @param array $headers
      * @return void
      */
     private function send_api_request( $api_endpoint, $config, $headers ) {
-        // get the API url and access keys from the global config array
+        // get the API url and access keys from the config array
         $api_url = $config['wc_api']['url'];
 
         // build the request arguments
