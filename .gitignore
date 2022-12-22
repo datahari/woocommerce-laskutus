@@ -9,3 +9,9 @@ test/assets/*
 !test/assets/wordpress/
 test/assets/wordpress/*
 !test/assets/wordpress/README
+
+# dont include phpunit secret config file
+test/phpunit/config.php
+
+# dont include phpunit result cache
+.phpunit.result.cache
