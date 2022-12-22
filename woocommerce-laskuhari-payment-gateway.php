@@ -75,8 +75,8 @@ function laskuhari_payment_gateway_load() {
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
-        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' );
-        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' );
+        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock_delayed' );
+        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock_delayed' );
         add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
         add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
@@ -101,6 +101,9 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
+
+    add_action( 'laskuhari_create_product_action', 'laskuhari_create_product', 10, 2 );
+    add_action( 'laskuhari_update_stock_action', 'laskuhari_update_stock', 10, 1 );
 
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
         add_action( 'admin_notices', 'laskuhari_notices' );
@@ -663,7 +666,7 @@ function laskuhari_sync_product_on_save( $product_id ) {
         if ( false === get_transient( $updating_product_id ) ) {
             set_transient( $updating_product_id, $product_id, 2 );
             laskuhari_product_synced( $product_id, 'no' );
-            laskuhari_create_product( $product_id, true );
+            laskuhari_create_product_delayed( $product_id, true );
         }
     }
 }
@@ -695,6 +698,12 @@ function laskuhari_get_product_price( $product ) {
         "prices_include_tax" => $prices_include_tax,
         "vat" => $vat,
     ];
+}
+
+function laskuhari_create_product_delayed( $product, $update = false ) {
+    $product = laskuhari_just_the_product_id( $product );
+
+    laskuhari_schedule_background_event( 'laskuhari_create_product_action', [$product, $update], true );
 }
 
 function laskuhari_create_product( $product, $update = false ) {
@@ -806,6 +815,12 @@ function laskuhari_product_synced( $product, $set = null ) {
     }
 
     return get_post_meta( $product->get_id(), '_laskuhari_synced', true ) === "yes";
+}
+
+function laskuhari_update_stock_delayed( $product ) {
+    $product = laskuhari_just_the_product_id( $product );
+
+    laskuhari_schedule_background_event( 'laskuhari_update_stock_action', [$product], true );
 }
 
 function laskuhari_update_stock( $product ) {
@@ -3031,4 +3046,75 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         "success"   => urlencode( $success )
     );
 
+}
+
+/**
+ * Get the product ID of a WC_Product object or a product ID.
+ *
+ * @param WC_Product|int $product WC_Product object or product ID.
+ * @return int|false Product ID or false if the product cannot be found.
+ */
+function laskuhari_just_the_product_id( $product ) {
+    if( is_a( $product, 'WC_Product' ) ) {
+        return $product->get_id();
+    } elseif( is_numeric( $product ) ) {
+        return (int) $product;
+    }
+
+    return false;
+}
+
+/**
+ * Schedule an event to run delayed in the background with WP Cron
+ *
+ * @param string $event Hook name of event
+ * @param array $args Arguments to pass to event hook
+ * @param boolean $no_duplicates Whether to create a new event if the same one already exists in the queue
+ * @return void
+ */
+function laskuhari_schedule_background_event( $event, $args, $no_duplicates = false ) {
+    // check for duplicate events
+    if( $no_duplicates && wp_next_scheduled( $event, $args ) > time() ) {
+        return false;
+    }
+
+    // set starting time to now + 30 seconds
+    $time = time() + 30;
+
+    // check last scheduled event of the same type
+    $last_scheduled_time = laskuhari_wp_last_scheduled( $event );
+
+    // set the time to which ever is the latest and add 10 seconds
+    $time = max( $time, $last_scheduled_time ) + 10;
+
+    // apply filters so other plugins can change this
+    $time = apply_filters( "laskuhari_schedule_background_event_time", $time, $event, $args, $no_duplicates );
+
+    // schedule event
+    wp_schedule_single_event( $time, $event, $args );
+}
+
+/**
+ * Get the last scheduled time for a given event hook.
+ *
+ * @param string $hook Event hook name.
+ * @return int|false Unix timestamp of the last scheduled time for the event, or false if no events are scheduled.
+ */
+function laskuhari_wp_last_scheduled( $hook ) {
+    // get all scheduled events for the hook
+    $scheduled_events = _get_cron_array();
+    $times = [];
+
+    // loop through the scheduled events and get the times
+    foreach( $scheduled_events as $time => $event ) {
+        if( isset( $event[$hook] ) ) {
+            $times[] = $time;
+        }
+    }
+
+    // sort the times in ascending order
+    sort( $times );
+
+    // return the last time
+    return end( $times );
 }
