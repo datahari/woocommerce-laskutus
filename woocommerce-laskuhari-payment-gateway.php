@@ -23,6 +23,11 @@ $__laskuhari_api_query_count = 0;
 $__laskuhari_api_query_limit = 2;
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
+require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
+
+if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
+    Laskuhari_Export_Products_REST_API::init();
+}
 
 add_action( 'woocommerce_init', function() {
     global $laskuhari_gateway_object;
