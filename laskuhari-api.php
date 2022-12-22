@@ -21,6 +21,8 @@ function laskuhari_api_handle_request() {
     
     do_action( "laskuhari_api_request_received" );
 
+    header( "Content-Type: application/json; charset=utf-8" );
+
     $content_max_length = apply_filters( "laskuhari_api_content_max_length", 2560 );
 
     // dont parse large requests
