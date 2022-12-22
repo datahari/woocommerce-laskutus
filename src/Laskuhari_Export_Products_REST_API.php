@@ -114,7 +114,7 @@ class Laskuhari_Export_Products_REST_API
      */
     public function check_per_page_param( $value, $request, $param ) {
         $is_valid = is_numeric( $value ) && $value <= 100;
-        $is_valid = apply_filters( 'laskuhari_rest_api_export_check_page_param', $is_valid, $value, $request, $param );
+        $is_valid = apply_filters( 'laskuhari_rest_api_export_check_per_page_param', $is_valid, $value, $request, $param );
 
         return $is_valid;
     }
