@@ -1069,7 +1069,7 @@ function laskuhari_vat_id_at_checkout() {
     $vat_number_fields = laskuhari_vat_number_fields();
     foreach( $_REQUEST as $key => $value ) {
         foreach( $vat_number_fields as $field_name ) {
-            if( mb_stripos( $key, $field_name ) ) {
+            if( mb_stripos( $key, $field_name ) !== false ) {
                 return $value;
             }
         }
@@ -1112,7 +1112,7 @@ function laskuhari_custom_billing_email_at_checkout() {
 function lh_is_custom_billing_email_field( $field ) {
     $fields = laskuhari_custom_billing_email_fields();
     foreach( $fields as $field_name ) {
-        if( mb_stripos( $field, $field_name ) ) {
+        if( mb_stripos( $field, $field_name ) !== false ) {
             return true;
         }
     }
@@ -1245,7 +1245,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
 
 function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
     $post_meta = get_post_meta( $order_id, $meta_key, $single );
-    if( $post_meta ) {
+    if( ! empty( $post_meta ) ) {
         return $post_meta;
     }
     if( $order = wc_get_order( $order_id ) ) {
@@ -1274,7 +1274,7 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 
 function laskuhari_update_order_meta( $order_id )  {
     $ytunnus = laskuhari_vat_id_at_checkout();
-    if ( isset( $ytunnus ) ) {
+    if ( ! empty( $ytunnus ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
     }
 
