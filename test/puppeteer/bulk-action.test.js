@@ -15,6 +15,7 @@ test("bulk-actions", async () => {
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout( 60000 );
 
     page.on("pageerror", function(err) {  
             theTempValue = err.toString();
@@ -48,10 +49,10 @@ test("bulk-actions", async () => {
     await page.waitForSelector( ".updated.inline" );
 
     /**
-     * 
+     *
      * Create an invoice from a manual order using the bulk action "create" while fallback sending method is "don't send".
      * The invoice should only be created and not sent
-     * 
+     *
      */
 
     // create manual order
@@ -93,11 +94,11 @@ test("bulk-actions", async () => {
     expect( invoice_status ).toBe( "LASKU LUOTU" );
 
     /**
-     * 
+     *
      * Create (and try to send) an invoice from a manual order using the bulk action "send" while fallback sending method is "don't send".
      * The invoice should only be created and NOT SENT because fallback method is "don't send" and the manual order
      * does not have an invoicing method yet
-     * 
+     *
      */
 
     // create another manual order
@@ -125,7 +126,7 @@ test("bulk-actions", async () => {
 
     // wait for order success notice
     await page.waitForSelector( "[data-testid='laskuhari-success']" );
-    
+
     // click latest order
     await page.click( '.wp-list-table tbody a.order-view' );
     await page.waitForNavigation();
@@ -154,10 +155,10 @@ test("bulk-actions", async () => {
     await page.waitForSelector( ".updated.inline" );
 
     /**
-     * 
+     *
      * Create and send an invoice from a manual order using the bulk action "send" while fallback sending method is "email".
      * The invoice should be created and sent
-     * 
+     *
      */
 
     // create yet another manual order
@@ -199,10 +200,10 @@ test("bulk-actions", async () => {
     expect( invoice_status ).toBe( "LASKUTETTU" );
 
     /**
-     * 
+     *
      * Create an invoice from a manual order using the bulk action while fallback sending method is "email".
      * The invoice should only be created and not sent
-     * 
+     *
      */
 
     // create a final manual order

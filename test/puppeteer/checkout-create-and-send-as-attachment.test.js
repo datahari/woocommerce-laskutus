@@ -14,6 +14,7 @@ test("checkout-create-and-send-as-attachment", async () => {
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout( 60000 );
 
     page.on("pageerror", function(err) {  
             theTempValue = err.toString();
@@ -55,6 +56,9 @@ test("checkout-create-and-send-as-attachment", async () => {
 
     // make an order
     await functions.make_order( page );
+
+    // wait 30 seconds for cron queue to be processed
+    await page.waitFor( 30000 );
 
     // open order page
     await functions.open_order_page( page );
