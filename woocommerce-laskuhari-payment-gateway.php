@@ -21,6 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
 require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
+require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_API.php';
 
 if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
     Laskuhari_Export_Products_REST_API::init();
@@ -107,9 +108,11 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_notices' );
     }
 
-}
+    if( apply_filters( "laskuhari_api_enabled", true ) ) {
+        Laskuhari_API::init( $laskuhari_gateway_object );
+    }
 
-require_once plugin_dir_path( __FILE__ ) . 'laskuhari-api.php';
+}
 
 function laskuhari_domain() {
     return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
@@ -1978,7 +1981,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         $payload = json_encode( $payload, laskuhari_json_flag() );
     }
 
-    $auth_key = laskuhari_api_generate_auth_key(
+    $auth_key = Laskuhari_API::generate_auth_key(
         $laskuhari_gateway_object->uid,
         $laskuhari_gateway_object->apikey,
         $payload
