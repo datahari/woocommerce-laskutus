@@ -14,21 +14,228 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
-    public function __construct( $only_settings = false ) {
+    /**
+     * Invoicing fee amount
+     *
+     * @var float
+     */
+    public $laskutuslisa;
+
+    /**
+     * Invoicing fee VAT percentage
+     *
+     * @var float
+     */
+    public $laskutuslisa_alv;
+
+    /**
+     * Title of the gateway
+     *
+     * @var string
+     */
+    public $title;
+
+    /**
+     * Fallback method for sending invoices when a sending method is not selected
+     *
+     * @var string
+     */
+    public $send_method_fallback;
+
+    /**
+     * Whether the demo mode is enabled
+     *
+     * @var bool
+     */
+    public $demotila;
+
+    /**
+     * Whether to create webhooks to Laskuhari for invoice payment status updates
+     *
+     * @var bool
+     */
+    public $create_webhooks;
+
+    /**
+     * Whether the payment status webhook has been added to Laskuhari
+     *
+     * @var bool
+     */
+    public $payment_status_webhook_added;
+
+    /**
+     * Is email invoicing enabled
+     *
+     * @var bool
+     */
+    public $email_lasku_kaytossa;
+
+    /**
+     * Is eInvoice invoicing enabled
+     *
+     * @var bool
+     */
+    public $verkkolasku_kaytossa;
+
+    /**
+     * Is letter invoicing enabled
+     *
+     * @var bool
+     */
+    public $kirjelasku_kaytossa;
+
+    /**
+     * Is stock synchronization enabled
+     *
+     * @var bool
+     */
+    public $synkronoi_varastosaldot;
+
+    /**
+     * Is automatic invoice sending at checkout enabled
+     *
+     * @var bool
+     */
+    public $auto_gateway_enabled;
+
+    /**
+     * Is automatic invoice creation at checkout enabled
+     *
+     * @var bool
+     */
+    public $auto_gateway_create_enabled;
+
+    /**
+     * Whether the invoicing payment method has to be allowed
+     * on a customer by customer basis
+     *
+     * @var bool
+     */
+    public $salli_laskutus_erikseen;
+
+    /**
+     * Invoice email text
+     *
+     * @var string
+     */
+    public $laskuviesti;
+
+    /**
+     * The name of the invoicer shown as the email sender
+     *
+     * @var string
+     */
+    public $laskuttaja;
+
+    /**
+     * Description of the invoicing payment method at checkout
+     *
+     * @var string
+     */
+    public $description;
+
+    /**
+     * Text that is shown in order confirmation page and emails
+     *
+     * @var string
+     */
+    public $instructions;
+
+    /**
+     * Allow invoicing only for these shipping methods
+     *
+     * @var array
+     */
+    public $enable_for_methods;
+
+    /**
+     * Allow invoicing only for these customers
+     *
+     * @var array
+     */
+    public $enable_for_customers;
+
+    /**
+     * Is invoicing method enabled for virtual products
+     *
+     * @var bool
+     */
+    public $enable_for_virtual;
+
+    /**
+     * Whether to show the quantity unit on the invoice
+     *
+     * @var bool
+     */
+    public $show_quantity_unit;
+
+    /**
+     * Whether to calculate discount percentage on the invoice
+     *
+     * @var bool
+     */
+    public $calculate_discount_percent;
+
+    /**
+     * Send an invoice also from these payment methods
+     *
+     * @var array
+     */
+    public $send_invoice_from_payment_methods;
+
+    /**
+     * The invoice email text when payment has been made using
+     * other payment methods than Laskuhari
+     *
+     * @var string
+     */
+    public $invoice_email_text_for_other_payment_methods;
+
+    /**
+     * Whether to attach invoice to WooCommerce emails
+     *
+     * @var bool
+     */
+    public $attach_invoice_to_wc_email;
+
+    /**
+     * Whether to add a paid stamp to the invoice
+     *
+     * @var bool
+     */
+    public $paid_stamp;
+
+    /**
+     * Whether to send invoices as receipts
+     *
+     * @var string
+     */
+    public $receipt_template;
+
+    /**
+     * Construct the gateway class.
+     */
+    public function __construct() {
         $this->id                 = 'laskuhari';
         $this->icon               = apply_filters( 'woocommerce_laskuhari_icon', '' );
         $this->method_title       = __( 'Laskuhari', 'laskuhari' );
         $this->method_description = __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen.', 'laskuhari' );
         $this->has_fields         = false;
 
-        // Load the settings
-        if( ! $only_settings ) {
-            $this->init_settings();
-        }
-
+        $this->set_public_properties();
+        $this->init_settings();
         $this->init_form_fields();
+        $this->set_api_credentials();
+        $this->set_max_and_min_amounts();
+        $this->add_actions();
+    }
 
-        // Get settings
+    /**
+     * Set values for public properties
+     *
+     * @return void
+     */
+    protected function set_public_properties() {
         $this->laskutuslisa             = $this->parse_decimal( $this->lh_get_option( 'laskutuslisa' ) );
         $this->laskutuslisa_alv         = $this->parse_decimal( $this->lh_get_option( 'laskutuslisa_alv' ) );
         $this->title                    = $this->lh_get_option( 'title' );
@@ -36,17 +243,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
         $this->create_webhooks          = $this->lh_get_option( 'create_webhooks' ) === 'yes' ? true : false;
         $this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'yes' ? true : false;
-
-        $this->set_max_and_min_amounts();
-
-        if( $this->demotila == "yes" ) {
-            $this->uid    = "3175";
-            $this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
-        } else {
-            $this->uid    = $this->lh_get_option( 'uid' );
-            $this->apikey = $this->lh_get_option( 'apikey' );
-        }
-
         $this->email_lasku_kaytossa        = $this->lh_get_option( 'email_lasku_kaytossa' ) === 'yes' ? true : false;
         $this->verkkolasku_kaytossa        = $this->lh_get_option( 'verkkolasku_kaytossa' ) === 'yes' ? true : false;
         $this->kirjelasku_kaytossa         = $this->lh_get_option( 'kirjelasku_kaytossa' ) === 'yes' ? true : false;
@@ -63,33 +259,38 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
         $this->show_quantity_unit          = $this->lh_get_option( 'show_quantity_unit' ) === 'yes' ? true : false;
         $this->calculate_discount_percent  = $this->lh_get_option( 'calculate_discount_percent' ) === 'yes' ? true : false;
-
         $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
         $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' );
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' );
+    }
 
-        if( ! $only_settings ) {
-            add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-            add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
-            add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
-
-            // add webhooks if not added yet and not in demo mode
-            if( $this->create_webhooks && $this->demotila != "yes" && strlen( $this->apikey ) > 64 && $this->uid ) {
-                $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
-
-                if( ! $this->payment_status_webhook_added ) {
-                    if( laskuhari_add_webhook( "payment_status", $api_url ) ) {
-                        $this->update_option( "payment_status_webhook_added", "yes" );
-                        $this->payment_status_webhook_added = true;
-                    }
-                }
-            } elseif( $this->payment_status_webhook_added ) {
-                $this->update_option( "payment_status_webhook_added", "no" );
-                $this->payment_status_webhook_added = false;
-            }
+    /**
+     * Set API credentials to demo credentials if demo mode is enabled,
+     * otherwise set them to the credentials entered in the settings
+     *
+     * @return void
+     */
+    protected function set_api_credentials() {
+        if( $this->demotila == "yes" ) {
+            $this->uid    = "3175";
+            $this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
+        } else {
+            $this->uid    = $this->lh_get_option( 'uid' );
+            $this->apikey = $this->lh_get_option( 'apikey' );
         }
+    }
+
+    /**
+     * Add actions needed for the gateway
+     *
+     * @return void
+     */
+    protected function add_actions() {
+        add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+        add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
+        add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
     }
 
     /**
@@ -110,6 +311,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return parent::generate_multiselect_html( $key, $data );
     }
 
+    /**
+     * Parse and set the minimum and maximum amounts for invoicing to be enabled.
+     *
+     * @return void
+     */
     private function set_max_and_min_amounts() {
         $max_amount = (string)$this->lh_get_option( 'max_amount' );
         $min_amount = 0;
@@ -124,6 +330,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->max_amount = intval( apply_filters( "laskuhari_max_amount", $max_amount ) );
     }
 
+    /**
+     * Get option from settings, or default value if option is not set
+     *
+     * @param string $option
+     * @param mixed $default
+     * @return void
+     */
     public function lh_get_option( $option, $default = null ) {
         if( null === $default && isset( $this->form_fields[$option]['default'] ) ) {
             $default = $this->form_fields[$option]['default'];
@@ -131,10 +344,21 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return $this->get_option( $option, $default );
     }
 
+    /**
+     * Parse decimal number to float
+     *
+     * @param mixed $number
+     * @return float
+     */
     public function parse_decimal( $number ) {
         return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
     }
 
+    /**
+     * Get a list of other available payment methods
+     *
+     * @return array
+     */
     public function get_other_payment_methods() {
         $gateways = WC()->payment_gateways->payment_gateways();
 
@@ -154,6 +378,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return $payment_methods;
     }
 
+    /**
+     * Get the invoicing fee without tax
+     *
+     * @param bool $sis_alv
+     * @param string $send_method
+     * @return float
+     */
     public function veroton_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
 
@@ -164,6 +395,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return $laskutuslisa;
     }
 
+    /**
+     * Get the invoicing fee with tax
+     *
+     * @param bool $sis_alv
+     * @param string $send_method
+     * @return float
+     */
     public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
 
@@ -174,6 +412,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         return $laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
     }
 
+    /**
+     * Print the invoicing method selection form
+     *
+     * @param boolean $order_id
+     * @return void
+     */
     public function lahetystapa_lomake( $order_id = false ) {
         $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa', true );
         $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
@@ -258,6 +502,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         <?php
     }
 
+    /**
+     * Print the reference text field
+     *
+     * @param int|bool $order_id
+     * @return void
+     */
     public function viitteenne_lomake( $order_id = false ) {
         $viitteenne = get_laskuhari_meta( $order_id, '_laskuhari_viitteenne', true );
         ?>
@@ -266,6 +516,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         <?php
     }
 
+    /**
+     * Print the fields shown at checkout
+     *
+     * @return void
+     */
     public function payment_fields() {
         $description = $this->get_description();
         if ( $description ) {
