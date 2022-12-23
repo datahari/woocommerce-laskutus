@@ -35,7 +35,7 @@ function laskuhari_payment_gateway_load() {
         return;
     }
 
-    require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
+    require_once plugin_dir_path( __FILE__ ) . 'src/WC_Gateway_Laskuhari.php';
 
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
 
