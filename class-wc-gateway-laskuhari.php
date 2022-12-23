@@ -532,13 +532,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     /**
-     * Initialise Gateway Settings Form Fields.
+     * Get a list of shipping methods
+     *
+     * @return array
      */
-    public function init_form_fields() {
-        $shipping_methods = array();
+    public function get_shipping_methods() {
+        $shipping_methods = [];
 
         if ( is_admin() && class_exists( "WC_Shipping_Zones" ) ) {
-            // Get shipping zones
             $shipping_zones = WC_Shipping_Zones::get_zones();
 
             if( ! is_array( $shipping_zones ) ) {
@@ -598,6 +599,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 }
             }
         }
+
+        return $shipping_methods;
+    }
+
+    /**
+     * Initialise Gateway Settings Form Fields.
+     */
+    public function init_form_fields() {
+        $shipping_methods = $this->get_shipping_methods();
 
         $this->form_fields = array(
             'enabled' => array(
