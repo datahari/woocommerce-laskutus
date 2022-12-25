@@ -14,6 +14,7 @@ test("checkout-einvoice", async () => {
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout( 60000 );
 
     page.on("pageerror", function(err) {  
             theTempValue = err.toString();
@@ -59,7 +60,7 @@ test("checkout-einvoice", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("verkkolasku").change();
     });
-    await page.waitFor( 1000 );
+    await page.waitFor( 1500 );
 
     // insert business id
     await page.click( "#laskuhari-ytunnus" );
@@ -80,6 +81,9 @@ test("checkout-einvoice", async () => {
     await page.keyboard.type( "ref for einvoice" );
 
     await functions.place_order( page );
+
+    // wait 30 seconds for cron queue to be processed
+    await page.waitFor( 30000 );
 
     // open order page
     await functions.open_order_page( page );

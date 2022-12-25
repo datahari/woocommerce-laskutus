@@ -24,6 +24,7 @@ test("manual-order", async () => {
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout( 60000 );
 
     page.on("pageerror", function(err) {  
             theTempValue = err.toString();

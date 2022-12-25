@@ -1,7 +1,7 @@
 (function($) {
 	$(document).ready(function() {
 		$("body").on("click", "#doaction", function() {
-			if($("#bulk-action-selector-top").val() == "laskuhari-batch-send") {
+			if( $("#bulk-action-selector-top").val().indexOf("laskuhari") != -1 ) {
 				laskuhari_loading();
 			}
 		});

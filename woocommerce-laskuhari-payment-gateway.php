@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.6.2
+Version: 1.7
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -19,34 +19,34 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-$__laskuhari_api_query_count = 0;
-$__laskuhari_api_query_limit = 2;
-
 require_once plugin_dir_path( __FILE__ ) . 'updater.php';
+require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
+require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_API.php';
 
-add_action( 'woocommerce_init', function() {
-    global $laskuhari_gateway_object;
+if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
+    Laskuhari_Export_Products_REST_API::init();
+}
 
+add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
+
+function laskuhari_payment_gateway_load() {
     if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
         add_action( 'admin_notices', 'laskuhari_fallback_notice' );
         return;
     }
 
-    add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
-
-    require_once plugin_dir_path( __FILE__ ) . 'class-wc-gateway-laskuhari.php';
-
-    $laskuhari_gateway_object = new WC_Gateway_Laskuhari( true );
-
-    add_action( 'woocommerce_pre_payment_complete', 'laskuhari_handle_payment_complete' );
-} );
-
-add_action( 'woocommerce_after_register_post_type', 'laskuhari_payment_gateway_load', 0 );
-
-function laskuhari_payment_gateway_load() {
-    global $laskuhari_gateway_object;
+    require_once plugin_dir_path( __FILE__ ) . 'src/WC_Gateway_Laskuhari.php';
 
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
+
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
+
+    add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
+
+    laskuhari_maybe_create_webhook();
+
+    add_action( 'woocommerce_pre_payment_complete', 'laskuhari_handle_payment_complete' );
+
     add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
 
     if( $laskuhari_gateway_object->lh_get_option( 'enabled' ) !== 'yes' ) {
@@ -70,8 +70,8 @@ function laskuhari_payment_gateway_load() {
     laskuhari_actions();
 
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
-        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock' );
-        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock' );
+        add_action( 'woocommerce_product_set_stock', 'laskuhari_update_stock_delayed' );
+        add_action( 'woocommerce_variation_set_stock', 'laskuhari_update_stock_delayed' );
         add_action( 'woocommerce_update_product', 'laskuhari_sync_product_on_save', 10, 1 );
         add_action( 'woocommerce_update_product_variation', 'laskuhari_sync_product_on_save', 10, 1 );
     }
@@ -97,13 +97,45 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
+    add_action( 'laskuhari_create_product_action', 'laskuhari_create_product', 10, 2 );
+    add_action( 'laskuhari_update_stock_action', 'laskuhari_update_stock', 10, 1 );
+    add_action( 'laskuhari_process_action_delayed_action', 'laskuhari_process_action', 10, 3 );
+
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
         add_action( 'admin_notices', 'laskuhari_notices' );
     }
 
+    if( apply_filters( "laskuhari_api_enabled", true ) ) {
+        Laskuhari_API::init( $laskuhari_gateway_object );
+    }
+
 }
 
-require_once plugin_dir_path( __FILE__ ) . 'laskuhari-api.php';
+/**
+ * Add webhook to Laskuhari for payment status updates if it hasn't
+ * been added yet and the create_webhooks option is enabled.
+ *
+ * @return void
+ */
+function laskuhari_maybe_create_webhook() {
+    $lh = laskuhari_get_gateway_object();
+
+    if( $lh->create_webhooks && $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
+        $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
+
+        if( ! $lh->payment_status_webhook_added && laskuhari_add_webhook( "payment_status", $api_url ) ) {
+            $lh->update_option( "payment_status_webhook_added", "yes" );
+            $lh->payment_status_webhook_added = true;
+        }
+    } elseif( $lh->payment_status_webhook_added ) {
+        $lh->update_option( "payment_status_webhook_added", "no" );
+        $lh->payment_status_webhook_added = false;
+    }
+}
+
+function laskuhari_get_gateway_object() {
+    return WC()->payment_gateways->payment_gateways()["laskuhari"];
+}
 
 function laskuhari_domain() {
     return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
@@ -196,7 +228,7 @@ function laskuhari_checkout_update_customer( $customer ) {
 
 // handle invoice creation & sending from other payment methods
 function laskuhari_handle_payment_complete( $order_id ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $order = wc_get_order( $order_id );
 
@@ -236,7 +268,8 @@ function display_admin_shop_order_laskuhari_filter() {
             "lasku_luotu"          => 'Laskuhari: ' . __( 'Lasku luotu', 'laskuhari' ),
             "laskutettu"           => 'Laskuhari: ' . __( 'Laskutettu', 'laskuhari' ),
             "maksettu"             => 'Laskuhari: ' . __( 'Maksettu', 'laskuhari' ),
-            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' )
+            "ei_maksettu"          => 'Laskuhari: ' . __( 'Ei maksettu', 'laskuhari' ),
+            "jonossa"              => 'Laskuhari: ' . __( 'Jonossa', 'laskuhari' ),
         ];
 
         echo lh_create_select_box( "filter_laskuhari_status", $options, $current );
@@ -251,6 +284,13 @@ function laskuhari_custom_status_filter( $query ) {
         "laskutettu" => [
             [
                 'key'     => '_laskuhari_sent',
+                'compare' => '=',
+                'value'   => "yes",
+            ]
+        ],
+        "jonossa" => [
+            [
+                'key'     => '_laskuhari_queued',
                 'compare' => '=',
                 'value'   => "yes",
             ]
@@ -652,13 +692,13 @@ function laskuhari_sync_product_on_save( $product_id ) {
         return false;
     }
 
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
         $updating_product_id = 'laskuhari_update_product_' . $product_id;
         if ( false === get_transient( $updating_product_id ) ) {
             set_transient( $updating_product_id, $product_id, 2 );
             laskuhari_product_synced( $product_id, 'no' );
-            laskuhari_create_product( $product_id, true );
+            laskuhari_create_product_delayed( $product_id, true );
         }
     }
 }
@@ -690,6 +730,12 @@ function laskuhari_get_product_price( $product ) {
         "prices_include_tax" => $prices_include_tax,
         "vat" => $vat,
     ];
+}
+
+function laskuhari_create_product_delayed( $product, $update = false ) {
+    $product = laskuhari_just_the_product_id( $product );
+
+    laskuhari_schedule_background_event( 'laskuhari_create_product_action', [$product, $update], true );
 }
 
 function laskuhari_create_product( $product, $update = false ) {
@@ -801,6 +847,12 @@ function laskuhari_product_synced( $product, $set = null ) {
     }
 
     return get_post_meta( $product->get_id(), '_laskuhari_synced', true ) === "yes";
+}
+
+function laskuhari_update_stock_delayed( $product ) {
+    $product = laskuhari_just_the_product_id( $product );
+
+    laskuhari_schedule_background_event( 'laskuhari_update_stock_action', [$product], true );
 }
 
 function laskuhari_update_stock( $product ) {
@@ -1040,7 +1092,7 @@ function laskuhari_vat_id_at_checkout() {
     $vat_number_fields = laskuhari_vat_number_fields();
     foreach( $_REQUEST as $key => $value ) {
         foreach( $vat_number_fields as $field_name ) {
-            if( mb_stripos( $key, $field_name ) ) {
+            if( mb_stripos( $key, $field_name ) !== false ) {
                 return $value;
             }
         }
@@ -1083,7 +1135,7 @@ function laskuhari_custom_billing_email_at_checkout() {
 function lh_is_custom_billing_email_field( $field ) {
     $fields = laskuhari_custom_billing_email_fields();
     foreach( $fields as $field_name ) {
-        if( mb_stripos( $field, $field_name ) ) {
+        if( mb_stripos( $field, $field_name ) !== false ) {
             return true;
         }
     }
@@ -1216,7 +1268,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
 
 function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
     $post_meta = get_post_meta( $order_id, $meta_key, $single );
-    if( $post_meta ) {
+    if( ! empty( $post_meta ) ) {
         return $post_meta;
     }
     if( $order = wc_get_order( $order_id ) ) {
@@ -1245,7 +1297,7 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
 
 function laskuhari_update_order_meta( $order_id )  {
     $ytunnus = laskuhari_vat_id_at_checkout();
-    if ( isset( $ytunnus ) ) {
+    if ( ! empty( $ytunnus ) ) {
         laskuhari_set_order_meta( $order_id, '_laskuhari_ytunnus', $ytunnus, true );
     }
 
@@ -1325,6 +1377,7 @@ function laskuhari_invoice_is_created_from_order( $order_id ) {
 function laskuhari_invoice_status( $order_id ) {
     $laskunumero = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
     $lahetetty   = get_post_meta( $order_id, '_laskuhari_sent', true ) == "yes";
+    $queued      = get_post_meta( $order_id, '_laskuhari_queued', true ) == "yes";
 
     if( $laskunumero > 0 ) {
         $lasku_luotu = true;
@@ -1339,6 +1392,10 @@ function laskuhari_invoice_status( $order_id ) {
         $lasku_luotu = false;
         $tila        = "EI LASKUTETTU";
         $tila_class  = " ei-laskutettu";
+    }
+
+    if( $queued ) {
+        $tila = "JONOSSA";
     }
 
     return [
@@ -1374,7 +1431,7 @@ function laskuhari_metabox_html( $post ) {
         return false;
     }
 
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $tiladata    = laskuhari_invoice_status( $post->ID );
     $tila        = $tiladata['tila'];
@@ -1508,7 +1565,7 @@ function laskuhari_metabox_html( $post ) {
 // Lisää laskutuslisä tilaukselle
 
 function laskuhari_add_invoice_surcharge( $cart ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
     $laskuhari = $laskuhari_gateway_object;
 
     if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
@@ -1808,7 +1865,7 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
  * @return void
  */
 function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $old_status = get_post_meta( $order_id, '_laskuhari_payment_status', true );
 
@@ -1840,8 +1897,6 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
 }
 
 function laskuhari_get_payment_terms( $force = false ) {
-    global $__laskuhari_api_query_limit, $__laskuhari_api_query_count;
-
     if( $force !== true ) {
         $saved_terms = get_option( "_laskuhari_payment_terms" );
         if( $saved_terms ) {
@@ -1849,14 +1904,8 @@ function laskuhari_get_payment_terms( $force = false ) {
         }
     }
 
-    // don't make too many api queries on one page load as it slows execution time
-    if( $__laskuhari_api_query_count >= $__laskuhari_api_query_limit ) {
-        return false;
-    }
-
     $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
     $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
-    $__laskuhari_api_query_count++;
 
     if( $response['status'] === "OK" ) {
         update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
@@ -1865,23 +1914,6 @@ function laskuhari_get_payment_terms( $force = false ) {
 
     return false;
 }
-
-function laskuhari_get_payment_terms_name( $term_id, $terms = null ) {
-    if( null === $terms ) {
-        $terms = laskuhari_get_payment_terms();
-    }
-
-    if ( is_array( $terms ) ) {
-        foreach ( $terms as $term ) {
-            if ( $term['id'] == $term_id ) {
-                return $term['nimi'];
-            }
-        }
-    }
-
-    return false;
-}
-
 
 function laskuhari_invoice_id_by_order( $orderid ) {
     $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );
@@ -1900,7 +1932,7 @@ function laskuhari_uid_by_order( $orderid ) {
 }
 
 function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $laskuhari_uid    = $laskuhari_gateway_object->uid;
 
@@ -1962,7 +1994,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
 }
 
 function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json", $silent = true ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! $laskuhari_gateway_object->uid ) {
         return laskuhari_uid_error();
@@ -1972,7 +2004,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         $payload = json_encode( $payload, laskuhari_json_flag() );
     }
 
-    $auth_key = laskuhari_api_generate_auth_key(
+    $auth_key = Laskuhari_API::generate_auth_key(
         $laskuhari_gateway_object->uid,
         $laskuhari_gateway_object->apikey,
         $payload
@@ -2083,7 +2115,7 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
 }
 
 function laskuhari_maybe_send_invoice_attached( $order ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! is_object( $order ) ) {
         $order = wc_get_order( $order );
@@ -2116,7 +2148,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
 }
 
 function laskuhari_send_invoice_attached( $order ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! is_object( $order ) ) {
         $order = wc_get_order( $order );
@@ -2306,8 +2338,20 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     return $quantity_unit;
 }
 
-function laskuhari_process_action( $order_id, $send = false, $bulk_action = false ) {
-    global $laskuhari_gateway_object;
+function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+    update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
+    laskuhari_schedule_background_event( 'laskuhari_process_action_delayed_action', [
+        $order_id,
+        $send,
+        $bulk_action,
+        $from_gateway,
+    ], false, 20, 1 );
+}
+
+function laskuhari_process_action( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
+
+    delete_post_meta( $order_id, '_laskuhari_queued' );
 
     $error_notice = "";
     $success      = "";
@@ -2765,7 +2809,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
         $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
 
-        $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id() );
+        $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id(), $from_gateway );
         if( $status_after_creation ) {
             $order->update_status( $status_after_creation );
         }
@@ -2773,6 +2817,14 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         do_action( "laskuhari_invoice_created", $order->get_id(), $laskuid );
 
         laskuhari_get_invoice_payment_status( $order->get_id() );
+
+        // don't send separate email invoice if it is attached to confirmation email
+        if( $laskuhari_gateway_object->attach_invoice_to_wc_email && $from_gateway ) {
+            if( $send_method === "email" ) {
+                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                $send = false;
+            }
+        }
 
         if( apply_filters( 'laskuhari_send_after_creation', $send, $send_method, $order ) ) {
             return laskuhari_send_invoice( $order, $bulk_action );
@@ -2795,7 +2847,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 }
 
 function laskuhari_get_order_send_method( $order_id ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
 
@@ -2831,7 +2883,7 @@ function laskuhari_get_order_billing_email( $order ) {
 }
 
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
-    global $laskuhari_gateway_object;
+    $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! apply_filters( "laskuhari_can_send_invoice", true, $order, $bulk_action ) ) {
         return array(
@@ -3026,4 +3078,83 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         "success"   => urlencode( $success )
     );
 
+}
+
+/**
+ * Get the product ID of a WC_Product object or a product ID.
+ *
+ * @param WC_Product|int $product WC_Product object or product ID.
+ * @return int|false Product ID or false if the product cannot be found.
+ */
+function laskuhari_just_the_product_id( $product ) {
+    if( is_a( $product, 'WC_Product' ) ) {
+        return $product->get_id();
+    } elseif( is_numeric( $product ) ) {
+        return (int) $product;
+    }
+
+    return false;
+}
+
+/**
+ * Schedule an event to run delayed in the background with WP Cron
+ *
+ * @param string $event Hook name of event
+ * @param array $args Arguments to pass to event hook
+ * @param boolean $no_duplicates Whether to create a new event if the same one already exists in the queue
+ * @param int $delay_time_seconds Amount of time to delay the execution from current moment
+ * @param int $interval_time_seconds Amount of time to add between scheduled events
+ * @return void
+ */
+function laskuhari_schedule_background_event(
+    $event,
+    $args,
+    $no_duplicates = false,
+    $delay_time_seconds = 30,
+    $interval_time_seconds = 10
+) {
+    // check for duplicate events
+    if( $no_duplicates && wp_next_scheduled( $event, $args ) > time() ) {
+        return false;
+    }
+
+    // set starting time to now + $delay_time_seconds seconds
+    $time = time() + $delay_time_seconds;
+
+    // check last scheduled event of the same type
+    $last_scheduled_time = laskuhari_wp_last_scheduled( $event );
+
+    // set the time to which ever is the latest and add $interval_time_seconds seconds
+    $time = max( $time, $last_scheduled_time ) + $interval_time_seconds;
+
+    // apply filters so other plugins can change this
+    $time = apply_filters( "laskuhari_schedule_background_event_time", $time, $event, $args, $no_duplicates );
+
+    // schedule event
+    wp_schedule_single_event( $time, $event, $args );
+}
+
+/**
+ * Get the last scheduled time for a given event hook.
+ *
+ * @param string $hook Event hook name.
+ * @return int|false Unix timestamp of the last scheduled time for the event, or false if no events are scheduled.
+ */
+function laskuhari_wp_last_scheduled( $hook ) {
+    // get all scheduled events for the hook
+    $scheduled_events = _get_cron_array();
+    $times = [];
+
+    // loop through the scheduled events and get the times
+    foreach( $scheduled_events as $time => $event ) {
+        if( isset( $event[$hook] ) ) {
+            $times[] = $time;
+        }
+    }
+
+    // sort the times in ascending order
+    sort( $times );
+
+    // return the last time
+    return end( $times );
 }
