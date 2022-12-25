@@ -273,7 +273,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return void
      */
     protected function set_api_credentials() {
-        if( $this->demotila == "yes" ) {
+        if( $this->demotila ) {
             $this->uid    = "3175";
             $this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
         } else {

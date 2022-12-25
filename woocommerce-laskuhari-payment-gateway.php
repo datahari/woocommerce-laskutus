@@ -120,7 +120,7 @@ function laskuhari_payment_gateway_load() {
 function laskuhari_maybe_create_webhook() {
     $lh = laskuhari_get_gateway_object();
 
-    if( $lh->create_webhooks && $lh->demotila != "yes" && strlen( $lh->apikey ) > 64 && $lh->uid ) {
+    if( $lh->create_webhooks && $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
         $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
 
         if( ! $lh->payment_status_webhook_added && laskuhari_add_webhook( "payment_status", $api_url ) ) {
