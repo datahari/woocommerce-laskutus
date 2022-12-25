@@ -6,11 +6,11 @@
 class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
 {
     /**
-     * Test that the Laskuhari API returns an error when called without proper authentification
+     * Test that the Laskuhari API returns an error when called without proper authentication
      *
      * @return void
      */
-    public function test_it_returns_an_error_when_called_without_proper_authentification() {
+    public function test_it_returns_an_error_when_called_without_proper_authentication() {
         $response = $this->send_api_request( "", null, null );
 
         $this->assertEquals( ["status" => "ERROR", "message" => "Unauthorized"], $response['body'] );
@@ -33,7 +33,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * Test that the Laskuhari API return an error when called with an old timestamp
+     * Test that the Laskuhari API returns an error when called with an old timestamp
      *
      * @return void
      */
@@ -63,7 +63,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * Test that the Laskuhari API return a notice when trying to update non-existent invoice
+     * Test that the Laskuhari API returns a notice when trying to update non-existent invoice
      *
      * @return void
      */
@@ -155,7 +155,6 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
      * @param string $request
      * @param int|null $uid
      * @param string|null $apikey
-     * @param array $config
      * @param array $headers
      * @return array
      */
