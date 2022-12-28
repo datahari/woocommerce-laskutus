@@ -98,4 +98,4 @@ test("checkout-letter", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);

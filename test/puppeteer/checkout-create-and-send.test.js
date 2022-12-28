@@ -77,4 +77,4 @@ test("checkout-create-and-send", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);

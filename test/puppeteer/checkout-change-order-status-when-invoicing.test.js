@@ -79,4 +79,4 @@ test("checkout-change-order-status-when-invoicing", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);
