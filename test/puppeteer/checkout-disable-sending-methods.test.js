@@ -126,4 +126,4 @@ test("checkout-disable-sending-methods", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);

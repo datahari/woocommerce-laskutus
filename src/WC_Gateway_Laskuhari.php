@@ -15,6 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
     /**
+     * A static instance of this class
+     */
+    protected static $instance;
+
+    /**
      * Invoicing fee amount
      *
      * @var float
@@ -213,6 +218,26 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public $receipt_template;
 
     /**
+     * Whether actions are already added
+     *
+     * @var bool
+     */
+    protected static $actions_added = false;
+
+    /**
+     * Get a static instance of this class
+     *
+     * @return WC_Gateway_Laskuhari
+     */
+    public static function get_instance() {
+        if ( ! isset( self::$instance ) ) {
+            self::$instance = new self();
+        }
+
+        return self::$instance;
+    }
+
+    /**
      * Construct the gateway class.
      */
     public function __construct() {
@@ -228,6 +253,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->set_api_credentials();
         $this->set_max_and_min_amounts();
         $this->add_actions();
+
+        self::$instance = $this;
     }
 
     /**
@@ -288,9 +315,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return void
      */
     protected function add_actions() {
+        if( static::$actions_added ) {
+            return false;
+        }
+
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
         add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
         add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
+
+        static::$actions_added = true;
     }
 
     /**

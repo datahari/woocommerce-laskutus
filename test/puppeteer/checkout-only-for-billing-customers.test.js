@@ -199,4 +199,4 @@ test("checkout-only-for-billing-customers", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);

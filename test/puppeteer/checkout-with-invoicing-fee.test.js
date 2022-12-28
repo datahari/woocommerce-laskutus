@@ -77,4 +77,4 @@ test("checkout-with-invoicing-fee", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);

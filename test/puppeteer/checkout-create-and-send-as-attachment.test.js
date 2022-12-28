@@ -78,4 +78,4 @@ test("checkout-create-and-send-as-attachment", async () => {
 
     // close browser
     await browser.close();
-}, 100000);
+}, 600000);
