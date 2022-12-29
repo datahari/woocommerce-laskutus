@@ -60,8 +60,9 @@ test("manual-order", async () => {
 
     // wait for "create invoice" button to load and click it
     await page.waitForSelector( ".laskuhari-nappi.uusi-lasku" );
+    await functions.sleep( 2000 );
     await page.click( ".laskuhari-nappi.uusi-lasku" );
-    await functions.sleep( 600 );
+    await functions.sleep( 1000 );
 
     // input a reference
     await page.click( "#laskuhari-viitteenne" );
@@ -84,15 +85,16 @@ test("manual-order", async () => {
     expect( invoice_status ).toMatch( /.*Avoin.*/ );
 
     // click "send invoice"
+    await functions.sleep( 1000 );
     await page.click( ".laskuhari-nappi.laheta-lasku" );
-    await functions.sleep( 600 );
+    await functions.sleep( 1000 );
 
     // select email invoice method
     await page.evaluate( function() {
         let $ = jQuery;
         $("#laskuhari-laskutustapa").val("email").change();
     } );
-    await functions.sleep( 200 );
+    await functions.sleep( 1000 );
 
     // input email address
     await page.click( "#laskuhari-email" );

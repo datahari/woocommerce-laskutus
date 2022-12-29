@@ -19,8 +19,7 @@ exports.login = async function( page, user, password ) {
     await user_pass.type( password );
 
     await page.click( "#wp-submit" );
-    await page.waitForNavigation();
-    await exports.sleep( 500 );
+    await exports.sleep( 4000 );
 }
 
 exports.open_settings = async function( page ) {
@@ -30,11 +29,11 @@ exports.open_settings = async function( page ) {
 }
 
 exports.logout = async function( page ) {
-    await exports.sleep( 200 );
+    await exports.wait_for_loading( page );
     await page.hover( "#wp-admin-bar-my-account" );
-    await exports.sleep( 500 );
+    await exports.wait_for_loading( page );
     await page.click( "#wp-admin-bar-logout a" );
-    await exports.sleep( 500 );
+    await exports.wait_for_loading( page );
 }
 
 exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
@@ -86,15 +85,17 @@ exports.fill_out_checkout_form = async function( page ) {
     await page.evaluate(() => document.getElementById("billing_email").value="");
     await page.click( "#billing_email" );
     await page.keyboard.type( config.test_email );
+
+    // blur from email field
+    await page.click( "#order_review" );
 }
 
 exports.select_laskuhari_payment_method = async function( page ) {
     // select laskuhari payment method
-    await exports.sleep( 1000 );
+    await exports.wait_for_loading( page );
     await page.waitForSelector( "label[for=payment_method_laskuhari]" );
     await page.click( "label[for=payment_method_laskuhari]" );
     await page.waitForSelector( "#laskuhari-laskutustapa" );
-    await exports.sleep( 1000 );
 }
 
 exports.select_paytrail_payment_method = async function( page ) {
@@ -119,7 +120,7 @@ exports.wait_for_loading = async function( page ) {
     await page.waitForFunction( function() {
         return !jQuery( ".blockOverlay" ).is( ":visible" ) && !jQuery(":animated").length;
     } );
-    await page.waitForNetworkIdle();
+    await page.waitForNetworkIdle({timeout: 60000});
     await exports.sleep( 500 );
 }
 

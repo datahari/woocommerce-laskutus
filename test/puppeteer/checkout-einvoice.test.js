@@ -63,6 +63,7 @@ test("checkout-einvoice", async () => {
     await functions.sleep( 1500 );
 
     // insert business id
+    await functions.wait_for_loading( page );
     await page.click( "#laskuhari-ytunnus" );
     await page.keyboard.type( "1234567-8" );
 
