@@ -16,7 +16,7 @@ test("checkout-letter", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
@@ -48,7 +48,7 @@ test("checkout-letter", async () => {
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -60,7 +60,7 @@ test("checkout-letter", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("kirje").change();
     });
-    await page.waitFor( 1000 );
+    await functions.sleep( 1000 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
@@ -69,17 +69,17 @@ test("checkout-letter", async () => {
     await functions.place_order( page );
 
     // wait 30 seconds for cron queue to be processed
-    await page.waitFor( 30000 );
+    await functions.sleep( 30000 );
 
     // open order page
     await functions.open_order_page( page );
 
     // wait to load page completely
-    await page.waitFor( 500 );
+    await functions.sleep( 500 );
 
     // click "Send invoice"
     await page.click( ".laskuhari-nappi.laheta-lasku" );
-    await page.waitFor( 1000 );
+    await functions.sleep( 1000 );
 
     // check that the send method was saved
     let element = await page.$('#laskuhari-laskutustapa');
@@ -94,7 +94,7 @@ test("checkout-letter", async () => {
     expect( val ).toMatch( /.*Virhe laskun lähetyksessä.*KEY_ERROR.*/ );
 
     // wait for a while so we can inspect the result
-    await page.waitFor( 5000 );
+    await functions.sleep( 5000 );
 
     // close browser
     await browser.close();

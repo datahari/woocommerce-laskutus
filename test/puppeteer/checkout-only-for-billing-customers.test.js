@@ -17,7 +17,7 @@ test("checkout-only-for-billing-customers", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
@@ -37,14 +37,14 @@ test("checkout-only-for-billing-customers", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_salli_laskutus_erikseen").prop( "checked", true );
     } );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // save settings
     await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -57,9 +57,9 @@ test("checkout-only-for-billing-customers", async () => {
     await page.click( ".order-total" );
 
     // check that the invoicing method is not available
-    await page.waitFor( "#place_order" );
+    await page.waitForSelector( "#place_order" );
     expect(!!(await page.$('#payment_method_laskuhari'))).toBe( false );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // log in to plugin settings page
     await functions.open_settings( page );
@@ -72,14 +72,14 @@ test("checkout-only-for-billing-customers", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_salli_laskutus_erikseen").prop( "checked", false );
     } );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // save settings
     await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -92,9 +92,9 @@ test("checkout-only-for-billing-customers", async () => {
     await page.click( ".order-total" );
 
     // check that the invoicing method is available
-    await page.waitFor( "#place_order" );
+    await page.waitForSelector( "#place_order" );
     expect(!!(await page.$('#payment_method_laskuhari'))).toBe( true );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // log in to plugin settings page
     await functions.open_settings( page );
@@ -107,14 +107,14 @@ test("checkout-only-for-billing-customers", async () => {
         let $ = jQuery;
         $("#woocommerce_laskuhari_salli_laskutus_erikseen").prop( "checked", true );
     } );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // save settings
     await page.click( ".woocommerce-save-button" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // go to testing customer's edit page
     await page.goto( config.wordpress_url + "/wp-admin/user-edit.php?user_id=" + config.test_customer_id );
@@ -127,13 +127,13 @@ test("checkout-only-for-billing-customers", async () => {
         let $ = jQuery;
         $("#laskuhari_laskutusasiakas").prop( "checked", true );
     } );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
     await page.waitForSelector( "#submit.button.button-primary" );
     await page.click( "#submit.button.button-primary" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.notice" );
+    await page.waitForSelector( ".updated.notice" );
 
     // log out
     await functions.logout( page );
@@ -150,9 +150,9 @@ test("checkout-only-for-billing-customers", async () => {
     await page.click( ".order-total" );
 
     // check that the invoicing method is available
-    await page.waitFor( "#place_order" );
+    await page.waitForSelector( "#place_order" );
     expect(!!(await page.$('#payment_method_laskuhari'))).toBe( true );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // log in to admin
     await page.goto( config.wordpress_url + "/wp-login.php" );
@@ -170,13 +170,13 @@ test("checkout-only-for-billing-customers", async () => {
         let $ = jQuery;
         $("#laskuhari_laskutusasiakas").prop( "checked", false );
     } );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
     await page.waitForSelector( "#submit.button.button-primary" );
     await page.click( "#submit.button.button-primary" );
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.notice" );
+    await page.waitForSelector( ".updated.notice" );
 
     // log out
     await functions.logout( page );
@@ -193,9 +193,9 @@ test("checkout-only-for-billing-customers", async () => {
     await page.click( ".order-total" );
 
     // check that the invoicing method is not available
-    await page.waitFor( "#place_order" );
+    await page.waitForSelector( "#place_order" );
     expect(!!(await page.$('#payment_method_laskuhari'))).toBe( false );
-    await page.waitFor( 2000 );
+    await functions.sleep( 2000 );
 
     // close browser
     await browser.close();

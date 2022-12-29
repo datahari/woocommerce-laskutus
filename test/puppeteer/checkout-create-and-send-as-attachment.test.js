@@ -16,7 +16,7 @@ test("checkout-create-and-send-as-attachment", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
@@ -49,7 +49,7 @@ test("checkout-create-and-send-as-attachment", async () => {
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -58,7 +58,7 @@ test("checkout-create-and-send-as-attachment", async () => {
     await functions.make_order( page );
 
     // wait 30 seconds for cron queue to be processed
-    await page.waitFor( 30000 );
+    await functions.sleep( 30000 );
 
     // open order page
     await functions.open_order_page( page );
@@ -74,7 +74,7 @@ test("checkout-create-and-send-as-attachment", async () => {
     expect( comment ).toMatch( /.*lasku liitettiin jo tilausvahvistukseen.*/ );
 
     // wait for a while so we can inspect the result
-    await page.waitFor( 5000 );
+    await functions.sleep( 5000 );
 
     // close browser
     await browser.close();

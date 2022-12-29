@@ -7,8 +7,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "jest": "^26.0.1",
-    "jest-puppeteer": "^6.1.0",
-    "puppeteer": "^3.3.0"
+    "jest": "latest",
+    "jest-puppeteer": "latest",
+    "puppeteer": "latest"
   }
 }
