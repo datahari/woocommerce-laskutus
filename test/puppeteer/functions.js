@@ -136,7 +136,7 @@ exports.place_order = async function( page ) {
 
     // wait for order to complete
     await page.waitForSelector( ".woocommerce-order-received", {
-        timeout: 45000
+        timeout: 60000
     } );
 }
 
