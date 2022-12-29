@@ -4,7 +4,7 @@ const config    = require('./config.js');
 
 test("checkout-disable-sending-methods", async () => {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: config.headless,
         defaultViewport: {
             width: 1452,
             height: 768

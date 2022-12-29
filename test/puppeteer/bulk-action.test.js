@@ -4,7 +4,7 @@ const config    = require('./config.js');
 
 test("bulk-actions", async () => {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: config.headless,
         defaultViewport: {
             width: 1452,
             height: 768
@@ -17,7 +17,7 @@ test("bulk-actions", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
