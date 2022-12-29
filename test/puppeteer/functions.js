@@ -61,7 +61,11 @@ exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
 
 exports.make_order_before_select_invoice_method = async function( page ) {
     await exports.add_product_to_cart_and_go_to_checkout( page );
+    await exports.fill_out_checkout_form( page );
+    await exports.select_laskuhari_payment_method( page );
+}
 
+exports.fill_out_checkout_form = async function( page ) {
     // insert first name
     await page.click( "#billing_first_name" );
     await page.keyboard.type( "John" );
@@ -82,13 +86,45 @@ exports.make_order_before_select_invoice_method = async function( page ) {
     await page.evaluate(() => document.getElementById("billing_email").value="");
     await page.click( "#billing_email" );
     await page.keyboard.type( config.test_email );
+}
 
+exports.select_laskuhari_payment_method = async function( page ) {
     // select laskuhari payment method
     await exports.sleep( 1000 );
     await page.waitForSelector( "label[for=payment_method_laskuhari]" );
     await page.click( "label[for=payment_method_laskuhari]" );
     await page.waitForSelector( "#laskuhari-laskutustapa" );
     await exports.sleep( 1000 );
+}
+
+exports.select_paytrail_payment_method = async function( page ) {
+    // select paytrail payment method
+    await exports.wait_for_loading( page );
+    await page.waitForSelector( "label[for=payment_method_paytrail]" );
+    await page.click( "label[for=payment_method_paytrail]" );
+
+    // click paytrail bank payment method
+    await exports.wait_for_loading( page );
+    await page.waitForSelector( ".paytrail-provider-group-title.bank" );
+    await page.click( ".paytrail-provider-group-title.bank" );
+
+    // select osuuspankki
+    await exports.wait_for_loading( page );
+    await page.waitForSelector( ".paytrail-woocommerce-payment-fields--list-item--input[value=osuuspankki]" );
+    await page.click( ".paytrail-woocommerce-payment-fields--list-item--input[value=osuuspankki]" );
+}
+
+exports.wait_for_loading = async function( page ) {
+    await exports.sleep( 500 );
+    await page.waitForFunction( function() {
+        return !jQuery( ".blockOverlay" ).is( ":visible" ) && !jQuery(":animated").length;
+    } );
+    await page.waitForNetworkIdle();
+    await exports.sleep( 500 );
+}
+
+exports.sleep = async function( ms ) {
+    return new Promise( resolve => setTimeout( resolve, ms ) );
 }
 
 exports.place_order = async function( page ) {
@@ -119,15 +155,38 @@ exports.make_order = async function( page ) {
     await exports.place_order( page );
 }
 
-exports.open_order_page = async function( page ) {
+exports.make_order_with_paytrail = async function( page ) {
+    await exports.make_order_before_select_invoice_method( page );
+
+    // select email invoicing
+    await page.evaluate(function() {
+        jQuery("#laskuhari-laskutustapa").val("email").change();
+    });
+    await exports.sleep( 1000 );
+
+    // insert reference
+    await page.click( "#laskuhari-viitteenne" );
+    await page.keyboard.type( "testing reference" );
+
+    await exports.place_order( page );
+}
+
+exports.grab_order_id = async function( page ) {
     // grab order ID
     let element = await page.$('li.woocommerce-order-overview__order.order strong');
     let order_id = await page.evaluate(el => el.textContent, element);
 
+    return order_id;
+}
+
+exports.open_order_page = async function( page ) {
+    let order_id = await exports.grab_order_id( page );
+
     // log in to order page
-    await page.goto( config.wordpress_url+"/wp-admin/post.php?post="+order_id+"&action=edit" );
+    await page.goto( config.wordpress_url+"/wp-login.php" );
     await exports.login( page, config.wordpress_user, config.wordpress_password );
-    await page.waitFor( ".laskuhari-tila" );
+    await page.goto( config.wordpress_url+"/wp-admin/post.php?post="+order_id+"&action=edit" );
+    await page.waitForSelector( "#order_status" );
 }
 
 exports.open_invoice_pdf = async function( page ) {
