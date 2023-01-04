@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.7.2
+Version: 1.7.3
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -1375,9 +1375,11 @@ function laskuhari_invoice_is_created_from_order( $order_id ) {
 // Hae tilauksen laskutustila
 
 function laskuhari_invoice_status( $order_id ) {
+    laskuhari_maybe_process_queued_invoice( $order_id );
+
     $laskunumero = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
     $lahetetty   = get_post_meta( $order_id, '_laskuhari_sent', true ) == "yes";
-    $queued      = get_post_meta( $order_id, '_laskuhari_queued', true ) == "yes";
+    $queued      = get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
 
     if( $laskunumero > 0 ) {
         $lasku_luotu = true;
@@ -2339,19 +2341,50 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
 }
 
 function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
-    update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
-    laskuhari_schedule_background_event( 'laskuhari_process_action_delayed_action', [
-        $order_id,
-        $send,
-        $bulk_action,
-        $from_gateway,
-    ], false, 20, 1 );
+    // schedule background event
+    $delayed_event = laskuhari_schedule_background_event(
+        'laskuhari_process_action_delayed_action',
+        func_get_args(),
+        false,
+        20,
+        1,
+    );
+
+    if( $delayed_event === true ) {
+        // mark invoice as queued if background event scheduling was successful
+        update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
+
+        // save process args so that queue can be processed later in case of errors
+        update_post_meta( $order_id, '_laskuhari_queued_args', func_get_args() );
+    } else {
+        // if background event scheduling fails, process action now
+        laskuhari_process_action( ...func_get_args() );
+    }
+}
+
+/**
+ * Process invoice of order that is marked as queued
+ * but is not found in WP Cron queue
+ *
+ * @param int $order_id
+ * @return array|false
+ */
+function laskuhari_maybe_process_queued_invoice( $order_id ) {
+    $queued = get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
+    $queued_args = get_post_meta( $order_id, '_laskuhari_queued_args', true );
+
+    if( $queued && ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
+        return laskuhari_process_action( ...$queued_args );
+    }
+
+    return false;
 }
 
 function laskuhari_process_action( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     delete_post_meta( $order_id, '_laskuhari_queued' );
+    delete_post_meta( $order_id, '_laskuhari_queued_args' );
 
     $error_notice = "";
     $success      = "";
@@ -3104,7 +3137,7 @@ function laskuhari_just_the_product_id( $product ) {
  * @param boolean $no_duplicates Whether to create a new event if the same one already exists in the queue
  * @param int $delay_time_seconds Amount of time to delay the execution from current moment
  * @param int $interval_time_seconds Amount of time to add between scheduled events
- * @return void
+ * @return bool
  */
 function laskuhari_schedule_background_event(
     $event,
@@ -3131,7 +3164,7 @@ function laskuhari_schedule_background_event(
     $time = apply_filters( "laskuhari_schedule_background_event_time", $time, $event, $args, $no_duplicates );
 
     // schedule event
-    wp_schedule_single_event( $time, $event, $args );
+    return wp_schedule_single_event( $time, $event, $args );
 }
 
 /**
