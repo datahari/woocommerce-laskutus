@@ -2,7 +2,14 @@ const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
 const config = require('./config.js');
 
-test("checkout-change-order-status-when-invoicing", async () => {
+/**
+ * Test making an order with Paytrail payment method.
+ *
+ * There have been previous incompatibilities between Paytrail and Laskuhari so
+ * let's check that the Paytrail plugin works when Laskuhari is installed.
+ */
+
+test("checkout-with-paytrail", async () => {
     const browser = await puppeteer.launch({
         headless: config.headless,
         defaultViewport: {
@@ -33,16 +40,14 @@ test("checkout-change-order-status-when-invoicing", async () => {
     await page.evaluate( function() {
         let $ = jQuery;
         $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
-        $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
-        $("#woocommerce_laskuhari_status_after_gateway").val( "on-hold" );
-        $("#woocommerce_laskuhari_status_after_paid").val( "processing" );
+        $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", false );
         $("#woocommerce_laskuhari_laskuviesti").val(
             $("#woocommerce_laskuhari_laskuviesti").val() +
-            " (checkout-change-order-status-when-invoicing)"
+            " (paytrail-test)"
         );
         $("#woocommerce_laskuhari_instructions").val(
             $("#woocommerce_laskuhari_instructions").val() +
-            " (checkout-change-order-status-when-invoicing)"
+            " (paytrail-test)"
         );
     } );
 
@@ -57,26 +62,25 @@ test("checkout-change-order-status-when-invoicing", async () => {
     await functions.logout( page );
 
     // make an order
-    await functions.make_order( page );
+    await functions.add_product_to_cart_and_go_to_checkout( page );
+    await functions.fill_out_checkout_form( page );
+    await functions.select_paytrail_payment_method( page );
+    await functions.place_order( page );
 
-    // wait 30 seconds for cron queue to be processed
-    await functions.sleep( 30000 );
+    // wait for order to be placed
+    await page.waitForSelector( ".woocommerce-order-received" );
 
-    // open order page
-    await functions.open_order_page( page );
+    // grab order id
+    let order_id = await functions.grab_order_id( page );
 
-    // check that invoice was sent
-    let element = await page.$('.laskuhari-tila');
-    let invoice_status = await page.evaluate(el => el.textContent, element);
-    expect( invoice_status ).toBe( "LASKUTETTU" );
+    // go to orders list
+    await page.goto( config.wordpress_url + "/wp-admin/edit.php?post_type=shop_order" );
+    await functions.login( page, config.wordpress_user, config.wordpress_password );
 
-    // check that order status was set to processing
-    element = await page.$('#select2-order_status-container');
-    let order_status = await page.evaluate(el => el.textContent, element);
-    expect( order_status ).toBe( "Jonossa" );
-
-    // wait for a while so we can inspect the result
-    await functions.sleep( 5000 );
+    // check that the order was added to the list
+    await functions.wait_for_loading( page );
+    let element = await page.$('#post-'+order_id);
+    expect(element).toBeTruthy();
 
     // close browser
     await browser.close();

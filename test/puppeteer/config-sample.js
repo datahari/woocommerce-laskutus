@@ -14,4 +14,7 @@ module.exports = {
     test_customer_id: 2,
     test_customer_user: "test-customer",
     test_customer_password: "test-customer-password",
+
+    // whether to run tests in headless mode
+    headless: true,
 };

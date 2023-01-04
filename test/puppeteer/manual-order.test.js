@@ -13,7 +13,7 @@ const config    = require('./config.js');
 
 test("manual-order", async () => {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: config.headless,
         defaultViewport: {
             width: 1452,
             height: 768
@@ -26,7 +26,7 @@ test("manual-order", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
@@ -49,7 +49,7 @@ test("manual-order", async () => {
     let invoice_status = await page.evaluate(el => el.textContent, element);
     expect( invoice_status ).toBe( "EI LASKUTETTU" );
 
-    await page.waitFor( 600 );
+    await functions.sleep( 600 );
 
     // change status of order
     await page.waitForSelector( "#order_status" );
@@ -59,9 +59,10 @@ test("manual-order", async () => {
     await page.click( ".button.save_order.button-primary" );
 
     // wait for "create invoice" button to load and click it
-    await page.waitFor( ".laskuhari-nappi.uusi-lasku" );
+    await page.waitForSelector( ".laskuhari-nappi.uusi-lasku" );
+    await functions.sleep( 2000 );
     await page.click( ".laskuhari-nappi.uusi-lasku" );
-    await page.waitFor( 600 );
+    await functions.sleep( 1000 );
 
     // input a reference
     await page.click( "#laskuhari-viitteenne" );
@@ -71,7 +72,7 @@ test("manual-order", async () => {
     await page.click( "#laskuhari-create-only" );
 
     // wait for page to load
-    await page.waitFor( ".laskuhari-payment-status" );
+    await page.waitForSelector( ".laskuhari-payment-status" );
 
     // check that an invoice was created
     element = await page.$('.laskuhari-tila');
@@ -84,15 +85,16 @@ test("manual-order", async () => {
     expect( invoice_status ).toMatch( /.*Avoin.*/ );
 
     // click "send invoice"
+    await functions.sleep( 1000 );
     await page.click( ".laskuhari-nappi.laheta-lasku" );
-    await page.waitFor( 600 );
+    await functions.sleep( 1000 );
 
     // select email invoice method
     await page.evaluate( function() {
         let $ = jQuery;
         $("#laskuhari-laskutustapa").val("email").change();
     } );
-    await page.waitFor( 200 );
+    await functions.sleep( 1000 );
 
     // input email address
     await page.click( "#laskuhari-email" );
@@ -114,18 +116,18 @@ test("manual-order", async () => {
 
     // click "create a new invoice"
     await page.click( ".laskuhari-nappi.uusi-lasku" );
-    await page.waitFor( 600 );
+    await functions.sleep( 600 );
 
     // select "send"
     await page.click( "#laskuhari-send-check" );
-    await page.waitFor( 600 );
+    await functions.sleep( 600 );
 
     // click "create and send"
     await page.click( "#laskuhari-create-and-send" );
 
     // wait for page to load
     await page.waitForNavigation();
-    await page.waitFor( ".laskuhari-payment-status" );
+    await page.waitForSelector( ".laskuhari-payment-status" );
 
     // check that an invoice was sent
     element = await page.$('.laskuhari-tila');
@@ -146,7 +148,7 @@ test("manual-order", async () => {
     await functions.open_invoice_pdf( page );
 
     // wait for a while so we can assess the results
-    await page.waitFor( 6000 );
+    await functions.sleep( 6000 );
 
     // close browser
     await browser.close();

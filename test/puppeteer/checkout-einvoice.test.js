@@ -1,9 +1,10 @@
 const puppeteer = require('puppeteer');
 const functions = require('./functions.js');
+const config = require('./config.js');
 
 test("checkout-einvoice", async () => {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: config.headless,
         defaultViewport: {
             width: 1452,
             height: 768
@@ -16,7 +17,7 @@ test("checkout-einvoice", async () => {
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout( 60000 );
 
-    page.on("pageerror", function(err) {  
+    page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
             browser.close();
@@ -48,7 +49,7 @@ test("checkout-einvoice", async () => {
 
     // wait for settings to be saved
     await page.waitForNavigation();
-    await page.waitFor( ".updated.inline" );
+    await page.waitForSelector( ".updated.inline" );
 
     // log out
     await functions.logout( page );
@@ -60,9 +61,10 @@ test("checkout-einvoice", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("verkkolasku").change();
     });
-    await page.waitFor( 1500 );
+    await functions.sleep( 1500 );
 
     // insert business id
+    await functions.wait_for_loading( page );
     await page.click( "#laskuhari-ytunnus" );
     await page.keyboard.type( "1234567-8" );
 
@@ -74,7 +76,7 @@ test("checkout-einvoice", async () => {
     await page.evaluate(function() {
         jQuery("#laskuhari-valittaja").val("003723327487").change();
     });
-    await page.waitFor( 500 );
+    await functions.sleep( 500 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
@@ -83,17 +85,17 @@ test("checkout-einvoice", async () => {
     await functions.place_order( page );
 
     // wait 30 seconds for cron queue to be processed
-    await page.waitFor( 30000 );
+    await functions.sleep( 30000 );
 
     // open order page
     await functions.open_order_page( page );
 
     // wait to load page completely
-    await page.waitFor( 500 );
+    await functions.sleep( 500 );
 
     // click "Send invoice"
     await page.click( ".laskuhari-nappi.laheta-lasku" );
-    await page.waitFor( 1000 );
+    await functions.sleep( 1000 );
 
     // check that the business id was saved
     let element = await page.$('#laskuhari-ytunnus');
@@ -118,7 +120,7 @@ test("checkout-einvoice", async () => {
     expect( val ).toMatch( /.*Virhe laskun lähetyksessä.*KEY_ERROR.*/ );
 
     // wait for a while so we can inspect the result
-    await page.waitFor( 5000 );
+    await functions.sleep( 5000 );
 
     // close browser
     await browser.close();
