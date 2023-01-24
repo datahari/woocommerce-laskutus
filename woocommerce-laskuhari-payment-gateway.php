@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.7.3
+Version: 1.7.4
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -2670,7 +2670,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     // lisätään alennus
-    if( abs( round( $cart_discount, 2 ) ) > 0 ) {
+    if( round( $cart_discount, 2 ) > 0 && round( $cart_discount_tax, 2 ) >= 0 ) {
         $discount_name = "Alennus";
 
         $coupon_count = count( $coupon_codes );
