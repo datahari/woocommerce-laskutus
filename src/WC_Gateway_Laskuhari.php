@@ -977,11 +977,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
                 foreach ( $order->get_items() as $item ) {
 
-                    $_product = $order->get_product_from_item( $item );
+                    if( is_a( $item, WC_Order_Item_Product::class ) ) {
+                        /** @var WC_Order_Item_Product $item */
+                        $_product = $item->get_product();
 
-                    if ( $_product && $_product->needs_shipping() ) {
-                        $needs_shipping = true;
-                        break;
+                        if ( $_product && $_product->needs_shipping() ) {
+                            $needs_shipping = true;
+                            break;
+                        }
                     }
                 }
             }
