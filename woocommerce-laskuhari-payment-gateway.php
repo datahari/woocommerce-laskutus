@@ -2714,6 +2714,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     // lisätään maksut
+    /** @var WC_Order_Item_Fee $item_fee */
     foreach( $order->get_items('fee') as $item_fee ){
         $fee_name      = $item_fee->get_name();
         $fee_total_tax = $item_fee->get_total_tax();
