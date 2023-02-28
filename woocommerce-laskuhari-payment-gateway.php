@@ -1902,9 +1902,8 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
                 $order->update_status( $status_after_paid );
             }
         } elseif( $old_status != "" ) {
-            // if invoice status is changed to unpaid, change order status based on settings
-            // only if order was made by payment gateway
-            $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
+            // if invoice status is changed to unpaid, change order status based on filter
+            $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", false, $order_id );
             if( $status_after_unpaid ) {
                 $order->update_status( $status_after_unpaid );
             }
