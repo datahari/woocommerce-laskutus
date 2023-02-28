@@ -53,6 +53,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
     public function test_api_returns_attributes_for_variations()
     {
         // send request to fetch 50 products
+        /** @var array<array<string, mixed>> $response */
         $response = $this->send_authenticated_api_request( "/wp-json/wc/v3/products/laskuhari-export?per_page=50" );
 
         $variations_found = 0;
@@ -60,6 +61,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
         // check that product variations have attributes
         foreach( $response as $product ) {
             if( $product['type'] === "variation" ) {
+                /** @var array<string, array<string, array<string, mixed>>> $product */
                 $variations_found++;
 
                 foreach( $product['attributes'] as $attribute ) {
@@ -100,6 +102,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
     public function test_api_response_from_count_endpoint()
     {
         // send request to /products/laskuhari-count endpoint
+        /** @var array<array<string, mixed>> $response */
         $response = $this->send_authenticated_api_request( "/wp-json/wc/v3/products/laskuhari-count" );
 
         // assert that it returns an array of an array with key "count"
@@ -144,9 +147,9 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * Helper function for generating an API request
      *
      * @param string $api_endpoint
-     * @param array $config
-     * @param array $headers
-     * @return void
+     * @param array<string, array<string, mixed>> $config
+     * @param array<string, string> $headers
+     * @return array<string, mixed>
      */
     private function send_api_request( $api_endpoint, $config, $headers ) {
         // get the API url from the config array
@@ -164,18 +167,25 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
         // Check for errors
         if ( is_wp_error( $response ) ) {
             // Throw an exception if there are errors
+            /** @var WP_Error $response */
             throw new Exception( 'Error: ' . $response->get_error_message() );
         }
 
         // extract the data from the response
-        return json_decode( wp_remote_retrieve_body( $response ), true );
+        $response = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if( ! is_array( $response ) ) {
+            throw new \Exception( "Error in JSON decode" );
+        }
+
+        return $response;
     }
 
     /**
      * Helper function for sending authenticated API request
      *
      * @param string $api_endpoint
-     * @return void
+     * @return array<string, mixed>
      */
     private function send_authenticated_api_request( $api_endpoint ) {
         global $__laskuhari_test_config;
@@ -194,7 +204,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * Helper function for sending unauthenticated API request
      *
      * @param string $api_endpoint
-     * @return void
+     * @return array<string, mixed>
      */
     private function send_unauthenticated_api_request( $api_endpoint ) {
         global $__laskuhari_test_config;
@@ -209,7 +219,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * Helper function for sending wrongly authenticated API request
      *
      * @param string $api_endpoint
-     * @return void
+     * @return array<string, mixed>
      */
     private function send_wrongly_authenticated_api_request( $api_endpoint ) {
         global $__laskuhari_test_config;

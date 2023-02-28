@@ -24,7 +24,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
      */
     public function test_it_returns_an_error_when_called_with_wrong_api_key() {
         $apikey = 'wrong_api_key_qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm';
-        $uid = '123';
+        $uid = 123;
 
         $response = $this->send_api_request( "", $uid, $apikey );
 
@@ -79,6 +79,10 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
             "wc_order_id" => 4321,
         ]);
 
+        if( ! is_string( $request ) ) {
+            throw new \Exception( "Error in JSON encode" );
+        }
+
         $response = $this->send_authenticated_api_request( $request );
 
         $this->assertEquals( ["status" => "OK", "message" => "Invoice number not found here"], $response['body'] );
@@ -103,6 +107,10 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
             "wc_order_id" => $this->get_config()['laskuhari_api']['wc_order_id'],
         ]);
 
+        if( ! is_string( $request ) ) {
+            throw new \Exception( "Error in JSON encode" );
+        }
+
         $response = $this->send_authenticated_api_request( $request );
 
         $this->assertEquals( ["status" => "OK", "message" => "Payment status updated"], $response['body'] );
@@ -119,6 +127,10 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
             "event" => "unknown_event",
         ]);
 
+        if( ! is_string( $request ) ) {
+            throw new \Exception( "Error in JSON encode" );
+        }
+
         $response = $this->send_authenticated_api_request( $request );
 
         $this->assertEquals( ["status" => "ERROR", "message" => "Unknown event"], $response['body'] );
@@ -128,7 +140,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
     /**
      * Helper function to get global config array
      *
-     * @return array
+     * @return array<string, array<string, int|string>>
      */
     private function get_config() {
         global $__laskuhari_test_config;
@@ -139,12 +151,12 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
      * Helper function to send properly authenticated API request
      *
      * @param string $request
-     * @param array $headers
-     * @return void
+     * @param array<string, string> $headers
+     * @return array<string, mixed>
      */
     private function send_authenticated_api_request( $request, $headers = [] ) {
-        $uid = $this->get_config()['laskuhari_api']['uid'];
-        $apikey = $this->get_config()['laskuhari_api']['apikey'];
+        $uid = (int)$this->get_config()['laskuhari_api']['uid'];
+        $apikey = (string)$this->get_config()['laskuhari_api']['apikey'];
 
         return $this->send_api_request( $request, $uid, $apikey, $headers );
     }
@@ -155,12 +167,12 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
      * @param string $request
      * @param int|null $uid
      * @param string|null $apikey
-     * @param array $headers
-     * @return array
+     * @param array<string, string> $headers
+     * @return array<string, mixed>
      */
     private function send_api_request( $request, $uid, $apikey, $headers = [] ) {
         // get the API url from the config array
-        $api_url = $this->get_config()['laskuhari_api']['url'];
+        $api_url = (string)$this->get_config()['laskuhari_api']['url'];
 
         // add x-timestamp header if not set
         if( ! isset( $headers['X-Timestamp'] ) ) {
@@ -185,6 +197,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
         // Check for errors
         if ( is_wp_error( $response ) ) {
             // Throw an exception if there are errors
+            /** @var WP_Error $response */
             throw new Exception( 'Error: ' . $response->get_error_message() );
         }
 
