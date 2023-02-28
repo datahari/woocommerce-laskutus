@@ -218,11 +218,32 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public $receipt_template;
 
     /**
+     * Laskuhari UID
+     *
+     * @var int
+     */
+    public $uid;
+
+    /**
+     * Laskuhari API-key
+     *
+     * @var string
+     */
+    public $apikey;
+
+    /**
      * Whether actions are already added
      *
      * @var bool
      */
     protected static $actions_added = false;
+
+    /**
+     * Minimum amount that can be invoiced
+     *
+     * @var int
+     */
+    protected $min_amount = 0;
 
     /**
      * Get a static instance of this class
