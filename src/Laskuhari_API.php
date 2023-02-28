@@ -144,8 +144,7 @@ class Laskuhari_API
         $decoded = json_decode( $this->request, true );
 
         if( ! is_array( $decoded ) ) {
-            $this->error( 400, "Unable to decode JSON request" );
-            exit;
+            return;
         }
 
         $this->request_json = $decoded;
