@@ -502,10 +502,10 @@ function laskuhari_user_meta() {
             "name"  => "_laskuhari_valittaja",
             "title" => __( 'Verkkolaskuoperaattori', 'laskuhari' ),
             "type"  => "select",
-            "options" => [
-                "" => "-- Valitse --",
-                ...$operators,
-            ],
+            "options" => array_merge(
+                ["" => "-- Valitse --"],
+                $operators
+            )
         )
     );
 
@@ -2358,13 +2358,15 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
 }
 
 function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+    $args = func_get_args();
+
     // schedule background event
     $delayed_event = laskuhari_schedule_background_event(
         'laskuhari_process_action_delayed_action',
-        func_get_args(),
+        $args,
         false,
         20,
-        1,
+        1
     );
 
     if( $delayed_event === true ) {
@@ -2372,10 +2374,10 @@ function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_actio
         update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
 
         // save process args so that queue can be processed later in case of errors
-        update_post_meta( $order_id, '_laskuhari_queued_args', func_get_args() );
+        update_post_meta( $order_id, '_laskuhari_queued_args', $args );
     } else {
         // if background event scheduling fails, process action now
-        laskuhari_process_action( ...func_get_args() );
+        laskuhari_process_action( ...$args );
     }
 }
 
