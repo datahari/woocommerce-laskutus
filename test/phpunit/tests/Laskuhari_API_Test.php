@@ -142,9 +142,8 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
      *
      * @return array<string, array<string, int|string>>
      */
-    private function get_config() {
-        global $__laskuhari_test_config;
-        return $__laskuhari_test_config;
+    private function get_config(): array {
+        return require( __DIR__ . "/../config.php" );
     }
 
     /**

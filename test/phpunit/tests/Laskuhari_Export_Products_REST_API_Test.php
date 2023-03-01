@@ -2,6 +2,15 @@
 class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCase
 {
     /**
+     * Helper function to get global config array
+     *
+     * @return array<string, array<string, int|string>>
+     */
+    private function get_config(): array {
+        return require( __DIR__ . "/../config.php" );
+    }
+
+    /**
      * Test that the /products/laskuhari-export endpoint returns 10 products by default
      *
      * @return void
@@ -188,7 +197,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * @return array<string, mixed>
      */
     private function send_authenticated_api_request( $api_endpoint ) {
-        global $__laskuhari_test_config;
+        $__laskuhari_test_config = $this->get_config();
 
         // get the API access keys from the global config array
         $consumer_key = $__laskuhari_test_config['wc_api']['consumer_key'];
@@ -207,12 +216,10 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * @return array<string, mixed>
      */
     private function send_unauthenticated_api_request( $api_endpoint ) {
-        global $__laskuhari_test_config;
-
         // don't send headers
         $headers = [];
 
-        return $this->send_api_request( $api_endpoint, $__laskuhari_test_config, $headers );
+        return $this->send_api_request( $api_endpoint, $this->get_config(), $headers );
     }
 
     /**
@@ -222,8 +229,6 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * @return array<string, mixed>
      */
     private function send_wrongly_authenticated_api_request( $api_endpoint ) {
-        global $__laskuhari_test_config;
-
         // send wrong key and secret
         $consumer_key = "ck_thisisthewronkeyqwertyuiopasdfghjklzxcvb";
         $consumer_secret = "cs_thisisthewrongsecretqwertyuioasdfghjklzx";
@@ -231,6 +236,6 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
         // set authorization header
         $headers = ['Authorization' => 'Basic ' . base64_encode( $consumer_key . ':' . $consumer_secret )];
 
-        return $this->send_api_request( $api_endpoint, $__laskuhari_test_config, $headers );
+        return $this->send_api_request( $api_endpoint, $this->get_config(), $headers );
     }
 }

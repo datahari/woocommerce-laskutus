@@ -3,7 +3,7 @@
  * Configuration file for PHPUnit tests
  */
 
-$__laskuhari_test_config = [
+return [
     /**
      * Configuration for testing environment WooCommerce REST API
      */
