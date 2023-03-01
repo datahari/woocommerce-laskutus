@@ -15,6 +15,7 @@ test/phpunit/config.php
 
 # dont include phpunit result cache
 .phpunit.result.cache
+.phpunit.cache
 
 # dont include composer packages
 /vendor/
