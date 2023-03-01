@@ -87,19 +87,7 @@ class Laskuhari_Plugin_Updater
             return $transient;
         }
 
-        if( ! is_array( $response['response'] ) ) {
-            return $transient;
-        }
-
-        if( $response['response']['code'] !== 200 ) {
-            return $transient;
-        }
-
-        if( ! is_string( $response['body'] ) ) {
-            return $transient;
-        }
-
-        $result = json_decode( $response['body'] );
+        $result = json_decode( $response );
 
         if( ! ($result instanceof stdClass) ) {
             return $transient;
@@ -197,14 +185,10 @@ class Laskuhari_Plugin_Updater
             return new WP_Error( 'plugins_api_failed', __('An Unexpected HTTP Error occurred during the API request.</p> <p><a href="?" onclick="document.location.reload(); return false;">Try again</a>'), $response->get_error_message() );
         }
 
-        if( ! is_string( $response['body'] ) ) {
-            return $result;
-        }
-
-        $result = json_decode( $response['body'] );
+        $result = json_decode( $response );
 
         if( ! ($result instanceof stdClass) ) {
-            return new WP_Error( 'plugins_api_failed', __('An unknown error occurred'), $response['body'] );
+            return new WP_Error( 'plugins_api_failed', __('An unknown error occurred'), $response );
         }
 
         // convert sections to an array
@@ -231,14 +215,32 @@ class Laskuhari_Plugin_Updater
      *
      * @param string $url
      *
-     * @return array<string, mixed>|WP_Error
+     * @return string|WP_Error
      */
     private function api_fetch( $url ) {
         if( isset( $this->mock_response ) ) {
-            return $this->mock_response;
+            $response = $this->mock_response;
+        } else {
+            $response = wp_remote_get( $url );
         }
 
-        return wp_remote_get( $url );
+        if( is_wp_error( $response ) ) {
+            /** @var WP_Error $response */
+            return $response;
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        $body = wp_remote_retrieve_body( $response );
+
+        if( ! is_string( $body ) ) {
+            return new WP_Error( 'plugins_api_failed', __('The response was malformed') );
+        }
+
+        if( $code !== 200 ) {
+            return new WP_Error( 'plugins_api_failed', __('The response had the wrong response code') );
+        }
+
+        return $body;
     }
 
     /**
