@@ -415,45 +415,50 @@ function laskuhari_custom_status_filter( $query ) {
 /**
  * Get list of einvoice operators
  *
- * @return array<string, string> Associative array with key being the operator code
- *                               and value being the name of the operator
+ * @return array<string, array<string, string>> Associative array of operators. First level is operator type
+ *                                              (operator or bank). Second level key is operator code
+ *                                              and value is operator name.
  */
 function laskuhari_operators() {
     return apply_filters( "laskuhari_operators", [
-        "UTMOST"          => "4US Oy (UTMOST)",
-        "003723327487"    => "Apix Messaging Oy (003723327487)",
-        "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
-        "003703575029"    => "CGI (003703575029)",
-        "5909000716438"   => "Comarch (5909000716438)",
-        "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
-        "ROUTTY"          => "Dynatos (ROUTTY)",
-        "885790000000418" => "HighJump AS (885790000000418)",
-        "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
-        "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
-        "003721291126"    => "Maventa (003721291126)",
-        "003726044706"    => "Netbox Finland Oy (003726044706)",
-        "003708599126"    => "OpenText Oy (003708599126)",
-        "E204503"         => "OpusCapita Solutions Oy (E204503)",
-        "003723609900"    => "Pagero (003723609900)",
-        "FI28768767"      => "Posti Messaging Oy (FI28768767)",
-        "003701150617"    => "PostNord Strålfors Oy (003701150617)",
-        "003714377140"    => "Ropo Capital Oy (003714377140)",
-        "003703575029"    => "Telia (003703575029)",
-        "003701011385"    => "TietoEvry Oyj (003701011385)",
-        "885060259470028" => "Tradeshift (885060259470028)",
-        "003722207029"    => "Ålands Post Ab (003722207029)",
-        "HELSFIHH"        => "Aktia (HELSFIHH)",
-        "DABAFIHH"        => "Danske Bank (DABAFIHH)",
-        "DNBAFIHX"        => "DNB (DNBAFIHX)",
-        "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
-        "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
-        "ITELFIHH"        => "Oma Säästöpankki Oyj (ITELFIHH)",
-        "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
-        "POPFFI22"        => "POP Pankki  (POPFFI22)",
-        "SBANFIHH"        => "S-Pankki (SBANFIHH)",
-        "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
-        "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
-        "AABAFI22"        => "Ålandsbanken (AABAFI22)",
+        "operators" => [
+            "UTMOST"          => "4US Oy (UTMOST)",
+            "003723327487"    => "Apix Messaging Oy (003723327487)",
+            "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
+            "003703575029"    => "CGI (003703575029)",
+            "5909000716438"   => "Comarch (5909000716438)",
+            "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
+            "ROUTTY"          => "Dynatos (ROUTTY)",
+            "885790000000418" => "HighJump AS (885790000000418)",
+            "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
+            "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
+            "003721291126"    => "Maventa (003721291126)",
+            "003726044706"    => "Netbox Finland Oy (003726044706)",
+            "003708599126"    => "OpenText Oy (003708599126)",
+            "E204503"         => "OpusCapita Solutions Oy (E204503)",
+            "003723609900"    => "Pagero (003723609900)",
+            "FI28768767"      => "Posti Messaging Oy (FI28768767)",
+            "003701150617"    => "PostNord Strålfors Oy (003701150617)",
+            "003714377140"    => "Ropo Capital Oy (003714377140)",
+            "003703575029"    => "Telia (003703575029)",
+            "003701011385"    => "TietoEvry Oyj (003701011385)",
+            "885060259470028" => "Tradeshift (885060259470028)",
+            "003722207029"    => "Ålands Post Ab (003722207029)"
+        ],
+        "banks" => [
+            "HELSFIHH"        => "Aktia (HELSFIHH)",
+            "DABAFIHH"        => "Danske Bank (DABAFIHH)",
+            "DNBAFIHX"        => "DNB (DNBAFIHX)",
+            "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
+            "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
+            "ITELFIHH"        => "Oma Säästöpankki Oyj (ITELFIHH)",
+            "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
+            "POPFFI22"        => "POP Pankki  (POPFFI22)",
+            "SBANFIHH"        => "S-Pankki (SBANFIHH)",
+            "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
+            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
+            "AABAFI22"        => "Ålandsbanken (AABAFI22)"
+        ]
     ] );
 }
 
@@ -504,7 +509,8 @@ function laskuhari_user_meta() {
             "type"  => "select",
             "options" => array_merge(
                 ["" => "-- Valitse --"],
-                $operators
+                $operators['operators'],
+                $operators['banks']
             )
         )
     );

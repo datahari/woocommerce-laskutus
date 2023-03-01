@@ -514,45 +514,42 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
                 <select id="laskuhari-valittaja" name="laskuhari-valittaja">
                     <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
-                    <optgroup label="<?php echo __( 'Operaattorit', 'laskuhari' ); ?>">
-                        <option value="003723327487"<?php    echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
-                        <option value="BAWCFI22"<?php        echo ($valittaja == "BAWCFI22"     ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
-                        <option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
-                        <option value="885790000000418"<?php echo ($valittaja == "885790000000418" ? ' selected' : ''); ?>>HighJump AS (885790000000418)</option>
-                        <option value="INEXCHANGE"<?php      echo ($valittaja == "INEXCHANGE"   ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
-                        <option value="EXPSYS"<?php          echo ($valittaja == "EXPSYS"       ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
-                        <option value="003708599126"<?php    echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
-                        <option value="003721291126"<?php    echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
-                        <option value="003726044706"<?php    echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
-                        <option value="E204503"<?php         echo ($valittaja == "E204503"      ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
-                        <option value="003723609900"<?php    echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
-                        <option value="PALETTE"<?php         echo ($valittaja == "PALETTE"      ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
-                        <option value="003710948874"<?php    echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
-                        <option value="003701150617"<?php    echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
-                        <option value="003714377140"<?php    echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
-                        <option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
-                        <option value="003701011385"<?php    echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
-                        <option value="885060259470028"<?php echo ($valittaja == "885060259470028" ? ' selected' : ''); ?>>Tradeshift (885060259470028)</option>
-                    </optgroup>
-                    <optgroup label="<?php echo __('Pankit', 'laskuhari'); ?>">
-                        <option value="HELSFIHH"<?php echo ($valittaja == "HELSFIHH" ? ' selected' : ''); ?>>Aktia (HELSFIHH)</option>
-                        <option value="DABAFIHH"<?php echo ($valittaja == "DABAFIHH" ? ' selected' : ''); ?>>Danske Bank (DABAFIHH)</option>
-                        <option value="DNBAFIHX"<?php echo ($valittaja == "DNBAFIHX" ? ' selected' : ''); ?>>DNB (DNBAFIHX)</option>
-                        <option value="HANDFIHH"<?php echo ($valittaja == "HANDFIHH" ? ' selected' : ''); ?>>Handelsbanken (HANDFIHH)</option>
-                        <option value="NDEAFIHH"<?php echo ($valittaja == "NDEAFIHH" ? ' selected' : ''); ?>>Nordea Pankki (NDEAFIHH)</option>
-                        <option value="ITELFIHH"<?php echo ($valittaja == "ITELFIHH" ? ' selected' : ''); ?>>Oma Säästöpankki (ITELFIHH)</option>
-                        <option value="OKOYFIHH"<?php echo ($valittaja == "OKOYFIHH" ? ' selected' : ''); ?>>Osuuspankit (OKOYFIHH)</option>
-                        <option value="OKOYFIHH"<?php echo ($valittaja == "OKOYFIHH" ? ' selected' : ''); ?>>Pohjola Pankki (OKOYFIHH)</option>
-                        <option value="POPFFI22"<?php echo ($valittaja == "POPFFI22" ? ' selected' : ''); ?>>POP Pankki  (POPFFI22)</option>
-                        <option value="SBANFIHH"<?php echo ($valittaja == "SBANFIHH" ? ' selected' : ''); ?>>S-Pankki (SBANFIHH)</option>
-                        <option value="TAPIFI22"<?php echo ($valittaja == "TAPIFI22" ? ' selected' : ''); ?>>LähiTapiola (TAPIFI22)</option>
-                        <option value="ITELFIHH"<?php echo ($valittaja == "ITELFIHH" ? ' selected' : ''); ?>>Säästöpankit (ITELFIHH)</option>
-                        <option value="AABAFI22"<?php echo ($valittaja == "AABAFI22" ? ' selected' : ''); ?>>Ålandsbanken (AABAFI22)</option>
-                    </optgroup>
+                    <?php echo $this->operators_select_options_html( $valittaja ); ?>
                 </select>
             </div>
             </div>
         <?php
+    }
+
+    /**
+     * Creates HTML for operator select options
+     *
+     * @param string $selected_operator Selected operator code
+     *
+     * @return string HTML for operator select options
+     */
+    public function operators_select_options_html( $selected_operator ) {
+        $operators = laskuhari_operators();
+
+        $output = '<optgroup label="'.__( 'Operaattorit', 'laskuhari' ).'">';
+
+        foreach( $operators['operators'] as $code => $name ) {
+            $selected = $selected_operator === $code ? ' selected' : '';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+        }
+
+        $output .= '</optgroup>';
+
+        $output .= '<optgroup label="'.__( 'Pankit', 'laskuhari' ).'">';
+
+        foreach( $operators['banks'] as $code => $name ) {
+            $selected = $selected_operator === $code ? ' selected' : '';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+        }
+
+        $output .= '</optgroup>';
+
+        return $output;
     }
 
     /**
