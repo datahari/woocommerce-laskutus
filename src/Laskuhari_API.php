@@ -9,6 +9,8 @@
  *
  */
 
+namespace Laskuhari;
+
 defined( 'ABSPATH' ) || exit;
 
 class Laskuhari_API

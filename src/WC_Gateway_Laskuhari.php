@@ -1,4 +1,12 @@
 <?php
+namespace Laskuhari;
+
+use WC_Order;
+use WC_Order_Item_Product;
+use WC_Payment_Gateway;
+use WC_Product;
+use WC_Shipping_Zones;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
@@ -464,7 +472,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the invoicing method selection form
      *
-     * @param boolean $order_id
+     * @param bool $order_id
      * @return void
      */
     public function lahetystapa_lomake( $order_id = false ) {

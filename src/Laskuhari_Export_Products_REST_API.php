@@ -17,6 +17,12 @@
  * @class Laskuhari_Export_Products_REST_API
  */
 
+namespace Laskuhari;
+
+use WC_Product;
+use WC_Product_Variation;
+use WP_REST_Request;
+
 defined( 'ABSPATH' ) || exit;
 
 class Laskuhari_Export_Products_REST_API

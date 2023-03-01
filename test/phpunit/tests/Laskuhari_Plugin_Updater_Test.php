@@ -1,4 +1,7 @@
 <?php
+
+use Laskuhari\Laskuhari_Plugin_Updater;
+
 /**
  * PHPUnit tests for Laskuhari_Plugin_Updater class
  */

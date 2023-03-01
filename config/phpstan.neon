@@ -2,8 +2,9 @@ parameters:
   level: 9
   treatPhpDocTypesAsCertain: false
   exceptions:
-    uncheckedExceptionClasses:
-      - Exception
+    uncheckedExceptionRegexes:
+      - '#^Exception$#'
+      - '#^PHPUnit.*#'
     check:
       missingCheckedExceptionInThrows: true
   paths:

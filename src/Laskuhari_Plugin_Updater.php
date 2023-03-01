@@ -1,4 +1,11 @@
 <?php
+namespace Laskuhari;
+
+use Laskuhari\Exception\HTTPRequestException;
+use Laskuhari\Exception\JSONDecodeException;
+use stdClass;
+use WP_Error;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
@@ -26,7 +33,7 @@ class Laskuhari_Plugin_Updater
     /**
      * Mock API response for testing purposes
      *
-     * @var null|array<string, mixed>|WP_Error $mock_response
+     * @var ?array<string, mixed> $mock_response
      */
     private $mock_response;
 
@@ -81,15 +88,11 @@ class Laskuhari_Plugin_Updater
     public function check_for_updates( $transient ) {
         $current_version = $this->get_plugin_version();
 
-        $response = $this->api_fetch( self::API_URL );
-
-        if( is_wp_error( $response ) || ($response instanceof WP_Error) ) {
+        try {
+            $result = $this->api_fetch( self::API_URL );
+        } catch( HTTPRequestException $e ) {
             return $transient;
-        }
-
-        $result = json_decode( $response );
-
-        if( ! ($result instanceof stdClass) ) {
+        } catch( JSONDecodeException $e ) {
             return $transient;
         }
 
@@ -161,11 +164,11 @@ class Laskuhari_Plugin_Updater
      * Intercepts the plugins_api call when checking Laskuhari plugin information
      * and fetches the plugin information from the Laskuhari API
      *
-     * @param false|object $result
+     * @param false|stdClass $result
      * @param string $action
-     * @param object $args
+     * @param stdClass $args
      *
-     * @return false|object
+     * @return false|stdClass|WP_Error
      */
     public function plugin_api_call( $result, $action, $args ) {
         // don't intercept other plugins' calls
@@ -178,17 +181,12 @@ class Laskuhari_Plugin_Updater
             return $result;
         }
 
-        $response = $this->api_fetch( self::API_URL );
-
-        if( is_wp_error( $response ) || ($response instanceof WP_Error) ) {
-            /** @var WP_Error $response */
-            return new WP_Error( 'plugins_api_failed', __('An Unexpected HTTP Error occurred during the API request.</p> <p><a href="?" onclick="document.location.reload(); return false;">Try again</a>'), $response->get_error_message() );
-        }
-
-        $result = json_decode( $response );
-
-        if( ! ($result instanceof stdClass) ) {
-            return new WP_Error( 'plugins_api_failed', __('An unknown error occurred'), $response );
+        try {
+            $result = $this->api_fetch( self::API_URL );
+        } catch( HTTPRequestException $e ) {
+            return new WP_Error( 'plugins_api_failed', __( 'An unexpected HTTP error occured during the Laskuhari Plugin API call' ), $e->getMessage() );
+        } catch( JSONDecodeException $e ) {
+            return new WP_Error( 'plugins_api_failed', __( 'An unexpected JSON error occured during the Laskuhari Plugin API call' ), $e->getMessage() );
         }
 
         // convert sections to an array
@@ -213,9 +211,12 @@ class Laskuhari_Plugin_Updater
     /**
      * Fetches the plugin information from the Laskuhari API
      *
-     * @param string $url
+     * @param string $url Laskuhari Plugin API URL
      *
-     * @return string|WP_Error
+     * @return stdClass JSON response from Laskuhari Plugin API
+     *
+     * @throws HTTPRequestException
+     * @throws JSONDecodeException
      */
     private function api_fetch( $url ) {
         if( isset( $this->mock_response ) ) {
@@ -224,29 +225,26 @@ class Laskuhari_Plugin_Updater
             $response = wp_remote_get( $url );
         }
 
-        if( is_wp_error( $response ) ) {
-            /** @var WP_Error $response */
-            return $response;
-        }
-
         $code = wp_remote_retrieve_response_code( $response );
         $body = wp_remote_retrieve_body( $response );
 
-        if( ! is_string( $body ) ) {
-            return new WP_Error( 'plugins_api_failed', __('The response was malformed') );
+        if( ! is_string( $body ) || $code !== 200 ) {
+            throw new HTTPRequestException( "Failed to make request to Laskuhari Plugin API" );
         }
 
-        if( $code !== 200 ) {
-            return new WP_Error( 'plugins_api_failed', __('The response had the wrong response code') );
+        $result = json_decode( $body );
+
+        if( ! ( $result instanceof stdClass ) ) {
+            throw new JSONDecodeException( "Failed to decode JSON from Laskuhari Plugin API" );
         }
 
-        return $body;
+        return $result;
     }
 
     /**
      * Sets a mock response from the update API for testing purposes
      *
-     * @param array<string, mixed>|WP_Error $response
+     * @param array<string, mixed> $response
      *
      * @return void
      */
