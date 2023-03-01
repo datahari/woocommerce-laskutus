@@ -19,9 +19,11 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-require_once plugin_dir_path( __FILE__ ) . 'updater.php';
+require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Plugin_Updater.php';
 require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
 require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_API.php';
+
+Laskuhari_Plugin_Updater::init();
 
 if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
     Laskuhari_Export_Products_REST_API::init();
