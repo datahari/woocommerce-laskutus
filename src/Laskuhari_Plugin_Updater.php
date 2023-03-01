@@ -26,7 +26,7 @@ class Laskuhari_Plugin_Updater
     /**
      * Mock API response for testing purposes
      *
-     * @var ?array|WP_Error $mock_response
+     * @var null|array<string, mixed>|WP_Error $mock_response
      */
     private $mock_response;
 
@@ -87,7 +87,15 @@ class Laskuhari_Plugin_Updater
             return $transient;
         }
 
+        if( ! is_array( $response['response'] ) ) {
+            return $transient;
+        }
+
         if( $response['response']['code'] !== 200 ) {
+            return $transient;
+        }
+
+        if( ! is_string( $response['body'] ) ) {
             return $transient;
         }
 
@@ -189,6 +197,10 @@ class Laskuhari_Plugin_Updater
             return new WP_Error( 'plugins_api_failed', __('An Unexpected HTTP Error occurred during the API request.</p> <p><a href="?" onclick="document.location.reload(); return false;">Try again</a>'), $response->get_error_message() );
         }
 
+        if( ! is_string( $response['body'] ) ) {
+            return $result;
+        }
+
         $result = json_decode( $response['body'] );
 
         if( ! ($result instanceof stdClass) ) {
@@ -219,7 +231,7 @@ class Laskuhari_Plugin_Updater
      *
      * @param string $url
      *
-     * @return array|WP_Error
+     * @return array<string, mixed>|WP_Error
      */
     private function api_fetch( $url ) {
         if( isset( $this->mock_response ) ) {
@@ -232,7 +244,7 @@ class Laskuhari_Plugin_Updater
     /**
      * Sets a mock response from the update API for testing purposes
      *
-     * @param array|WP_Error $response
+     * @param array<string, mixed>|WP_Error $response
      *
      * @return void
      */
