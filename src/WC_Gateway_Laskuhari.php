@@ -408,11 +408,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return array<int|string, mixed>
      */
     public function get_other_payment_methods() {
-        if( ! isset( WC()->payment_gateways ) ) {
-            throw new \Exception( "Error loading other gateways" );
-        }
-
-        $gateways = WC()->payment_gateways->payment_gateways();
+        $gateways = WC()->payment_gateways()->payment_gateways();
 
         $payment_methods = [];
 
