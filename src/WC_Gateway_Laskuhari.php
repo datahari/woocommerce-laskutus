@@ -7,9 +7,7 @@ use WC_Payment_Gateway;
 use WC_Product;
 use WC_Shipping_Zones;
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
-}
+defined( 'ABSPATH' ) || exit;
 
 /**
  * Laskuhari Gateway.

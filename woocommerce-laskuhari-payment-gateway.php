@@ -20,9 +20,7 @@ use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\WC_Gateway_Laskuhari;
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
-}
+defined( 'ABSPATH' ) || exit;
 
 require_once dirname( __FILE__ ) . '/autoload.php';
 
