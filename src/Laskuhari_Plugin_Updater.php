@@ -1,14 +1,14 @@
 <?php
 namespace Laskuhari;
 
-use Laskuhari\Exception\HTTPRequestException;
-use Laskuhari\Exception\JSONDecodeException;
+use Exception;
 use stdClass;
 use WP_Error;
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
-}
+use Laskuhari\Exception\HTTPRequestException;
+use Laskuhari\Exception\JSONDecodeException;
+
+defined( 'ABSPATH' ) || exit;
 
 /**
  * This class is used for updating the Laskuhari plugin through the WordPress UI
@@ -90,13 +90,20 @@ class Laskuhari_Plugin_Updater
 
         try {
             $result = $this->api_fetch( self::API_URL );
-        } catch( HTTPRequestException $e ) {
-            return $transient;
-        } catch( JSONDecodeException $e ) {
+        } catch( Exception $e ) {
+            $error_message = sprintf(
+                __( 'An unexpected %s occured when checking for Laskuhari plugin updates', 'laskuhari' ),
+                $e::class
+            );
+
+            error_log( $error_message );
+
             return $transient;
         }
 
         if( ! isset( $result->version ) ) {
+            error_log( __( 'Version property was missing when checking for Laskuhari plugin updates', 'laskuhari' ) );
+
             return $transient;
         }
 
@@ -178,15 +185,16 @@ class Laskuhari_Plugin_Updater
 
         // we have only implemented the "plugin_information" action
         if( $action !== "plugin_information" ) {
+            error_log( sprintf( __( 'Call to unknown action %s for Laskuhari Plugin API', 'laskuhari' ), $action ) );
+
             return $result;
         }
 
         try {
             $result = $this->api_fetch( self::API_URL );
-        } catch( HTTPRequestException $e ) {
-            return new WP_Error( 'plugins_api_failed', __( 'An unexpected HTTP error occured during the Laskuhari Plugin API call' ), $e->getMessage() );
-        } catch( JSONDecodeException $e ) {
-            return new WP_Error( 'plugins_api_failed', __( 'An unexpected JSON error occured during the Laskuhari Plugin API call' ), $e->getMessage() );
+        } catch( Exception $e ) {
+            $error_message = sprintf( __( 'An unexpected %s occured during the Laskuhari Plugin API call', 'laskuhari' ), $e::class );
+            return new WP_Error( 'plugins_api_failed', $error_message, $e->getMessage() );
         }
 
         // convert sections to an array
