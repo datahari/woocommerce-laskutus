@@ -30,6 +30,10 @@ rm -rf woocommerce-laskuhari-payment-gateway/scripts
 # remove config
 rm -rf woocommerce-laskuhari-payment-gateway/config
 
+# remove composer files
+rm -f woocommerce-laskuhari-payment-gateway/composer.json
+rm -f woocommerce-laskuhari-payment-gateway/composer.lock
+
 # get version number
 VERSION=`grep "Version: " woocommerce-laskuhari-payment-gateway/woocommerce-laskuhari-payment-gateway.php | awk '{print $2}'`
 
