@@ -93,7 +93,7 @@ class Laskuhari_Plugin_Updater
         } catch( Exception $e ) {
             $error_message = sprintf(
                 __( 'An unexpected %s occured when checking for Laskuhari plugin updates', 'laskuhari' ),
-                $e::class
+                get_class( $e )
             );
 
             error_log( $error_message );
@@ -193,7 +193,7 @@ class Laskuhari_Plugin_Updater
         try {
             $result = $this->api_fetch( self::API_URL );
         } catch( Exception $e ) {
-            $error_message = sprintf( __( 'An unexpected %s occured during the Laskuhari Plugin API call', 'laskuhari' ), $e::class );
+            $error_message = sprintf( __( 'An unexpected %s occured during the Laskuhari Plugin API call', 'laskuhari' ), get_class( $e ) );
             return new WP_Error( 'plugins_api_failed', $error_message, $e->getMessage() );
         }
 
