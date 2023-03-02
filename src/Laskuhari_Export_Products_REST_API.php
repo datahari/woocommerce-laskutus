@@ -17,6 +17,12 @@
  * @class Laskuhari_Export_Products_REST_API
  */
 
+namespace Laskuhari;
+
+use WC_Product;
+use WC_Product_Variation;
+use WP_REST_Request;
+
 defined( 'ABSPATH' ) || exit;
 
 class Laskuhari_Export_Products_REST_API
@@ -24,18 +30,18 @@ class Laskuhari_Export_Products_REST_API
     /**
      * Instance of the class
      *
-     * @var Laskuhari_Export_Products_REST_API
+     * @var ?Laskuhari_Export_Products_REST_API
      */
     protected static $instance;
 
     /**
      * Initialize the REST API endpoints
      *
-     * @return static
+     * @return void
      */
     public static function init() {
         if( ! isset( static::$instance ) ) {
-            static::$instance = new static();
+            static::$instance = new self();
             add_action( 'rest_api_init', [static::$instance, 'register_endpoints'] );
         }
     }
@@ -101,7 +107,7 @@ class Laskuhari_Export_Products_REST_API
         // apply specific filter for this REST API endpoint permission
         $is_allowed = apply_filters( 'laskuhari_check_rest_api_permission_export', $is_allowed, $request );
 
-        return $is_allowed;
+        return (bool)$is_allowed;
     }
 
     /**
@@ -110,20 +116,21 @@ class Laskuhari_Export_Products_REST_API
      * @param string $value
      * @param WP_REST_Request $request
      * @param string $param
-     * @return void
+     * @return bool
      */
     public function check_per_page_param( $value, $request, $param ) {
         $is_valid = is_numeric( $value ) && $value <= 100;
         $is_valid = apply_filters( 'laskuhari_rest_api_export_check_per_page_param', $is_valid, $value, $request, $param );
 
-        return $is_valid;
+        return (bool)$is_valid;
     }
 
     /**
      * Handles fetching of the endpoint result for /products/laskuhari-export
      *
      * @param WP_REST_Request $request
-     * @return array
+     * @return array<int, array<string, mixed>>
+     *
      */
     public function export_callback( $request ) {
         $page = $request->get_param( 'page' ) ?: 1;
@@ -146,6 +153,10 @@ class Laskuhari_Export_Products_REST_API
 
         foreach( $products_and_variations as $product_or_variation ) {
             $product = wc_get_product( $product_or_variation );
+
+            if( ! $product instanceof WC_Product ) {
+                continue;
+            }
 
             $product_data = [
                 'id'                 => $product->get_id(),
@@ -173,10 +184,11 @@ class Laskuhari_Export_Products_REST_API
             ];
 
             if( $product->is_type( 'variation' ) ) {
+                /** @var WC_Product_Variation $product */
                 $product_data['attributes'] = $this->get_variation_attributes( $product );
             }
 
-            $product_data = apply_filters( 'laskuhari_rest_api_export_product_data', $product_data, $product, $request );
+            $product_data = (array)apply_filters( 'laskuhari_rest_api_export_product_data', $product_data, $product, $request );
 
             $data[] = $product_data;
         }
@@ -188,14 +200,20 @@ class Laskuhari_Export_Products_REST_API
      * Gets an array of the variation attributes in the same
      * format as in the original WooCommerce REST API
      *
-     * @param WC_Product_Variation $product
-     * @return array
+     * @param WC_Product_Variation $variation
+     * @return array<int, array<string, string>>
+     *
      */
     protected function get_variation_attributes( $variation ) {
         $attributes = $variation->get_variation_attributes();
 
         $parent_id = $variation->get_parent_id();
         $parent = wc_get_product( $parent_id );
+
+        if( ! $parent instanceof WC_Product ) {
+            throw new \Exception( "Error getting parent product of variation" );
+        }
+
         $parent_attributes = $parent->get_attributes();
 
         $formatted_attributes = array();
@@ -221,7 +239,7 @@ class Laskuhari_Export_Products_REST_API
      * This is used to get the number of products and product variations in the system
      *
      * @param WP_REST_Request $request
-     * @return array
+     * @return array<array<string, int>>
      */
     public function count_callback( $request ) {
         return [['count' => $this->product_count()]];
@@ -234,7 +252,7 @@ class Laskuhari_Export_Products_REST_API
      * This is used to test if the Laskuhari API is available
      *
      * @param WP_REST_Request $request
-     * @return array
+     * @return array<array<string, string>>
      */
     public function test_callback( $request ) {
         return [['response' => 'laskuhari-active']];

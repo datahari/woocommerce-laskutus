@@ -1,0 +1,8 @@
+#!/bin/bash
+if [ -z "$1" ]; then
+    VERSION=7.2
+else
+    VERSION=$1
+fi
+
+vendor/squizlabs/php_codesniffer/bin/phpcs -p src/*.php *.php --runtime-set testVersion $VERSION --standard=PHPCompatibility

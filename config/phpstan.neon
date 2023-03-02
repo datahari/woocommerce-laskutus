@@ -1,0 +1,22 @@
+parameters:
+  level: 9
+  treatPhpDocTypesAsCertain: false
+  exceptions:
+    uncheckedExceptionRegexes:
+      - '#^Exception$#'
+      - '#^PHPUnit.*#'
+    check:
+      missingCheckedExceptionInThrows: true
+  paths:
+    - ../src
+    - ../test/phpunit/tests
+  scanFiles:
+    - ../woocommerce-laskuhari-payment-gateway.php
+    - ../test/phpunit/config.php
+  scanDirectories:
+    - ../test/assets/wordpress/wp-includes/
+    - ../test/assets/wordpress/wp-admin/includes/
+    - ../test/assets/wordpress/wp-content/plugins/woocommerce/
+    - ../vendor/phpunit/phpunit/src
+  bootstrapFiles:
+    - ../test/assets/wordpress/wp-load.php

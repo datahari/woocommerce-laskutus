@@ -9,6 +9,8 @@
  *
  */
 
+namespace Laskuhari;
+
 defined( 'ABSPATH' ) || exit;
 
 class Laskuhari_API
@@ -16,14 +18,14 @@ class Laskuhari_API
     /**
      * Instance of the class
      *
-     * @var Laskuhari_API
+     * @var ?Laskuhari_API
      */
     protected static $instance;
 
     /**
      * The request JSON as an array
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected $request_json;
 
@@ -42,9 +44,16 @@ class Laskuhari_API
     protected $gateway_object;
 
     /**
+     * Cache for headers
+     *
+     * @var ?array<string, string> $headers
+     */
+    protected $headers;
+
+    /**
      * Array of endpoints and their callback functions
      *
-     * @param array $gateway_object
+     * @var array<string, string> $endpoints
      */
     protected $endpoints = [
         "payment_status" => "handle_payment_status_request",
@@ -54,10 +63,12 @@ class Laskuhari_API
      * Initialize the API statically
      *
      * @param WC_Gateway_Laskuhari $gateway_object
+     *
+     * @return Laskuhari_API
      */
     public static function init( $gateway_object ) {
         if( ! isset( static::$instance ) ) {
-            static::$instance = new static( $gateway_object );
+            static::$instance = new Laskuhari_API( $gateway_object );
         }
 
         return static::$instance;
@@ -124,8 +135,21 @@ class Laskuhari_API
      * @return void
      */
     protected function read_request() {
-        $this->request = @file_get_contents( "php://input" );
-        $this->request_json = json_decode( $this->request, true );
+        $input = @file_get_contents( "php://input" );
+
+        if( $input === false ) {
+            $this->error( 400, "Unable to read input" );
+            exit;
+        }
+
+        $this->request = $input;
+        $decoded = json_decode( $this->request, true );
+
+        if( ! is_array( $decoded ) ) {
+            return;
+        }
+
+        $this->request_json = $decoded;
     }
 
     /**
@@ -150,7 +174,7 @@ class Laskuhari_API
     /**
      * Get all headers and make them lowercase
      *
-     * @return void
+     * @return array<string, string|int|float>
      */
     protected function get_headers() {
         if( isset( $this->headers ) ) {
@@ -173,7 +197,7 @@ class Laskuhari_API
      * Get a single header
      *
      * @param string $header_name
-     * @return string|null
+     * @return string|int|float|null
      */
     protected function get_header( $header_name ) {
         $headers = $this->get_headers();
@@ -187,9 +211,9 @@ class Laskuhari_API
      */
     protected function check_auth_key() {
         $hash = static::generate_auth_key( $this->gateway_object->uid, $this->gateway_object->apikey, $this->request );
-        $auth_key = $this->get_header( 'x-auth-key' );
+        $auth_key = (string)$this->get_header( 'x-auth-key' );
 
-        if( is_null( $auth_key ) || ! hash_equals( $hash, $auth_key ) ) {
+        if( ! hash_equals( $hash, $auth_key ) ) {
             do_action( "laskuhari_unauthorized_api_request" );
 
             http_response_code( 401 );
@@ -209,9 +233,9 @@ class Laskuhari_API
      */
     protected function check_timestamp() {
         // check that timestamps are in sync at least 30 seconds
-        $timestamp = $this->get_header( 'x-timestamp' );
+        $timestamp = intval( $this->get_header( 'x-timestamp' ) );
 
-        if( ! isset( $timestamp ) || abs( $timestamp - time() ) > 30 ) {
+        if( abs( $timestamp - time() ) > 30 ) {
             do_action( "laskuhari_api_request_invalid_timestamp" );
 
             $this->response_error( "Blocked possible duplicate request", 401 );
@@ -235,10 +259,27 @@ class Laskuhari_API
     /**
      * Check that the request is a Laskuhari API request
      *
-     * @return void
+     * @return bool
      */
     protected function api_is_called() {
         return isset( $_GET['__laskuhari_api'] ) && (string) $_GET['__laskuhari_api'] === "true";
+    }
+
+    /**
+     * Print out an error response
+     *
+     * @param int $error_code
+     * @param string $error_text
+     * @return void
+     */
+    protected function error( $error_code, $error_text ) {
+        http_response_code( $error_code );
+
+        echo json_encode([
+            "status"  => "ERROR",
+            "message" => $error_text,
+        ]);
+        exit;
     }
 
     /**
@@ -249,7 +290,7 @@ class Laskuhari_API
     public function handle_request() {
         // check if Laskuhari API is being called
         if( ! $this->api_is_called() ) {
-            return false;
+            return;
         }
 
         do_action( "laskuhari_api_request_received" );
@@ -263,14 +304,7 @@ class Laskuhari_API
             exit;
         }
 
-        http_response_code( 400 );
-
-        echo json_encode([
-            "status"  => "ERROR",
-            "message" => "Unknown event"
-        ]);
-        exit;
-
+        $this->error( 400, "Unknown event" );
     }
 
     /**
@@ -313,6 +347,11 @@ class Laskuhari_API
      */
     protected function handle_payment_status_request() {
         $status = $this->request_json['status'];
+
+        if( ! is_array( $status ) ) {
+            $this->error( 400, "Invalid status result" );
+            exit;
+        }
 
         if( isset( $this->request_json['wc_order_id'] ) && $this->request_json['wc_order_id'] > 0 ) {
             $invoice_number = laskuhari_invoice_number_by_order( $this->request_json['wc_order_id'] );

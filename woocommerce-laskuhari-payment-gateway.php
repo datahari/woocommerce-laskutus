@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.7.4
+Version: 1.8.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -15,13 +15,16 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
-}
+use Laskuhari\Laskuhari_API;
+use Laskuhari\Laskuhari_Export_Products_REST_API;
+use Laskuhari\Laskuhari_Plugin_Updater;
+use Laskuhari\WC_Gateway_Laskuhari;
 
-require_once plugin_dir_path( __FILE__ ) . 'updater.php';
-require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_Export_Products_REST_API.php';
-require_once plugin_dir_path( __FILE__ ) . 'src/Laskuhari_API.php';
+defined( 'ABSPATH' ) || exit;
+
+require_once dirname( __FILE__ ) . '/autoload.php';
+
+Laskuhari_Plugin_Updater::init();
 
 if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
     Laskuhari_Export_Products_REST_API::init();
@@ -34,8 +37,6 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_fallback_notice' );
         return;
     }
-
-    require_once plugin_dir_path( __FILE__ ) . 'src/WC_Gateway_Laskuhari.php';
 
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
 
@@ -410,7 +411,58 @@ function laskuhari_custom_status_filter( $query ) {
 
 }
 
+/**
+ * Get list of einvoice operators
+ *
+ * @return array<string, array<string, string>> Associative array of operators. First level is operator type
+ *                                              (operator or bank). Second level key is operator code
+ *                                              and value is operator name.
+ */
+function laskuhari_operators() {
+    return apply_filters( "laskuhari_operators", [
+        "operators" => [
+            "UTMOST"          => "4US Oy (UTMOST)",
+            "003723327487"    => "Apix Messaging Oy (003723327487)",
+            "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
+            "003703575029"    => "CGI (003703575029)",
+            "5909000716438"   => "Comarch (5909000716438)",
+            "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
+            "ROUTTY"          => "Dynatos (ROUTTY)",
+            "885790000000418" => "HighJump AS (885790000000418)",
+            "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
+            "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
+            "003721291126"    => "Maventa (003721291126)",
+            "003726044706"    => "Netbox Finland Oy (003726044706)",
+            "003708599126"    => "OpenText Oy (003708599126)",
+            "E204503"         => "OpusCapita Solutions Oy (E204503)",
+            "003723609900"    => "Pagero (003723609900)",
+            "FI28768767"      => "Posti Messaging Oy (FI28768767)",
+            "003701150617"    => "PostNord Strålfors Oy (003701150617)",
+            "003714377140"    => "Ropo Capital Oy (003714377140)",
+            "003703575029"    => "Telia (003703575029)",
+            "003701011385"    => "TietoEvry Oyj (003701011385)",
+            "885060259470028" => "Tradeshift (885060259470028)",
+            "003722207029"    => "Ålands Post Ab (003722207029)"
+        ],
+        "banks" => [
+            "HELSFIHH"        => "Aktia (HELSFIHH)",
+            "DABAFIHH"        => "Danske Bank (DABAFIHH)",
+            "DNBAFIHX"        => "DNB (DNBAFIHX)",
+            "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
+            "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
+            "ITELFIHH"        => "Oma Säästöpankki Oyj (ITELFIHH)",
+            "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
+            "POPFFI22"        => "POP Pankki  (POPFFI22)",
+            "SBANFIHH"        => "S-Pankki (SBANFIHH)",
+            "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
+            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
+            "AABAFI22"        => "Ålandsbanken (AABAFI22)"
+        ]
+    ] );
+}
+
 function laskuhari_user_meta() {
+    $operators = laskuhari_operators();
     $custom_meta_fields = array();
     $custom_meta_fields = array(
         array(
@@ -454,40 +506,11 @@ function laskuhari_user_meta() {
             "name"  => "_laskuhari_valittaja",
             "title" => __( 'Verkkolaskuoperaattori', 'laskuhari' ),
             "type"  => "select",
-            "options" => [
-                "" => "-- Valitse --",
-                "003723327487"    => "Apix Messaging Oy (003723327487)",
-                "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
-                "003703575029"    => "CGI (003703575029)",
-                "885790000000418" => "HighJump AS (885790000000418)",
-                "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
-                "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
-                "003708599126"    => "Liaison Technologies Oy (003708599126)",
-                "003721291126"    => "Maventa (003721291126)",
-                "003726044706"    => "Netbox Finland Oy (003726044706)",
-                "E204503"         => "OpusCapita Solutions Oy (E204503)",
-                "003723609900"    => "Pagero (003723609900)",
-                "PALETTE"         => "Palette Software (PALETTE)",
-                "003710948874"    => "Posti Messaging Oy (003710948874)",
-                "003701150617"    => "PostNord Strålfors Oy (003701150617)",
-                "003714377140"    => "Ropo Capital Oy (003714377140)",
-                "003703575029"    => "Telia (003703575029)",
-                "003701011385"    => "Tieto Oyj (003701011385)",
-                "885060259470028" => "Tradeshift (885060259470028)",
-                "HELSFIHH"        => "Aktia (HELSFIHH)",
-                "DABAFIHH"        => "Danske Bank (DABAFIHH)",
-                "DNBAFIHX"        => "DNB (DNBAFIHX)",
-                "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
-                "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
-                "ITELFIHH"        => "Oma Säästöpankki (ITELFIHH)",
-                "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
-                "OKOYFIHH"        => "Pohjola Pankki (OKOYFIHH)",
-                "POPFFI22"        => "POP Pankki  (POPFFI22)",
-                "SBANFIHH"        => "S-Pankki (SBANFIHH)",
-                "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
-                "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
-                "AABAFI22"        => "Ålandsbanken (AABAFI22)",
-            ]
+            "options" => array_merge(
+                ["" => "-- Valitse --"],
+                $operators['operators'],
+                $operators['banks']
+            )
         )
     );
 
@@ -1608,7 +1631,7 @@ function laskuhari_fallback_notice() {
 }
 
 function laskuhari_add_gateway( $methods ) {
-    $methods[] = 'WC_Gateway_Laskuhari';
+    $methods[] = WC_Gateway_Laskuhari::class;
     return $methods;
 }
 
@@ -1886,9 +1909,8 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
                 $order->update_status( $status_after_paid );
             }
         } elseif( $old_status != "" ) {
-            // if invoice status is changed to unpaid, change order status based on settings
-            // only if order was made by payment gateway
-            $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", $status_after_unpaid, $order_id );
+            // if invoice status is changed to unpaid, change order status based on filter
+            $status_after_unpaid = apply_filters( "laskuhari_status_after_update_status_unpaid", false, $order_id );
             if( $status_after_unpaid ) {
                 $order->update_status( $status_after_unpaid );
             }
@@ -1961,11 +1983,11 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
     }
 
     if( laskuhari_order_is_paid_by_other_method( $order_id ) && ! isset( $args['pohja'] ) && ! isset( $args['leima'] ) ) {
-        if( $laskuhari_gateway_object->paid_stamp === "yes" ) {
+        if( $laskuhari_gateway_object->paid_stamp ) {
             $args['leima'] = "maksettu";
         }
 
-        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+        if( $laskuhari_gateway_object->receipt_template ) {
             $args['pohja'] = "kuitti";
         }
     }
@@ -2175,7 +2197,7 @@ function laskuhari_send_invoice_attached( $order ) {
     $template_name = "lasku";
 
     if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        if( $laskuhari_gateway_object->receipt_template === "yes" ) {
+        if( $laskuhari_gateway_object->receipt_template ) {
             $template_name = "kuitti";
         }
     }
@@ -2341,13 +2363,15 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
 }
 
 function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+    $args = func_get_args();
+
     // schedule background event
     $delayed_event = laskuhari_schedule_background_event(
         'laskuhari_process_action_delayed_action',
-        func_get_args(),
+        $args,
         false,
         20,
-        1,
+        1
     );
 
     if( $delayed_event === true ) {
@@ -2355,10 +2379,10 @@ function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_actio
         update_post_meta( $order_id, '_laskuhari_queued', 'yes' );
 
         // save process args so that queue can be processed later in case of errors
-        update_post_meta( $order_id, '_laskuhari_queued_args', func_get_args() );
+        update_post_meta( $order_id, '_laskuhari_queued_args', $args );
     } else {
         // if background event scheduling fails, process action now
-        laskuhari_process_action( ...func_get_args() );
+        laskuhari_process_action( ...$args );
     }
 }
 
@@ -2699,6 +2723,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
     }
 
     // lisätään maksut
+    /** @var WC_Order_Item_Fee $item_fee */
     foreach( $order->get_items('fee') as $item_fee ){
         $fee_name      = $item_fee->get_name();
         $fee_total_tax = $item_fee->get_total_tax();

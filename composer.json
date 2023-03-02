@@ -1,0 +1,16 @@
+{
+    "name": "datahari/woocommerce-laskuhari-payment-gateway",
+    "description": "Enables invoicing WooCommerce orders with the Laskuhari invoicing software",
+    "authors": [
+        {
+            "name": "Datahari Solutions",
+            "email": "info@datahari.fi"
+        }
+    ],
+    "require-dev": {
+        "phpstan/phpstan": "^1.10",
+        "phpunit/phpunit": "^10.0",
+        "phpcompatibility/php-compatibility": "^9.3",
+        "squizlabs/php_codesniffer": "^3.7"
+    }
+}

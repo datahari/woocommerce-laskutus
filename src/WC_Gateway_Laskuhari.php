@@ -1,7 +1,13 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Exit if accessed directly
-}
+namespace Laskuhari;
+
+use WC_Order;
+use WC_Order_Item_Product;
+use WC_Payment_Gateway;
+use WC_Product;
+use WC_Shipping_Zones;
+
+defined( 'ABSPATH' ) || exit;
 
 /**
  * Laskuhari Gateway.
@@ -10,12 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Edited from WC_Gateway_COD by Datahari Solutions
  *
  * @class   WC_Gateway_Laskuhari
- * @extends WC_Payment_Gateway
  */
 class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
     /**
      * A static instance of this class
+     *
+     * @var ?WC_Gateway_Laskuhari
      */
     protected static $instance;
 
@@ -149,16 +156,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Allow invoicing only for these shipping methods
      *
-     * @var array
+     * @var array<string>
      */
     public $enable_for_methods;
-
-    /**
-     * Allow invoicing only for these customers
-     *
-     * @var array
-     */
-    public $enable_for_customers;
 
     /**
      * Is invoicing method enabled for virtual products
@@ -184,7 +184,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Send an invoice also from these payment methods
      *
-     * @var array
+     * @var array<string>
      */
     public $send_invoice_from_payment_methods;
 
@@ -213,9 +213,23 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Whether to send invoices as receipts
      *
-     * @var string
+     * @var bool
      */
     public $receipt_template;
+
+    /**
+     * Laskuhari UID
+     *
+     * @var int
+     */
+    public $uid;
+
+    /**
+     * Laskuhari API-key
+     *
+     * @var string
+     */
+    public $apikey;
 
     /**
      * Whether actions are already added
@@ -223,6 +237,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @var bool
      */
     protected static $actions_added = false;
+
+    /**
+     * Minimum amount that can be invoiced
+     *
+     * @var int
+     */
+    protected $min_amount = 0;
 
     /**
      * Get a static instance of this class
@@ -242,7 +263,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function __construct() {
         $this->id                 = 'laskuhari';
-        $this->icon               = apply_filters( 'woocommerce_laskuhari_icon', '' );
+        $this->icon               = '';
         $this->method_title       = __( 'Laskuhari', 'laskuhari' );
         $this->method_description = __( 'Käytä Laskuhari-palvelua tilausten automaattiseen laskuttamiseen.', 'laskuhari' );
         $this->has_fields         = false;
@@ -281,16 +302,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->laskuttaja                  = $this->lh_get_option( 'laskuttaja' );
         $this->description                 = $this->lh_get_option( 'description' );
         $this->instructions                = $this->lh_get_option( 'instructions', $this->description );
-        $this->enable_for_methods          = $this->lh_get_option( 'enable_for_methods', array() );
-        $this->enable_for_customers        = $this->lh_get_option( 'enable_for_customers', array() );
+        $this->enable_for_methods          = (array)$this->lh_get_option( 'enable_for_methods', array() );
         $this->enable_for_virtual          = $this->lh_get_option( 'enable_for_virtual' ) === 'yes' ? true : false;
         $this->show_quantity_unit          = $this->lh_get_option( 'show_quantity_unit' ) === 'yes' ? true : false;
         $this->calculate_discount_percent  = $this->lh_get_option( 'calculate_discount_percent' ) === 'yes' ? true : false;
-        $this->send_invoice_from_payment_methods            = $this->lh_get_option( 'send_invoice_from_payment_methods', array() );
+        $this->send_invoice_from_payment_methods            = (array)$this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
         $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
-        $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' );
-        $this->receipt_template                             = $this->lh_get_option( 'receipt_template' );
+        $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
+        $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
     }
 
     /**
@@ -301,10 +321,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     protected function set_api_credentials() {
         if( $this->demotila ) {
-            $this->uid    = "3175";
+            $this->uid    = 3175;
             $this->apikey = "31d5348328d0044b303cc5d480e6050a35000b038fb55797edfcf426f1a62c2e9e2383a351f161cb";
         } else {
-            $this->uid    = $this->lh_get_option( 'uid' );
+            $this->uid    = (int)$this->lh_get_option( 'uid' );
             $this->apikey = $this->lh_get_option( 'apikey' );
         }
     }
@@ -316,7 +336,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     protected function add_actions() {
         if( static::$actions_added ) {
-            return false;
+            return;
         }
 
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -331,7 +351,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * Otherwise an infinite loop of fetching payment methods will break the script
      *
      * @param string $key
-     * @param array $data
+     * @param array<string, array<int|string, mixed>> $data
      * @since  1.3.4
      * @return string
      */
@@ -368,7 +388,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      *
      * @param string $option
      * @param mixed $default
-     * @return void
+     *
+     * @return string
      */
     public function lh_get_option( $option, $default = null ) {
         if( null === $default && isset( $this->form_fields[$option]['default'] ) ) {
@@ -380,20 +401,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Parse decimal number to float
      *
-     * @param mixed $number
+     * @param string|int|float $number
      * @return float
      */
     public function parse_decimal( $number ) {
-        return preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], $number );
+        return floatval( preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], (string)$number ) );
     }
 
     /**
      * Get a list of other available payment methods
      *
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function get_other_payment_methods() {
-        $gateways = WC()->payment_gateways->payment_gateways();
+        $gateways = WC()->payment_gateways()->payment_gateways();
 
         $payment_methods = [];
 
@@ -425,7 +446,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             return $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
         }
 
-        return $laskutuslisa;
+        return floatval( $laskutuslisa );
     }
 
     /**
@@ -437,6 +458,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
+        $laskutuslisa = floatval( $laskutuslisa );
 
         if( $sis_alv ) {
             return $laskutuslisa;
@@ -448,7 +470,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the invoicing method selection form
      *
-     * @param boolean $order_id
+     * @param bool $order_id
      * @return void
      */
     public function lahetystapa_lomake( $order_id = false ) {
@@ -460,6 +482,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $email_method_text    = apply_filters( "laskuhari_email_method_text", "Sähköposti", $order_id );
         $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", "Verkkolasku", $order_id );
         $letter_method_text   = apply_filters( "laskuhari_letter_method_text", "Kirje", $order_id );
+
+        if( ! is_string( $email_method_text ) || ! is_string( $einvoice_method_text ) || ! is_string( $letter_method_text ) ) {
+            throw new \Exception( "Invoicing method texts must be strings" );
+        }
 
         ?>
             <div id="laskuhari-lahetystapa-lomake">
@@ -494,45 +520,42 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
                 <select id="laskuhari-valittaja" name="laskuhari-valittaja">
                     <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
-                    <optgroup label="<?php echo __( 'Operaattorit', 'laskuhari' ); ?>">
-                        <option value="003723327487"<?php    echo ($valittaja == "003723327487" ? ' selected' : ''); ?>>Apix Messaging Oy (003723327487)</option>
-                        <option value="BAWCFI22"<?php        echo ($valittaja == "BAWCFI22"     ? ' selected' : ''); ?>>Basware Oyj (BAWCFI22)</option>
-                        <option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>CGI (003703575029)</option>
-                        <option value="885790000000418"<?php echo ($valittaja == "885790000000418" ? ' selected' : ''); ?>>HighJump AS (885790000000418)</option>
-                        <option value="INEXCHANGE"<?php      echo ($valittaja == "INEXCHANGE"   ? ' selected' : ''); ?>>InExchange Factorum AB (INEXCHANGE)</option>
-                        <option value="EXPSYS"<?php          echo ($valittaja == "EXPSYS"       ? ' selected' : ''); ?>>Lexmark Expert Systems AB (EXPSYS)</option>
-                        <option value="003708599126"<?php    echo ($valittaja == "003708599126" ? ' selected' : ''); ?>>Liaison Technologies Oy (003708599126)</option>
-                        <option value="003721291126"<?php    echo ($valittaja == "003721291126" ? ' selected' : ''); ?>>Maventa (003721291126)</option>
-                        <option value="003726044706"<?php    echo ($valittaja == "003726044706" ? ' selected' : ''); ?>>Netbox Finland Oy (003726044706)</option>
-                        <option value="E204503"<?php         echo ($valittaja == "E204503"      ? ' selected' : ''); ?>>OpusCapita Solutions Oy (E204503)</option>
-                        <option value="003723609900"<?php    echo ($valittaja == "003723609900" ? ' selected' : ''); ?>>Pagero (003723609900)</option>
-                        <option value="PALETTE"<?php         echo ($valittaja == "PALETTE"      ? ' selected' : ''); ?>>Palette Software (PALETTE)</option>
-                        <option value="003710948874"<?php    echo ($valittaja == "003710948874" ? ' selected' : ''); ?>>Posti Messaging Oy (003710948874)</option>
-                        <option value="003701150617"<?php    echo ($valittaja == "003701150617" ? ' selected' : ''); ?>>PostNord Strålfors Oy (003701150617)</option>
-                        <option value="003714377140"<?php    echo ($valittaja == "003714377140" ? ' selected' : ''); ?>>Ropo Capital Oy (003714377140)</option>
-                        <option value="003703575029"<?php    echo ($valittaja == "003703575029" ? ' selected' : ''); ?>>Telia (003703575029)</option>
-                        <option value="003701011385"<?php    echo ($valittaja == "003701011385" ? ' selected' : ''); ?>>Tieto Oyj (003701011385)</option>
-                        <option value="885060259470028"<?php echo ($valittaja == "885060259470028" ? ' selected' : ''); ?>>Tradeshift (885060259470028)</option>
-                    </optgroup>
-                    <optgroup label="<?php echo __('Pankit', 'laskuhari'); ?>">
-                        <option value="HELSFIHH"<?php echo ($valittaja == "HELSFIHH" ? ' selected' : ''); ?>>Aktia (HELSFIHH)</option>
-                        <option value="DABAFIHH"<?php echo ($valittaja == "DABAFIHH" ? ' selected' : ''); ?>>Danske Bank (DABAFIHH)</option>
-                        <option value="DNBAFIHX"<?php echo ($valittaja == "DNBAFIHX" ? ' selected' : ''); ?>>DNB (DNBAFIHX)</option>
-                        <option value="HANDFIHH"<?php echo ($valittaja == "HANDFIHH" ? ' selected' : ''); ?>>Handelsbanken (HANDFIHH)</option>
-                        <option value="NDEAFIHH"<?php echo ($valittaja == "NDEAFIHH" ? ' selected' : ''); ?>>Nordea Pankki (NDEAFIHH)</option>
-                        <option value="ITELFIHH"<?php echo ($valittaja == "ITELFIHH" ? ' selected' : ''); ?>>Oma Säästöpankki (ITELFIHH)</option>
-                        <option value="OKOYFIHH"<?php echo ($valittaja == "OKOYFIHH" ? ' selected' : ''); ?>>Osuuspankit (OKOYFIHH)</option>
-                        <option value="OKOYFIHH"<?php echo ($valittaja == "OKOYFIHH" ? ' selected' : ''); ?>>Pohjola Pankki (OKOYFIHH)</option>
-                        <option value="POPFFI22"<?php echo ($valittaja == "POPFFI22" ? ' selected' : ''); ?>>POP Pankki  (POPFFI22)</option>
-                        <option value="SBANFIHH"<?php echo ($valittaja == "SBANFIHH" ? ' selected' : ''); ?>>S-Pankki (SBANFIHH)</option>
-                        <option value="TAPIFI22"<?php echo ($valittaja == "TAPIFI22" ? ' selected' : ''); ?>>LähiTapiola (TAPIFI22)</option>
-                        <option value="ITELFIHH"<?php echo ($valittaja == "ITELFIHH" ? ' selected' : ''); ?>>Säästöpankit (ITELFIHH)</option>
-                        <option value="AABAFI22"<?php echo ($valittaja == "AABAFI22" ? ' selected' : ''); ?>>Ålandsbanken (AABAFI22)</option>
-                    </optgroup>
+                    <?php echo $this->operators_select_options_html( $valittaja ); ?>
                 </select>
             </div>
             </div>
         <?php
+    }
+
+    /**
+     * Creates HTML for operator select options
+     *
+     * @param string $selected_operator Selected operator code
+     *
+     * @return string HTML for operator select options
+     */
+    public function operators_select_options_html( $selected_operator ) {
+        $operators = laskuhari_operators();
+
+        $output = '<optgroup label="'.__( 'Operaattorit', 'laskuhari' ).'">';
+
+        foreach( $operators['operators'] as $code => $name ) {
+            $selected = $selected_operator === $code ? ' selected' : '';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+        }
+
+        $output .= '</optgroup>';
+
+        $output .= '<optgroup label="'.__( 'Pankit', 'laskuhari' ).'">';
+
+        foreach( $operators['banks'] as $code => $name ) {
+            $selected = $selected_operator === $code ? ' selected' : '';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+        }
+
+        $output .= '</optgroup>';
+
+        return $output;
     }
 
     /**
@@ -567,7 +590,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Get a list of shipping methods
      *
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function get_shipping_methods() {
         $shipping_methods = [];
@@ -638,6 +661,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
     /**
      * Initialise Gateway Settings Form Fields.
+     *
+     * @return void
      */
     public function init_form_fields() {
         $shipping_methods = $this->get_shipping_methods();
@@ -901,7 +926,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Checks if logged in user can use this payment method
      *
-     * @return boolean
+     * @return bool
      */
     private function can_use_billing() {
         $can_use_billing = true;
@@ -917,7 +942,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
         }
 
-        return $can_use_billing;
+        return (bool)$can_use_billing;
     }
 
     /**
@@ -951,16 +976,23 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $order_id = absint( get_query_var( 'order-pay' ) );
             $order    = wc_get_order( $order_id );
 
+            if( ! $order instanceof WC_Order ) {
+                return false;
+            }
+
             // Test if order needs shipping.
             if ( 0 < sizeof( $order->get_items() ) ) {
 
                 foreach ( $order->get_items() as $item ) {
 
-                    $_product = $order->get_product_from_item( $item );
+                    if( is_a( $item, WC_Order_Item_Product::class ) ) {
+                        /** @var WC_Order_Item_Product $item */
+                        $_product = $item->get_product();
 
-                    if ( $_product && $_product->needs_shipping() ) {
-                        $needs_shipping = true;
-                        break;
+                        if ( $_product instanceof WC_Product && $_product->needs_shipping() ) {
+                            $needs_shipping = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -984,7 +1016,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             // Only apply if all packages are being shipped via chosen methods, or order is virtual
             $chosen_shipping_methods_session = WC()->session->get( 'chosen_shipping_methods' );
 
-            if ( isset( $chosen_shipping_methods_session ) ) {
+            if ( is_array( $chosen_shipping_methods_session ) ) {
                 $chosen_shipping_methods = array_unique( $chosen_shipping_methods_session );
             } else {
                 $chosen_shipping_methods = array();
@@ -1031,7 +1063,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
-        return apply_filters( "laskuhari_is_available", parent::is_available() );
+        return (bool)apply_filters( "laskuhari_is_available", parent::is_available() );
     }
 
 
@@ -1039,7 +1071,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * Process the payment and return the result.
      *
      * @param int $order_id
-     * @return array
+     * @return array<string, string>
      */
     public function process_payment( $order_id ) {
 
@@ -1053,10 +1085,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         $order = wc_get_order( $order_id );
 
+        if( ! $order instanceof WC_Order ) {
+            throw new \Exception( "Unable to process order" );
+        }
+
         do_action( "laskuhari_action_after_payment_completed_before_update_status" );
 
         $status_after_payment = $this->lh_get_option( "status_after_gateway" );
         $status_after_payment = apply_filters( "laskuhari_status_after_payment", $status_after_payment, $order_id );
+
+        if( ! is_string( $status_after_payment ) ) {
+            throw new \Exception( "Status after payment must be string, " . gettype( $status_after_payment ) . " given" );
+        }
 
         $order->update_status( $status_after_payment );
 
@@ -1084,6 +1124,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
     /**
      * Output for the order received page.
+     *
+     * @return void
      */
     public function thankyou_page() {
 
@@ -1100,6 +1142,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @param WC_Order $order
      * @param bool $sent_to_admin
      * @param bool $plain_text
+     *
+     * @return void
      */
     public function email_instructions( $order, $sent_to_admin, $plain_text = false ) {
 
