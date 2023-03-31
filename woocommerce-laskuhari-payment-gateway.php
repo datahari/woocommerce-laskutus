@@ -252,7 +252,15 @@ function laskuhari_handle_payment_complete( $order_id ) {
 
     update_post_meta( $order_id, '_laskuhari_paid_by_other', "yes" );
 
-    laskuhari_process_action( $order_id, false );
+    // create invoice only if no invoice has been created yet
+    $create_invoice = boolval( laskuhari_invoice_number_by_order( $order_id ) );
+
+    // allow changing invoice creation logic by other plugins
+    $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order_id );
+
+    if( $create_invoice ) {
+        laskuhari_process_action( $order_id, false );
+    }
 }
 
 add_action( 'restrict_manage_posts', 'display_admin_shop_order_laskuhari_filter' );
