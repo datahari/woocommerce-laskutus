@@ -204,6 +204,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public $attach_invoice_to_wc_email;
 
     /**
+     * Whether to attach receipt of payment from other
+     * payment methods to WooCommerce emails
+     *
+     * @var bool
+     */
+    public $attach_receipt_to_wc_email;
+
+    /**
      * Whether to add a paid stamp to the invoice
      *
      * @var bool
@@ -309,6 +317,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->send_invoice_from_payment_methods            = (array)$this->lh_get_option( 'send_invoice_from_payment_methods', array() );
         $this->invoice_email_text_for_other_payment_methods = trim(rtrim($this->lh_get_option( 'invoice_email_text_for_other_payment_methods' )));
         $this->attach_invoice_to_wc_email                   = $this->lh_get_option( 'attach_invoice_to_wc_email' ) === "yes";
+        $this->attach_receipt_to_wc_email                   = $this->lh_get_option( 'attach_receipt_to_wc_email', 'yes' ) === "yes";
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
     }
@@ -843,6 +852,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'custom_attributes' => array(
                     'data-placeholder' => __( 'Valitse maksutavat', 'laskuhari' )
                 )
+            ),
+            'attach_receipt_to_wc_email' => array(
+                'title'       => __( 'Lähetä', 'laskuhari' ),
+                'label'       => __( 'Liitä muilla maksutavoilla maksettujen tilausten tilausvahvistuksen liiteeksi lasku', 'laskuhari' ),
+                'type'        => 'checkbox',
+                'default'     => 'yes'
             ),
             'status_after_gateway' => array(
                 'title'       => __( 'Tilauksen tila laskutuksen jälkeen', 'laskuhari' ),

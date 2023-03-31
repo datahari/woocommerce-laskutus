@@ -2176,7 +2176,9 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
     }
 
     // attach invoice pdf to WC email
-    laskuhari_send_invoice_attached( $order );
+    if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
+        laskuhari_send_invoice_attached( $order );
+    }
 }
 
 function laskuhari_send_invoice_attached( $order ) {
