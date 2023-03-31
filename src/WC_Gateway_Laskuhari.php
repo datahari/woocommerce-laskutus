@@ -684,6 +684,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => '',
                 'default'     => 'no'
             ),
+            'heading_payment_gateway' => array(
+                'title'       => __( 'Maksutapa', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'gateway_enabled' => array(
                 'title'       => __( 'Maksutapa', 'laskuhari' ),
                 'label'       => __( 'Ota käyttöön Laskutus-maksutapa', 'laskuhari' ),
@@ -712,6 +717,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => 'Sähköpostilaskua ei tässä tapauksessa lähetetä erikseen',
                 'default'     => 'no'
             ),
+            'heading_billing_methods' => array(
+                'title'       => __( 'Laskutustavat', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'email_lasku_kaytossa' => array(
                 'title'       => __( 'Sähköpostilaskut käytössä', 'laskuhari' ),
                 'label'       => __( 'Ota käyttöön sähköpostilaskut', 'laskuhari' ),
@@ -733,6 +743,23 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => '',
                 'default'     => 'yes'
             ),
+            'send_method_fallback' => array(
+                'title'       => __( 'Lähetystapa (fallback)', 'laskuhari' ),
+                'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
+                'type'        => 'select',
+                'description' => __( 'Valitse tapa, jolla haluat lähettää laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
+                'default'     => $this->lh_get_option( 'lahetystapa_manuaalinen', 'ei' ),
+                'options'     => array(
+                    'email' => __( 'Sähköpostilasku', 'laskuhari' ),
+                    'kirje' => __( 'Kirjelasku', 'laskuhari' ),
+                    'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'laskuhari' )
+                )
+            ),
+            'heading_sync' => array(
+                'title'       => __( 'Synkronointi', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'synkronoi_varastosaldot' => array(
                 'title'       => __( 'Synkronoi varastosaldot', 'laskuhari' ),
                 'label'       => __( 'Pidä varastosaldot Laskuharin ja WooCommercen välillä ajan tasalla', 'laskuhari' ),
@@ -747,6 +774,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => '',
                 'default'     => 'no'
             ),
+            'heading_api_settings' => array(
+                'title'       => __( 'Rajapintatiedot', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'uid' => array(
                 'title'       => __( 'UID', 'laskuhari' ),
                 'type'        => 'text',
@@ -755,9 +787,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             ),
             'apikey' => array(
                 'title'       => __( 'API-koodi', 'laskuhari' ),
-                'type'        => 'text',
+                'type'        => 'password',
                 'description' => 'Laskuhari-tunnuksesi API-koodi (kysy asiakaspalvelusta)',
                 'default'     => __( '', 'laskuhari' ),
+            ),
+            'heading_demo' => array(
+                'title'       => __( 'Demotila', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
             ),
             'demotila' => array(
                 'title'       => __( 'Demotila', 'laskuhari' ),
@@ -766,17 +803,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => 'Demotilassa et tarvitse UID- tai API-koodia. Voit lähettää vain sähköpostilaskuja, ja ne lähetetään testiyrityksen tiedoilla. Jos haluat oman yrityksesi tiedot laskulle, luo tunnukset <a href="https://www.laskuhari.fi" target="_blank">Laskuhari.fi</a>-palveluun ja liitä UID ja API-koodi lisäosan asetuksiin sekä poista demotila käytöstä.',
                 'default'     => 'yes'
             ),
-            'send_method_fallback' => array(
-                'title'       => __( 'Lähetystapa (fallback)', 'laskuhari' ),
-                'label'       => __( 'Valitse laskujen lähetystapa', 'laskuhari' ),
-                'type'        => 'select',
-                'description' => __( 'Valitse tapa, jolla haluat lähettää laskut, joiden lähetystapaa ei ole valittu', 'laskuhari' ),
-                'default'     => $this->lh_get_option( 'lahetystapa_manuaalinen', 'ei' ),
-                'options'     => array(
-                    'email' => __( 'Sähköpostilasku', 'laskuhari' ),
-                    'kirje' => __( 'Kirjelasku', 'laskuhari' ),
-                    'ei'    => __( 'Tallenna Laskuhariin, älä lähetä', 'laskuhari' )
-                )
+            'heading_texts' => array(
+                'title'       => __( 'Tekstit', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
             ),
             'laskuviesti' => array(
                 'title'       => __( 'Laskuviesti', 'laskuhari' ),
@@ -813,6 +843,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'default'     => __( 'Lähetämme sinulle laskun tilauksestasi.', 'laskuhari' ),
                 'desc_tip'    => true,
             ),
+            'heading_billing_fee' => array(
+                'title'       => __( 'Laskutuslisä', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'laskutuslisa' => array(
                 'title'       => __( 'Laskutuslisä', 'laskuhari' ),
                 'type'        => 'text',
@@ -827,6 +862,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'default'     => __( '24', 'laskuhari' ),
                 'desc_tip'    => true,
             ),
+            'heading_shipping_methods' => array(
+                'title'       => __( 'Toimitustavat', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
             'enable_for_methods' => array(
                 'title'             => __( 'Käytössä näille toimitustavoille', 'laskuhari' ),
                 'type'              => 'multiselect',
@@ -840,13 +880,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'data-placeholder' => __( 'Valitse toimitustavat', 'laskuhari' )
                 )
             ),
+            'heading_payment_methods' => array(
+                'title'       => __( 'Tee lasku/kuitti muilla maksutavoilla tehdyistä tilauksista', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta', 'laskuhari' ),
+            ),
             'send_invoice_from_payment_methods' => array(
-                'title'             => __( 'Lähetä lasku myös näistä maksutavoista', 'laskuhari' ),
+                'title'             => __( 'Luo lasku myös näistä maksutavoista', 'laskuhari' ),
                 'type'              => 'multiselect',
                 'class'             => 'wc-enhanced-select',
                 'css'               => 'width: 450px;',
                 'default'           => '',
-                'description'       => __( 'Tällä toiminnolla voit lähettää esim. verkkomaksuista laskun asiakkaalle kuittina maksusta (lähetetään tilausvahvistuksen liitteenä)', 'laskuhari' ),
                 'options'           => [],
                 'desc_tip'          => true,
                 'custom_attributes' => array(
@@ -858,6 +902,30 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'label'       => __( 'Liitä muilla maksutavoilla maksettujen tilausten tilausvahvistuksen liiteeksi lasku', 'laskuhari' ),
                 'type'        => 'checkbox',
                 'default'     => 'yes'
+            ),
+            'paid_stamp' => array(
+                'title'             => __( 'Maksettu-leima', 'laskuhari' ),
+                'label'             => __( 'Lisää maksettu-leima muilla maksutavoilla maksettuihin laskuihin', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'default'           => 'no'
+            ),
+            'receipt_template' => array(
+                'title'             => __( 'Lähetä kuittina', 'laskuhari' ),
+                'label'             => __( 'Käytä kuittipohjaa laskupohjan sijasta muilla maksutavoilla maksetuissa tilauksissa', 'laskuhari' ),
+                'type'              => 'checkbox',
+                'default'           => 'no'
+            ),
+            'invoice_email_text_for_other_payment_methods' => array(
+                'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
+                'type'        => 'textarea',
+                'description' => __( 'Teksti, joka lisätään tilausvahvistusviestiin, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
+                'default'     => __( 'Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
+                'desc_tip'    => true,
+            ),
+            'heading_order_status' => array(
+                'title'       => __( 'Tilauksen tila', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
             ),
             'status_after_gateway' => array(
                 'title'       => __( 'Tilauksen tila laskutuksen jälkeen', 'laskuhari' ),
@@ -884,24 +952,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'on-hold' => __( 'Jonossa', 'laskuhari' )
                 )
             ),
-            'paid_stamp' => array(
-                'title'             => __( 'Maksettu-leima', 'laskuhari' ),
-                'label'             => __( 'Lisää maksettu-leima muilla maksutavoilla maksettuihin laskuihin', 'laskuhari' ),
-                'type'              => 'checkbox',
-                'default'           => 'no'
-            ),
-            'receipt_template' => array(
-                'title'             => __( 'Lähetä kuittina', 'laskuhari' ),
-                'label'             => __( 'Käytä kuittipohjaa laskupohjan sijasta muilla maksutavoilla maksetuissa tilauksissa', 'laskuhari' ),
-                'type'              => 'checkbox',
-                'default'           => 'no'
-            ),
-            'invoice_email_text_for_other_payment_methods' => array(
-                'title'       => __( 'Laskuviesti (muu maksutapa)', 'laskuhari' ),
-                'type'        => 'textarea',
-                'description' => __( 'Teksti, joka lisätään tilausvahvistusviestiin, kun tilaus on maksettu muuta maksutapaa käyttäen', 'laskuhari' ),
-                'default'     => __( 'Liitteenä laskukopio kuittina tilaamistasi tuotteista.', 'laskuhari' ),
-                'desc_tip'    => true,
+            'heading_misc' => array(
+                'title'       => __( 'Sekalaiset', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
             ),
             'salli_laskutus_erikseen' => array(
                 'title'       => __( 'Salli vain laskutusasiakkaille', 'laskuhari' ),
