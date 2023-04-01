@@ -225,8 +225,9 @@ exports.reset_settings = async function( page ) {
         $("#woocommerce_laskuhari_instructions").val("We will send you an invoice");
         $("#woocommerce_laskuhari_laskutuslisa").val("0");
         $("#woocommerce_laskuhari_laskutuslisa_alv").val("0");
-        $("#woocommerce_laskuhari_enable_for_methods option").prop("selected", false);
-        $("#woocommerce_laskuhari_send_invoice_from_payment_methods option").prop("selected", false);
+        $("#woocommerce_laskuhari_enable_for_methods option").attr("selected", false);
+        $("#woocommerce_laskuhari_send_invoice_from_payment_methods option").attr("selected", false);
+        $("#woocommerce_laskuhari_attach_receipt_to_wc_email").prop( "checked", false );
         $("#woocommerce_laskuhari_paid_stamp").prop( "checked", false );
         $("#woocommerce_laskuhari_receipt_template").prop( "checked", false );
         $("#woocommerce_laskuhari_invoice_email_text_for_other_payment_methods").val("Attached you will find an invoice as a receipt");
