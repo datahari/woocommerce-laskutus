@@ -2179,10 +2179,12 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
         return false;
     }
 
-    // attach invoice pdf to WC email
-    if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
-        laskuhari_send_invoice_attached( $order );
+    if( ! $laskuhari_gateway_object->attach_receipt_to_wc_email && $order->get_payment_method() !== "laskuhari" ) {
+        return false;
     }
+
+    // attach invoice pdf to WC email
+    laskuhari_send_invoice_attached( $order );
 }
 
 function laskuhari_send_invoice_attached( $order ) {
