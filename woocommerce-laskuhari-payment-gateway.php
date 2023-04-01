@@ -259,7 +259,11 @@ function laskuhari_handle_payment_complete( $order_id ) {
     $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order_id );
 
     if( $create_invoice ) {
-        laskuhari_process_action( $order_id, false );
+        if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
+            laskuhari_process_action( $order_id, false );
+        } else {
+            laskuhari_process_action_delayed( $order_id, false );
+        }
     }
 }
 
