@@ -253,7 +253,7 @@ function laskuhari_handle_payment_complete( $order_id ) {
     update_post_meta( $order_id, '_laskuhari_paid_by_other', "yes" );
 
     // create invoice only if no invoice has been created yet
-    $create_invoice = boolval( laskuhari_invoice_number_by_order( $order_id ) );
+    $create_invoice = ! laskuhari_invoice_number_by_order( $order_id );
 
     // allow changing invoice creation logic by other plugins
     $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order_id );
