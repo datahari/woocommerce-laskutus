@@ -254,6 +254,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     protected $min_amount = 0;
 
     /**
+     * Which log level to log
+     *
+     * @var string
+     */
+    public $log_level = '';
+
+    /**
      * Get a static instance of this class
      *
      * @return WC_Gateway_Laskuhari
@@ -320,6 +327,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->attach_receipt_to_wc_email                   = $this->lh_get_option( 'attach_receipt_to_wc_email', 'yes' ) === "yes";
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
+        $this->log_level                                    = $this->lh_get_option( 'log_level' );
     }
 
     /**
@@ -1146,8 +1154,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         if( $this->auto_gateway_create_enabled ) {
             if( $this->attach_invoice_to_wc_email ) {
+                Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                    'Laskuhari: Processing action synchronously: process_payment, %d',
+                    $order_id,
+                ), 'debug' );
+
                 laskuhari_process_action( $order_id, $this->auto_gateway_enabled, false, true );
             } else {
+                Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                    'Laskuhari: Processing action delayed: process_payment, %d',
+                    $order_id,
+                ), 'debug' );
+
                 laskuhari_process_action_delayed( $order_id, $this->auto_gateway_enabled, false, true );
             }
         }
@@ -1155,6 +1173,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $order = wc_get_order( $order_id );
 
         if( ! $order instanceof WC_Order ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: Error processing order %d: not instance of WC_Order',
+                intval( $order_id ),
+            ), 'error' );
+
             throw new \Exception( "Unable to process order" );
         }
 
@@ -1164,6 +1187,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $status_after_payment = apply_filters( "laskuhari_status_after_payment", $status_after_payment, $order_id );
 
         if( ! is_string( $status_after_payment ) ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: Error processing order %d: Status after payment not valid',
+                intval( $order_id ),
+            ), 'error' );
+
             throw new \Exception( "Status after payment must be string, " . gettype( $status_after_payment ) . " given" );
         }
 
@@ -1174,7 +1202,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         // Reduce stock levels
         $reduce_stock_levels = apply_filters( "laskuhari_reduce_stock_levels_after_payment", true, $order_id );
         if( $reduce_stock_levels ) {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Reducing stock levels for order %d',
+                intval( $order_id ),
+            ), 'debug' );
+
             wc_reduce_stock_levels( $order_id );
+        } else {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Not reducing stock levels for order %d',
+                intval( $order_id ),
+            ), 'debug' );
         }
 
         do_action( "laskuhari_action_after_payment_completed_before_cart_empty" );
@@ -1184,10 +1222,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         do_action( "laskuhari_action_after_payment_completed_after_cart_empty" );
 
+        $return_url = $this->get_return_url( $order );
+
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: Payment processed for %d, returning to %s',
+            intval( $order_id ),
+            $return_url,
+        ), 'debug' );
+
         // Return thankyou redirect
         return array(
-            'result'     => 'success',
-            'redirect'    => $this->get_return_url( $order )
+            'result'   => 'success',
+            'redirect' => $return_url
         );
     }
 
