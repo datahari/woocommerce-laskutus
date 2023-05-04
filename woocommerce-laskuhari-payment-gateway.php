@@ -2881,7 +2881,7 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
         update_post_meta( $order->get_id(), '_laskuhari_payment_terms', $response['vastaus']['meta']['maksuehto'] );
         update_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', $response['vastaus']['meta']['maksuehtonimi'] );
 
-        $order->add_order_note( __( 'Lasku #' . $laskunro . ' luotu Laskuhariin', 'laskuhari' ) );
+        $order->add_order_note( sprintf( __( 'Lasku #%s luotu Laskuhariin', 'laskuhari' ), $laskunro ) );
 
         $status_after_creation = apply_filters( "laskuhari_status_after_creation", false, $order->get_id(), $from_gateway );
         if( $status_after_creation ) {

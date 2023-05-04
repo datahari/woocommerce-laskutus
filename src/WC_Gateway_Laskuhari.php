@@ -819,7 +819,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'       => __( 'Laskuttaja', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'laskuhari' ),
-                'default'     => __( '', 'laskuhari' ),
+                'default'     => '',
                 'desc_tip'    => true,
             ),
             'title' => array(
@@ -852,14 +852,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'       => __( 'Laskutuslisä', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'laskuhari' ),
-                'default'     => __( '0', 'laskuhari' ),
+                'default'     => '0',
                 'desc_tip'    => true,
             ),
             'laskutuslisa_alv' => array(
                 'title'       => __( 'Laskutuslisän ALV-%', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'laskuhari' ),
-                'default'     => __( '24', 'laskuhari' ),
+                'default'     => '24',
                 'desc_tip'    => true,
             ),
             'heading_shipping_methods' => array(
