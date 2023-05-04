@@ -270,9 +270,9 @@ function laskuhari_handle_payment_complete( $order_id ) {
 
     if( $create_invoice ) {
         if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
-            laskuhari_process_action( $order_id, false );
+            laskuhari_process_action( $order_id, false, false, false, $create_invoice );
         } else {
-            laskuhari_process_action_delayed( $order_id, false );
+            laskuhari_process_action_delayed( $order_id, false, false, false, $create_invoice );
         }
     }
 }
@@ -1687,7 +1687,7 @@ function laskuhari_actions() {
 
     if( isset( $_GET['laskuhari'] ) ) {
         $send       = ($_GET['laskuhari'] == "send");
-        $lh         = laskuhari_process_action( $order_id, $send );
+        $lh         = laskuhari_process_action( $order_id, $send, false, false, true );
 
         laskuhari_go_back( $lh );
     }
@@ -2388,7 +2388,13 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     return $quantity_unit;
 }
 
-function laskuhari_process_action_delayed( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+function laskuhari_process_action_delayed(
+    $order_id,
+    $send = false,
+    $bulk_action = false,
+    $from_gateway = false,
+    $force_recreate = false
+) {
     $args = func_get_args();
 
     // schedule background event
@@ -2430,7 +2436,13 @@ function laskuhari_maybe_process_queued_invoice( $order_id ) {
     return false;
 }
 
-function laskuhari_process_action( $order_id, $send = false, $bulk_action = false, $from_gateway = false ) {
+function laskuhari_process_action(
+    $order_id,
+    $send = false,
+    $bulk_action = false,
+    $from_gateway = false,
+    $force_recreate = false
+) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     delete_post_meta( $order_id, '_laskuhari_queued' );
@@ -2441,9 +2453,20 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
 
     $order = wc_get_order( $order_id );
 
-    // if we are using bulk action to send, don't create invoice again if it is already created, only send it
-    if( $bulk_action && laskuhari_invoice_is_created_from_order( $order_id ) && true === $send ) {
-        return laskuhari_send_invoice( $order, $bulk_action );
+    // if invoice has already been created from this order
+    if( laskuhari_invoice_is_created_from_order( $order_id ) ) {
+        // if we are using bulk action to send, don't create invoice again, only send it
+        if( $bulk_action && true === $send ) {
+            return laskuhari_send_invoice( $order, $bulk_action );
+        }
+
+        // only create invoice if forced
+        if( $force_recreate !== true ) {
+            $error_notice = __( 'Lasku on jo luotu tästä tilauksesta', 'laskuhari' );
+            return array(
+                "notice" => urlencode( $error_notice )
+            );
+        }
     }
 
     if ( isset( $_REQUEST['laskuhari-viitteenne'] ) ) {
