@@ -3528,7 +3528,7 @@ function laskuhari_just_the_product_id( $product ) {
  *
  * @param string $event Hook name of event
  * @param array $args Arguments to pass to event hook
- * @param boolean $no_duplicates Whether to create a new event if the same one already exists in the queue
+ * @param bool $no_duplicates Whether to create a new event if the same one already exists in the queue
  * @param int $delay_time_seconds Amount of time to delay the execution from current moment
  * @param int $interval_time_seconds Amount of time to add between scheduled events
  * @return bool
