@@ -142,6 +142,16 @@ function laskuhari_domain() {
     return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
 }
 
+/**
+ * Gets the current Laskuhari plugin version
+ *
+ * @return string
+ */
+function laskuhari_plugin_version(): string {
+    $plugin_data = get_file_data( __FILE__, ['Version' => 'Version'] );
+    return $plugin_data['Version'];
+}
+
 function laskuhari_json_flag() {
     if( ! defined( JSON_INVALID_UTF8_SUBSTITUTE ) ) {
         if( ! defined( JSON_PARTIAL_OUTPUT_ON_ERROR ) ) {
@@ -2824,8 +2834,10 @@ function laskuhari_process_action( $order_id, $send = false, $bulk_action = fals
             "yhtverollinen" => ($loppusumma-$laskettu_summa)
         ]);
     }
+
     $payload['laskurivit'] = $laskurivit;
     $payload['wc_api_version'] = 3;
+    $payload['wc_plugin_version'] = laskuhari_plugin_version();
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
