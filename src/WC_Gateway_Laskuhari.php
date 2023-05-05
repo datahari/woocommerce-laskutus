@@ -1154,17 +1154,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         if( $this->auto_gateway_create_enabled ) {
             if( $this->attach_invoice_to_wc_email ) {
-                Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action synchronously: process_payment, %d',
                     $order_id,
-                ), 'debug' );
+                ), 'info' );
 
                 laskuhari_process_action( $order_id, $this->auto_gateway_enabled, false, true );
             } else {
-                Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action delayed: process_payment, %d',
                     $order_id,
-                ), 'debug' );
+                ), 'info' );
 
                 laskuhari_process_action_delayed( $order_id, $this->auto_gateway_enabled, false, true );
             }

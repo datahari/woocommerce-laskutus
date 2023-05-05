@@ -282,15 +282,15 @@ function laskuhari_handle_payment_complete( $order_id ) {
 
     if( $create_invoice ) {
         if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
-            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            Logger::enabled( 'info' ) && Logger::log( sprintf(
                 'Laskuhari: Creating invoice for order %s synchronously', $order_id
-            ), 'debug' );
+            ), 'info' );
 
             laskuhari_process_action( $order_id, false, false, false, $create_invoice );
         } else {
-            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            Logger::enabled( 'info' ) && Logger::log( sprintf(
                 'Laskuhari: Creating invoice for order %s delayed', $order_id
-            ), 'debug' );
+            ), 'info' );
 
             laskuhari_process_action_delayed( $order_id, false, false, false, $create_invoice );
         }
@@ -825,10 +825,10 @@ function laskuhari_create_product_delayed( $product, $update = false ) {
  * @return void
  */
 function laskuhari_create_product_cron_hook() {
-    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Running cron hook %s',
         __FUNCTION__,
-    ), 'debug' );
+    ), 'info' );
 
     $args = func_get_args();
 
@@ -974,10 +974,10 @@ function laskuhari_update_stock_delayed( $product ) {
  * @return void
  */
 function laskuhari_update_stock_cron_hook() {
-    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Running cron hook %s',
         __FUNCTION__,
-    ), 'debug' );
+    ), 'info' );
 
     $args = func_get_args();
 
@@ -2383,10 +2383,10 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
         return false;
     }
 
-    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Attaching invoice to order %s',
         $order->get_id(),
-    ), 'debug' );
+    ), 'info' );
 
     // attach invoice pdf to WC email
     laskuhari_send_invoice_attached( $order );
@@ -2609,10 +2609,10 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
  * @return void
  */
 function laskuhari_process_action_cron_hook() {
-    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Running cron hook %s',
         __FUNCTION__,
-    ), 'debug' );
+    ), 'info' );
 
     $args = func_get_args();
 
@@ -3239,10 +3239,10 @@ function laskuhari_process_action(
         );
     }
 
-    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Created invoice for order %d',
         $order->get_id(),
-    ), 'debug' );
+    ), 'info' );
 
     return array(
         "luotu"   => $order->get_id(),
@@ -3532,10 +3532,10 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         $sent_order = "";
         $order->add_order_note( __( 'Lasku luotu Laskuhariin, mutta ei lähetetty.', 'laskuhari' ) );
 
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        Logger::enabled( 'info' ) && Logger::log( sprintf(
             'Laskuhari: Order %s invoice created, but not sent',
             $order->get_id(),
-        ), 'debug' );
+        ), 'info' );
 
         $status_after_unsent_creation = apply_filters( "laskuhari_status_after_unsent_creation", false, $order->get_id() );
         if( $status_after_unsent_creation ) {
@@ -3599,10 +3599,10 @@ function laskuhari_schedule_background_event(
         ), 'notice' );
         return false;
     } else {
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        Logger::enabled( 'info' ) && Logger::log( sprintf(
             'Laskuhari: Scheduling background event: %s',
             json_encode( func_get_args() ),
-        ), 'debug' );
+        ), 'info' );
     }
 
     // set starting time to now + $delay_time_seconds seconds
