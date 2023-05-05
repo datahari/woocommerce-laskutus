@@ -28,6 +28,7 @@ class Logger
      * @var array<string, int>
      */
     public const LEVELS = [
+        'none' => 0,
         'emergency' => 1,
         'alert' => 2,
         'critical' => 3,
@@ -36,7 +37,6 @@ class Logger
         'notice' => 6,
         'info' => 7,
         'debug' => 8,
-        '' => 9, // no logging
     ];
 
     /**
@@ -69,11 +69,11 @@ class Logger
         $checked_level = self::LEVELS[$level] ?? null;
         $settings_level = self::LEVELS[$log_level] ?? null;
 
-        if( ! $checked_level ) {
+        if( $checked_level === null ) {
             throw new \Exception( sprintf( "Unknown error level '%s'", $level ) );
         }
 
-        if( ! $settings_level ) {
+        if( $settings_level === null ) {
             throw new \Exception( sprintf( "Misconfigured error level: '%s' is not valid", $log_level ) );
         }
 

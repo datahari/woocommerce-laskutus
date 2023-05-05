@@ -259,7 +259,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      *
      * @var string
      */
-    public $log_level = '';
+    public $log_level = 'info';
 
     /**
      * Get a static instance of this class
@@ -328,7 +328,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->attach_receipt_to_wc_email                   = $this->lh_get_option( 'attach_receipt_to_wc_email', 'yes' ) === "yes";
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
-        $this->log_level                                    = $this->lh_get_option( 'log_level' );
+        $this->log_level                                    = $this->lh_get_option( 'log_level', 'info' );
     }
 
     /**
@@ -1014,7 +1014,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 ),
                 'default'     => 'info',
                 'options'     => array(
-                    '' => __( 'Ei lokitusta', 'laskuhari' ),
+                    'none' => __( 'Ei lokitusta', 'laskuhari' ),
                     'error' => __( 'Virheet', 'laskuhari' ),
                     'warning' => __( 'Varoitukset', 'laskuhari' ),
                     'info' => __( 'Info', 'laskuhari' ),
