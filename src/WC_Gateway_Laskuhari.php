@@ -1001,7 +1001,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             'heading_troubleshooting' => array(
                 'title'       => __( 'Vianselvitys', 'laskuhari' ),
                 'type'        => 'title',
-                'description' => '',
+                'description' => '<a href="#" class="lh-show-debug-summary">Avaa vianselvitystiedot</a>',
             ),
             'log_level' => array(
                 'title'       => __( 'Lokitaso', 'laskuhari' ),
@@ -1056,6 +1056,16 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $link = "/wp-admin/admin.php?page=wc-status&tab=logs&log_file=" . $log_name;
 
         return $link;
+    }
+
+    /**
+     * Generates a troubleshooting summary
+     *
+     * @return string
+     */
+    public function get_troubleshooting_summary(): string {
+        $troubleshooter = new Laskuhari_Troubleshooter( $this );
+        return $troubleshooter->get_summary();
     }
 
     /**

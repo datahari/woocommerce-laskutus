@@ -80,7 +80,7 @@ function laskuhari_payment_gateway_load() {
 
     add_action( 'admin_print_scripts', 'laskuhari_add_public_scripts' );
     add_action( 'admin_print_scripts', 'laskuhari_add_admin_scripts' );
-    add_action( 'admin_print_styles', 'laskuhari_add_styles' );
+    add_action( 'admin_print_styles', 'laskuhari_add_admin_styles' );
     add_action( 'show_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'edit_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'personal_options_update', 'laskuhari_update_user_meta' );
@@ -112,6 +112,16 @@ function laskuhari_payment_gateway_load() {
     }
 
 }
+
+add_action( 'wp_ajax_get_troubleshooting_summary', function() {
+    if( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Access Denied' );
+    }
+
+    wp_send_json_success(
+        esc_html( laskuhari_get_gateway_object()->get_troubleshooting_summary() )
+    );
+} );
 
 /**
  * Add webhook to Laskuhari for payment status updates if it hasn't
@@ -1975,6 +1985,16 @@ function laskuhari_add_styles() {
     wp_enqueue_style(
         'laskuhari-css',
         plugins_url( 'css/staili.css' , __FILE__ ),
+        array(),
+        filemtime( __FILE__ )
+    );
+}
+
+function laskuhari_add_admin_styles() {
+    laskuhari_add_styles();
+    wp_enqueue_style(
+        'laskuhari-css-admin',
+        plugins_url( 'css/admin.css' , __FILE__ ),
         array(),
         filemtime( __FILE__ )
     );

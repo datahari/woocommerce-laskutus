@@ -15,7 +15,7 @@ a.button.tips.laskuhari-invoice img {
 }
 
 #laskuhari-loading::before {
-    content: "Suoritetaan toimintoa...";
+    content: "Ladataan...";
     display: inline-block;
     font-size: 30px;
     height: 30px;
