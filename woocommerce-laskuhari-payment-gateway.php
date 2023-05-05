@@ -1991,7 +1991,6 @@ function laskuhari_add_styles() {
 }
 
 function laskuhari_add_admin_styles() {
-    laskuhari_add_styles();
     wp_enqueue_style(
         'laskuhari-css-admin',
         plugins_url( 'css/admin.css' , __FILE__ ),
