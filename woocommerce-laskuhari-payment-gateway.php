@@ -18,6 +18,7 @@ Author URI: http://shamokaldarpon.com/
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Plugin_Updater;
+use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\Logger;
 use Laskuhari\WC_Gateway_Laskuhari;
 
@@ -26,6 +27,7 @@ defined( 'ABSPATH' ) || exit;
 require_once dirname( __FILE__ ) . '/autoload.php';
 
 Laskuhari_Plugin_Updater::init();
+Laskuhari_Troubleshooter::register_endpoint();
 
 if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
     Laskuhari_Export_Products_REST_API::init();
@@ -112,16 +114,6 @@ function laskuhari_payment_gateway_load() {
     }
 
 }
-
-add_action( 'wp_ajax_get_troubleshooting_summary', function() {
-    if( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( 'Access Denied' );
-    }
-
-    wp_send_json_success(
-        esc_html( laskuhari_get_gateway_object()->get_troubleshooting_summary() )
-    );
-} );
 
 /**
  * Add webhook to Laskuhari for payment status updates if it hasn't

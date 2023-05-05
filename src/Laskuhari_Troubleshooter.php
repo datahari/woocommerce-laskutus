@@ -21,6 +21,23 @@ class Laskuhari_Troubleshooter
     }
 
     /**
+     * Register AJAX endpoint for getting troubleshoot summary
+     *
+     * @return void
+     */
+    public static function register_endpoint(): void {
+        add_action( 'wp_ajax_get_troubleshooting_summary', function() {
+            if( ! current_user_can( 'manage_options' ) ) {
+                wp_send_json_error( 'Access Denied' );
+            }
+
+            wp_send_json_success(
+                esc_html( laskuhari_get_gateway_object()->get_troubleshooting_summary() )
+            );
+        } );
+    }
+
+    /**
      * Generates a troubleshooting summary
      *
      * @return string
