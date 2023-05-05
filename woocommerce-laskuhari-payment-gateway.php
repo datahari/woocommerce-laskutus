@@ -3349,7 +3349,9 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     if( $order_uid && $laskuhari_uid != $order_uid ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: UID mismatch while sending invoice of order %d',
+            'Laskuhari: UID mismatch (O:%s != L:%s) while sending invoice of order %d',
+            $order_uid,
+            $laskuhari_uid,
             $order->get_id(),
         ), 'error' );
 
