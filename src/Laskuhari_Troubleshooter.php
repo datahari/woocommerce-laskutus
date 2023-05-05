@@ -143,34 +143,94 @@ class Laskuhari_Troubleshooter
      * @throws \Exception if file is not found
      */
     protected function read_file_backwards( string $file, $limit = null ): array {
-        $read_lines = [];
         $stream = fopen( $file, "r" );
 
         if( $stream === false ) {
             throw new \Exception( sprintf( "File '%s' not found!", $file ) );
         }
 
-        $current_line = "";
-        $pos = -1;
-        $lines = 0;
+        $chunk_size = 1024;
+        $filesize = filesize( $file );
 
-        while( fseek( $stream, $pos, SEEK_END ) !== -1 ) {
-            $char = fgetc( $stream );
-            if( $char === PHP_EOL ) {
-                $read_lines[] = $current_line;
-                $current_line = "";
-                $lines++;
-                if( $limit !== null && $lines > $limit ) {
-                    break;
-                }
-            } else {
-                $current_line = $char . $current_line;
-            }
-            $pos--;
+        // limit chunk size to filesize
+        if( $filesize < $chunk_size ) {
+            $chunk_size = $filesize;
         }
 
-        if( $limit === null || $lines <= $limit ) {
-            $read_lines[] = $current_line;
+        $limit_reached = false;
+        $end_reached = false;
+        $first_line = true;
+
+        $line_count = 0;
+        $line_buffer = "";
+        $read_lines = [];
+
+        $offset = -$chunk_size;
+
+        while( fseek( $stream, $offset, SEEK_END ) !== -1 ) {
+            if( $chunk_size <= 0 ) {
+                break;
+            }
+
+            $chunk = fread( $stream, $chunk_size );
+
+            // move offset for next iteration
+            $offset -= $chunk_size;
+
+            // if offset goes beyond file beginning
+            if( ! $end_reached && $filesize + $offset <= 0 ) {
+                $end_reached = true;
+
+                // substract overflow for chunk size
+                $chunk_size -= abs( $filesize + $offset );
+
+                // move offset of next iteration to beginning of file
+                $offset = -$filesize;
+            }
+
+            // break if there's no more file to read
+            if( $chunk === false ) {
+                break;
+            }
+
+            // split chunk into lines
+            $lines = explode( PHP_EOL, $chunk );
+            $len = count( $lines );
+
+            // if no newline was found, prepend partial line to buffer
+            if( $len === 1 ) {
+                $line_buffer = $lines[0] . $line_buffer;
+                continue;
+            }
+
+            // read lines backwards, except first (last) one
+            for( $i = ( $len - 1 ); $i > 0; $i-- ) {
+                // add line buffer to the line
+                $line = $lines[$i] . $line_buffer;
+
+                // trim empty lines from the bottom
+                if( ! $first_line || ! empty( $line ) ) {
+                    $read_lines[] = $line;
+                    $first_line = false;
+                }
+
+                // empty line buffer
+                $line_buffer = "";
+
+                // if limit reached, stop reading
+                if( $limit !== null && ++$line_count > $limit ) {
+                    $limit_reached = true;
+                    break 2;
+                }
+            }
+
+            // add first (last) line to buffer
+            $line_buffer = $lines[0];
+        }
+
+        // if we got to the beginning of the file, add the last (first) line
+        if( $end_reached && ! $limit_reached ) {
+            $read_lines[] = $line_buffer;
         }
 
         return $read_lines;
