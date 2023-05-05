@@ -62,7 +62,8 @@
 								<h2>Laskuhari-vianselvitys</h2>
 								<p>Kopioi alla olevat tiedot ja välitä ne Laskuharin asiakaspalveluun, kun ilmoitat ongelmasta lisäosassa. Näiden tietojen avulla pystymme paremmin selvittää, mikä on vialla.</p>
 								<textarea readonly class="lh-debug-summary">${response.data}</textarea>
-								<button class="lh-close-debug-summary">Sulje</button>
+								<button class="button-primary lh-close-debug-summary">Sulje</button>
+								<button class="button-secondary lh-download-debug-summary">Lataa</button>
 							</div>
 						` );
 					} else {
@@ -85,6 +86,14 @@
 		} );
 		$("body").on( "click", ".lh-close-debug-summary", function() {
 			lh_hide_debug_summary();
+		} );
+		$("body").on( "click", ".lh-download-debug-summary", function() {
+			let blob = new Blob( [$(".lh-debug-summary").val()], {type: "text/plain"} );
+			let url = URL.createObjectURL( blob );
+			let link = document.createElement( "a" );
+			link.href = url;
+			link.download = "laskuhari-vianselvitys.txt";
+			link.click();
 		} );
 	});
 

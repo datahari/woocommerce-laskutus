@@ -201,7 +201,7 @@ a.button.tips.laskuhari-invoice img {
     z-index: 9999;
     width: 600px;
     max-width: 90%;
-    height: 420px;
+    height: 440px;
     max-height: 90%;
     overflow: auto;
     box-shadow: rgba(0,0,0,0.5) 0 0 15px;
@@ -220,6 +220,7 @@ a.button.tips.laskuhari-invoice img {
     box-sizing: border-box;
     white-space: pre;
     font-family: monospace;
+    margin-bottom: 10px;
 }
 
 .laskuhari-caption {
