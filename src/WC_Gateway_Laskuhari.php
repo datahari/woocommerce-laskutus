@@ -1,6 +1,7 @@
 <?php
 namespace Laskuhari;
 
+use WC_Log_Handler_File;
 use WC_Order;
 use WC_Order_Item_Product;
 use WC_Payment_Gateway;
@@ -997,7 +998,64 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => __( 'Älä salli laskutus-maksutapaa, jos tilauksen summa ylittää tämän (0 = ei rajaa) (voit myös käyttää muotoa min-max, esim. 50-500)', 'laskuhari' ),
                 'default'     => '0',
             ),
+            'heading_troubleshooting' => array(
+                'title'       => __( 'Vianselvitys', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '',
+            ),
+            'log_level' => array(
+                'title'       => __( 'Lokitaso', 'laskuhari' ),
+                'label'       => __( 'Valitse, minkä tason lokimerkinnät tallennetaan', 'laskuhari' ),
+                'type'        => 'select',
+                'description' => sprintf(
+                    __( 'Lokit tallennetaan polkuun <code>%s</code>. <a target="_blank" href="%s">Avaa loki</a>', 'laskuhari' ),
+                    $this->get_nice_log_path(),
+                    $this->get_log_link(),
+                ),
+                'default'     => 'info',
+                'options'     => array(
+                    '' => __( 'Ei lokitusta', 'laskuhari' ),
+                    'error' => __( 'Virheet', 'laskuhari' ),
+                    'warning' => __( 'Varoitukset', 'laskuhari' ),
+                    'info' => __( 'Info', 'laskuhari' ),
+                    'debug' => __( 'Vianselvitys', 'laskuhari' ),
+                )
+            ),
         );
+    }
+
+    /**
+     * Get log path relative to wp-content folder
+     *
+     * @return string
+     */
+    public function get_nice_log_path() {
+        $full_path = WC_Log_Handler_File::get_log_file_path( 'laskuhari' );
+
+        if( ! is_string( $full_path ) ) {
+            return "";
+        }
+
+        if( strpos( $full_path, "/wp-content/" ) ) {
+            $path_parts = explode( "/wp-content/", $full_path, 2 );
+            return "/wp-content/" . end( $path_parts );
+        }
+
+        return $full_path;
+    }
+
+    /**
+     * Get link to logs
+     *
+     * @return string
+     */
+    public function get_log_link() {
+        $full_path = WC_Log_Handler_File::get_log_file_path( 'laskuhari' );
+
+        $log_name = str_replace( '.', '-', basename( (string) $full_path ) );
+        $link = "/wp-admin/admin.php?page=wc-status&tab=logs&log_file=" . $log_name;
+
+        return $link;
     }
 
     /**
