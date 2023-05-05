@@ -2149,6 +2149,12 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
 
     if( ! $invoice_id ) {
         $error_notice = __( "Virhe laskun latauksessa. Laskua ei löytynyt numerolla", "laskuhari" );
+
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Invoice ID not found for order \'%d\' when downloading invoice',
+            $order_id,
+        ), 'error' );
+
         return array(
             "notice" => urlencode( $error_notice )
         );
