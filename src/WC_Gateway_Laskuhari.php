@@ -981,7 +981,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             ),
             'show_quantity_unit' => array(
                 'title'             => __( 'Vie yksiköt laskulle', 'laskuhari' ),
-                'label'             => __( 'Vie laskulle tuotteen märään yksikkö (kpl, kg, m, jne.)', 'laskuhari' ),
+                'label'             => __( 'Vie laskulle tuotteen määrän yksikkö (kpl, kg, m, jne.)', 'laskuhari' ),
                 'type'              => 'checkbox',
                 'description'       => 'Toiminto vaatii yhteensopivan lisäosan (esim. Woocommerce Advanced Quantity tai Quantities and Units for WooCommerce)',
                 'default'           => 'yes'
