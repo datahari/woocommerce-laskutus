@@ -756,7 +756,7 @@ function laskuhari_sync_product_on_save( $product_id ) {
     if( ! laskuhari_continue_only_on_actions( $hooks ) ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Not syncing product info on action %s',
-            substr( $_POST['action'], 0, 64 ),
+            substr( preg_replace( '/[^a-zA-Z0-9 \._-]/', '', $_POST['action'] ), 0, 64 ),
         ), 'debug' );
 
         return false;
@@ -3501,7 +3501,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             'Laskuhari: Invoice for order %d sent %s to %s',
             $order->get_id(),
             $miten,
-            $mihin,
+            substr( $mihin, 0, 3 ) . "***" . substr( $mihin, -5 ),
         ), 'debug' );
 
         $order->add_order_note( sprintf(
