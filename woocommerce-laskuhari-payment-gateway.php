@@ -99,9 +99,9 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
-    add_action( 'laskuhari_create_product_action', 'laskuhari_create_product', 10, 2 );
-    add_action( 'laskuhari_update_stock_action', 'laskuhari_update_stock', 10, 1 );
-    add_action( 'laskuhari_process_action_delayed_action', 'laskuhari_process_action', 10, 3 );
+    add_action( 'laskuhari_create_product_action', 'laskuhari_create_product_cron_hook', 10, 2 );
+    add_action( 'laskuhari_update_stock_action', 'laskuhari_update_stock_cron_hook', 10, 1 );
+    add_action( 'laskuhari_process_action_delayed_action', 'laskuhari_process_action_cron_hook', 10, 3 );
 
     if( isset( $_GET['laskuhari_luotu'] ) || isset( $_GET['laskuhari_lahetetty'] ) || isset( $_GET['laskuhari_notice'] ) || isset( $_GET['laskuhari_success'] ) ) {
         add_action( 'admin_notices', 'laskuhari_notices' );
@@ -818,6 +818,23 @@ function laskuhari_create_product_delayed( $product, $update = false ) {
     laskuhari_schedule_background_event( 'laskuhari_create_product_action', [$product, $update], true );
 }
 
+/**
+ * Wrapper for running the laskuhari_create_product cron hook
+ * (for logging when event is run)
+ *
+ * @return void
+ */
+function laskuhari_create_product_cron_hook() {
+    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        'Laskuhari: Running cron hook %s',
+        __FUNCTION__,
+    ), 'debug' );
+
+    $args = func_get_args();
+
+    laskuhari_create_product( ...$args );
+}
+
 function laskuhari_create_product( $product, $update = false ) {
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
@@ -948,6 +965,23 @@ function laskuhari_update_stock_delayed( $product ) {
     $product = laskuhari_just_the_product_id( $product );
 
     laskuhari_schedule_background_event( 'laskuhari_update_stock_action', [$product], true );
+}
+
+/**
+ * Wrapper for running the laskuhari_update_stock cron hook
+ * (for logging when event is run)
+ *
+ * @return void
+ */
+function laskuhari_update_stock_cron_hook() {
+    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        'Laskuhari: Running cron hook %s',
+        __FUNCTION__,
+    ), 'debug' );
+
+    $args = func_get_args();
+
+    laskuhari_update_stock( ...$args );
 }
 
 function laskuhari_update_stock( $product ) {
@@ -2566,6 +2600,23 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
 
     return $quantity_unit;
+}
+
+/**
+ * Wrapper for running the laskuhari_process_action cron hook
+ * (for logging when event is run)
+ *
+ * @return void
+ */
+function laskuhari_process_action_cron_hook() {
+    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        'Laskuhari: Running cron hook %s',
+        __FUNCTION__,
+    ), 'debug' );
+
+    $args = func_get_args();
+
+    laskuhari_process_action( ...$args );
 }
 
 function laskuhari_process_action_delayed(
