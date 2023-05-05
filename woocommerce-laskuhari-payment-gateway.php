@@ -1833,7 +1833,7 @@ function laskuhari_actions() {
             $order_id,
         ), 'debug' );
 
-        $lh = laskuhari_download( $_GET['order_id'], true, $args );
+        $lh = laskuhari_download( $order_id, true, $args );
 
         laskuhari_go_back( $lh );
         exit;
