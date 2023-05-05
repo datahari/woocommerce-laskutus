@@ -3480,7 +3480,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             }
 
             Logger::enabled( 'error' ) && Logger::log( sprintf(
-                'Laskuhari: Error sending invoice of order %d: %s',
+                'Laskuhari: Unknown error sending invoice of order %d',
                 $order->get_id(),
             ), 'error' );
 
