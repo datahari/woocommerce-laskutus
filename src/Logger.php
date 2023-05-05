@@ -70,11 +70,19 @@ class Logger
         $settings_level = self::LEVELS[$log_level] ?? null;
 
         if( $checked_level === null ) {
-            throw new \Exception( sprintf( "Unknown error level '%s'", $level ) );
+            Logger::log( sprintf(
+                "Unknown error level '%s'",
+                $level
+            ), 'warning' );
+            return false;
         }
 
         if( $settings_level === null ) {
-            throw new \Exception( sprintf( "Misconfigured error level: '%s' is not valid", $log_level ) );
+            Logger::log( sprintf(
+                "Misconfigured error level: '%s' is not valid",
+                $log_level
+            ), 'warning' );
+            return false;
         }
 
         return $checked_level <= $settings_level;
