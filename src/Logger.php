@@ -23,11 +23,21 @@ class Logger
     protected static $logger;
 
     /**
-     * The WC_Gateway_Laskuhari instance
+     * The available logging levels
      *
-     * @var ?WC_Gateway_Laskuhari
+     * @var array<string, int>
      */
-    protected static $gateway_instance;
+    public const LEVELS = [
+        'emergency' => 1,
+        'alert' => 2,
+        'critical' => 3,
+        'error' => 4,
+        'warning' => 5,
+        'notice' => 6,
+        'info' => 7,
+        'debug' => 8,
+        '' => 9, // no logging
+    ];
 
     /**
      * Logs a message with given level with the WooCommerce Logger
@@ -38,7 +48,7 @@ class Logger
      */
     public static function log( $message, $level = 'info' ) {
         if( ! isset( self::$logger ) ) {
-            self::$logger = wc_get_logger();
+            self::$logger = \wc_get_logger();
         }
 
         self::$logger->log( $level, $message, [
@@ -53,35 +63,20 @@ class Logger
      * @return bool
      */
     public static function enabled( string $level ): bool {
-        if( ! isset( self::$gateway_instance ) ) {
-            self::$gateway_instance = WC_Gateway_Laskuhari::get_instance();
-        }
+        $gateway_instance = WC_Gateway_Laskuhari::get_instance();
+        $log_level = $gateway_instance->log_level;
 
-        $log_level = self::$gateway_instance->log_level;
+        $checked_level = self::LEVELS[$level] ?? null;
+        $settings_level = self::LEVELS[$log_level] ?? null;
 
-        if( $log_level === '' ) {
-            return false;
-        }
-
-        $levels = [
-            'emergency' => 8,
-            'alert' => 7,
-            'critical' => 6,
-            'error' => 5,
-            'warning' => 4,
-            'notice' => 3,
-            'info' => 2,
-            'debug' => 1,
-        ];
-
-        if( ! isset( $levels[$level] ) ) {
+        if( ! $checked_level ) {
             throw new \Exception( sprintf( "Unknown error level '%s'", $level ) );
         }
 
-        if( ! isset( $levels[$log_level] ) ) {
+        if( ! $settings_level ) {
             throw new \Exception( sprintf( "Misconfigured error level: '%s' is not valid", $log_level ) );
         }
 
-        return $levels[$level] <= $levels[$log_level];
+        return $checked_level <= $settings_level;
     }
 }
