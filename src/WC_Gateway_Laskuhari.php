@@ -255,7 +255,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     protected $min_amount = 0;
 
     /**
-     * Which log level to log
+     * Which log level to log (will be overridden by options)
      *
      * @var string
      */
