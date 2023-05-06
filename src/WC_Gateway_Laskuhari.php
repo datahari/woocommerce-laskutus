@@ -1216,9 +1216,22 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * Process the payment and return the result.
      *
      * @param int $order_id
-     * @return array<string, string>
+     * @return array<string, string>|WP_Error
      */
     public function process_payment( $order_id ) {
+        $transient_name = "laskuhari_processing_payment_" . $order_id;
+
+        if( laskuhari_get_transient( $transient_name ) === "yes" ) {
+            Logger::enabled( 'warning' ) && Logger::log( sprintf(
+                'Laskuhari: Not processing Laskuhari payment again while transient active, order %d',
+                $order_id,
+            ), 'warning' );
+
+            $error_message = __( 'Tried to process payment twice', 'laskuhari' );
+            return new \WP_Error( 'payment_error', $error_message );
+        }
+
+        \set_transient( $transient_name, "yes", 60 );
 
         if( $this->auto_gateway_create_enabled ) {
             if( $this->attach_invoice_to_wc_email ) {
@@ -1246,6 +1259,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 intval( $order_id ),
             ), 'error' );
 
+            \delete_transient( $transient_name );
+
             throw new \Exception( "Unable to process order" );
         }
 
@@ -1259,6 +1274,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'Laskuhari: Error processing order %d: Status after payment not valid',
                 intval( $order_id ),
             ), 'error' );
+
+            \delete_transient( $transient_name );
 
             throw new \Exception( "Status after payment must be string, " . gettype( $status_after_payment ) . " given" );
         }
@@ -1297,6 +1314,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             intval( $order_id ),
             $return_url,
         ), 'debug' );
+
+        \delete_transient( $transient_name );
 
         // Return thankyou redirect
         return array(
