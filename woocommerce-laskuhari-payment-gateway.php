@@ -166,8 +166,8 @@ function laskuhari_json_flag() {
 }
 
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
-    $is_laskuhari_order = get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
-    if( is_admin() && $is_laskuhari_order && $payment_terms_name = get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
+    $is_laskuhari_order = laskuhari_get_post_meta( $order->get_id(), '_payment_method', true ) === "laskuhari";
+    if( is_admin() && $is_laskuhari_order && $payment_terms_name = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_payment_terms_name', true ) ) {
         if( mb_stripos( $title, $payment_terms_name ) === false ) {
             $title .= " (" . $payment_terms_name . ")";
         }
@@ -767,7 +767,7 @@ function laskuhari_sync_product_on_save( $product_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
     if( $laskuhari_gateway_object->synkronoi_varastosaldot ) {
         $updating_product_id = 'laskuhari_update_product_' . $product_id;
-        if ( false === get_transient( $updating_product_id ) ) {
+        if ( false === laskuhari_get_transient( $updating_product_id ) ) {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Syncing product %s to Laskuhari',
                 $product_id,
@@ -960,7 +960,7 @@ function laskuhari_product_synced( $product, $set = null ) {
         return $set;
     }
 
-    return get_post_meta( $product->get_id(), '_laskuhari_synced', true ) === "yes";
+    return laskuhari_get_post_meta( $product->get_id(), '_laskuhari_synced', true ) === "yes";
 }
 
 function laskuhari_update_stock_delayed( $product ) {
@@ -1138,7 +1138,7 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
             $status = "on-hold";
         } else {
             $status = "pending";
-            $laskutustapa = get_post_meta( $post->ID, '_payment_method', true );
+            $laskutustapa = laskuhari_get_post_meta( $post->ID, '_payment_method', true );
             if( $laskutustapa != "laskuhari" ) {
                 echo '-';
                 return;
@@ -1421,7 +1421,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
 }
 
 function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
-    $post_meta = get_post_meta( $order_id, $meta_key, $single );
+    $post_meta = laskuhari_get_post_meta( $order_id, $meta_key, $single );
     if( ! empty( $post_meta ) ) {
         return $post_meta;
     }
@@ -1522,8 +1522,34 @@ function laskuhari_metabox() {
     }
 }
 
+/**
+ * Custom version of get_post_meta that flushes the cache
+ * before getting post meta.
+ *
+ * @param int $post_id
+ * @param string $key
+ * @param boolean $single
+ * @return mixed
+ */
+function laskuhari_get_post_meta( $post_id, $key, $single = true ) {
+    wp_cache_flush();
+    return get_post_meta( $post_id, $key, $single );
+}
+
+/**
+ * Custom version of get_transient that flushes the cache
+ * before getting the transient
+ *
+ * @param string $transient
+ * @return mixed
+ */
+function laskuhari_get_transient( $transient ) {
+    wp_cache_flush();
+    return get_transient( $transient );
+}
+
 function laskuhari_invoice_is_created_from_order( $order_id ) {
-    return !! get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+    return !! laskuhari_get_post_meta( $order_id, '_laskuhari_invoice_number', true );
 }
 
 // Hae tilauksen laskutustila
@@ -1531,9 +1557,9 @@ function laskuhari_invoice_is_created_from_order( $order_id ) {
 function laskuhari_invoice_status( $order_id ) {
     laskuhari_maybe_process_queued_invoice( $order_id );
 
-    $laskunumero = get_post_meta( $order_id, '_laskuhari_invoice_number', true );
-    $lahetetty   = get_post_meta( $order_id, '_laskuhari_sent', true ) == "yes";
-    $queued      = get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
+    $laskunumero = laskuhari_get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+    $lahetetty   = laskuhari_get_post_meta( $order_id, '_laskuhari_sent', true ) == "yes";
+    $queued      = laskuhari_get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
 
     if( $laskunumero > 0 ) {
         $lasku_luotu = true;
@@ -1564,8 +1590,8 @@ function laskuhari_invoice_status( $order_id ) {
 }
 
 function laskuhari_order_payment_status( $order_id ) {
-    $payment_status      = get_post_meta( $order_id, '_laskuhari_payment_status', true );
-    $payment_status_name = get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
+    $payment_status      = laskuhari_get_post_meta( $order_id, '_laskuhari_payment_status', true );
+    $payment_status_name = laskuhari_get_post_meta( $order_id, '_laskuhari_payment_status_name', true );
 
     if ( 1 == $payment_status ) {
         $payment_status_class = "laskuhari-paid";
@@ -1596,9 +1622,9 @@ function laskuhari_metabox_html( $post ) {
     $laskunumero = $tiladata['laskunumero'];
     $lasku_luotu = $tiladata['lasku_luotu'];
 
-    $maksutapa     = get_post_meta( $post->ID, '_payment_method', true );
-    $maksuehto     = get_post_meta( $post->ID, '_laskuhari_payment_terms', true );
-    $maksuehtonimi = get_post_meta( $post->ID, '_laskuhari_payment_terms_name', true );
+    $maksutapa     = laskuhari_get_post_meta( $post->ID, '_payment_method', true );
+    $maksuehto     = laskuhari_get_post_meta( $post->ID, '_laskuhari_payment_terms', true );
+    $maksuehtonimi = laskuhari_get_post_meta( $post->ID, '_laskuhari_payment_terms_name', true );
     $maksutapa_ei_laskuhari = $maksutapa && $maksutapa != "laskuhari" && $tila == "EI LASKUTETTU";
 
     if( $maksutapa_ei_laskuhari ) {
@@ -2010,7 +2036,7 @@ function laskuhari_add_admin_scripts() {
 }
 
 function laskuhari_invoice_number_by_order( $orderid ) {
-    return get_post_meta( $orderid, '_laskuhari_invoice_number', true );
+    return laskuhari_get_post_meta( $orderid, '_laskuhari_invoice_number', true );
 }
 
 function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
@@ -2061,7 +2087,7 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
 function laskuhari_update_payment_status( $order_id, $status_code, $status_name, $status_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
-    $old_status = get_post_meta( $order_id, '_laskuhari_payment_status', true );
+    $old_status = laskuhari_get_post_meta( $order_id, '_laskuhari_payment_status', true );
 
     update_post_meta( $order_id, '_laskuhari_payment_status', $status_code );
     update_post_meta( $order_id, '_laskuhari_payment_status_name', $status_name );
@@ -2121,7 +2147,7 @@ function laskuhari_get_payment_terms( $force = false ) {
 }
 
 function laskuhari_invoice_id_by_order( $orderid ) {
-    $invoice_id = get_post_meta( $orderid, '_laskuhari_invoice_id', true );
+    $invoice_id = laskuhari_get_post_meta( $orderid, '_laskuhari_invoice_id', true );
 
     if( ! $invoice_id ) {
         $invoice_number = laskuhari_invoice_number_by_order( $orderid );
@@ -2133,7 +2159,7 @@ function laskuhari_invoice_id_by_order( $orderid ) {
 }
 
 function laskuhari_uid_by_order( $orderid ) {
-    return get_post_meta( $orderid, '_laskuhari_uid', true );
+    return laskuhari_get_post_meta( $orderid, '_laskuhari_uid', true );
 }
 
 function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
@@ -2342,7 +2368,7 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
     if( ! is_object( $order ) ) {
         $order = wc_get_order( $order );
     }
-    return "yes" === get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
+    return "yes" === laskuhari_get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
 }
 
 function laskuhari_maybe_send_invoice_attached( $order ) {
@@ -2374,7 +2400,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
         return false;
     }
 
-    $invoice_number = get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+    $invoice_number = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
 
     if( ! $invoice_number ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2425,8 +2451,8 @@ function laskuhari_send_invoice_attached( $order ) {
         return false;
     }
 
-    $invoice_number = get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
-    $invoice_id     = get_post_meta( $order->get_id(), '_laskuhari_invoice_id', true );
+    $invoice_number = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+    $invoice_id     = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_invoice_id', true );
 
     if( ! $invoice_id ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
@@ -2521,7 +2547,7 @@ function laskuhari_send_invoice_attached( $order ) {
 
             $attachments[] = $temp_file;
 
-            if( get_post_meta( $order->get_id(), '_laskuhari_sent', true ) !== "yes" ) {
+            if( laskuhari_get_post_meta( $order->get_id(), '_laskuhari_sent', true ) !== "yes" ) {
                 laskuhari_set_invoice_sent_status( $invoice_id, true, wp_date( "Y-m-d" ) );
                 update_post_meta( $order->get_id(), '_laskuhari_sent', "yes" );
             }
@@ -2604,11 +2630,11 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
             break;
         }
 
-        if( $product_id && $quantity_unit = get_post_meta( $product_id, $unit_field, true )  ) {
+        if( $product_id && $quantity_unit = laskuhari_get_post_meta( $product_id, $unit_field, true )  ) {
            break;
         }
 
-        if( $product_id && $quantity_unit = get_post_meta( $product_id, "_".$unit_field, true )  ) {
+        if( $product_id && $quantity_unit = laskuhari_get_post_meta( $product_id, "_".$unit_field, true )  ) {
            break;
         }
 
@@ -2684,8 +2710,8 @@ function laskuhari_process_action_delayed(
  * @return array|false
  */
 function laskuhari_maybe_process_queued_invoice( $order_id ) {
-    $queued = get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
-    $queued_args = get_post_meta( $order_id, '_laskuhari_queued_args', true );
+    $queued = laskuhari_get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
+    $queued_args = laskuhari_get_post_meta( $order_id, '_laskuhari_queued_args', true );
 
     if( $queued && ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
         return laskuhari_process_action( ...$queued_args );
@@ -2748,7 +2774,7 @@ function laskuhari_process_action(
         laskuhari_set_order_meta( $order_id, "_laskuhari_laskutustapa", $_REQUEST['laskuhari-laskutustapa'], false );
     }
 
-    $prices_include_tax = get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
+    $prices_include_tax = laskuhari_get_post_meta( $order_id, '_prices_include_tax', true ) == 'yes' ? true : false;
 
     $send_method = laskuhari_get_order_send_method( $order->get_id() );
 
@@ -2826,7 +2852,7 @@ function laskuhari_process_action(
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
         $maksuehto = $_REQUEST['laskuhari-maksuehto'];
     } else {
-        $maksuehto = get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
+        $maksuehto = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_payment_terms', true );
     }
 
     if( ! $maksuehto ) {
@@ -3271,7 +3297,7 @@ function laskuhari_process_action(
 function laskuhari_get_order_send_method( $order_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
-    $send_method = get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
+    $send_method = laskuhari_get_post_meta( $order_id, '_laskuhari_laskutustapa', true );
 
     $send_methods = array(
         "verkkolasku",
@@ -3345,7 +3371,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     $sendername    = apply_filters( "laskuhari_sender_name", $sendername, $order_id );
 
     $invoice_id = laskuhari_invoice_id_by_order( $order_id );
-    $order_uid  = get_post_meta( $order_id, '_laskuhari_uid', true );
+    $order_uid  = laskuhari_get_post_meta( $order_id, '_laskuhari_uid', true );
 
     if( $order_uid && $laskuhari_uid != $order_uid ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
