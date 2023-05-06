@@ -23,6 +23,13 @@ class Logger
     protected static $logger;
 
     /**
+     * A random identifier for the request
+     *
+     * @var int
+     */
+    protected static $request_id;
+
+    /**
      * The available logging levels
      *
      * @var array<string, int>
@@ -47,11 +54,15 @@ class Logger
      * @return void
      */
     public static function log( $message, $level = 'info' ) {
+        if( ! isset( self::$request_id ) ) {
+            self::$request_id = rand( 0, 9999 );
+        }
+
         if( ! isset( self::$logger ) ) {
             self::$logger = \wc_get_logger();
         }
 
-        self::$logger->log( $level, $message, [
+        self::$logger->log( $level, $message . " (REQ-" . self::$request_id . ")", [
             "source" => "laskuhari"
         ] );
     }
