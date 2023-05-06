@@ -14,7 +14,7 @@ class Laskuhari_Troubleshooter
      *
      * @var WC_Gateway_Laskuhari
      */
-    protected WC_Gateway_Laskuhari $gateway;
+    protected $gateway;
 
     public function __construct( WC_Gateway_Laskuhari $gateway ) {
         $this->gateway = $gateway;

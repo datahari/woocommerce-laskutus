@@ -1011,7 +1011,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => sprintf(
                     __( 'Lokit tallennetaan polkuun <code>%s</code>. <a target="_blank" href="%s">Avaa loki</a>', 'laskuhari' ),
                     $this->get_nice_log_path(),
-                    $this->get_log_link(),
+                    $this->get_log_link()
                 ),
                 'default'     => 'info',
                 'options'     => array(
@@ -1225,7 +1225,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( laskuhari_get_transient( $transient_name ) === "yes" ) {
             Logger::enabled( 'warning' ) && Logger::log( sprintf(
                 'Laskuhari: Not processing Laskuhari payment again while transient active, order %d',
-                $order_id,
+                $order_id
             ), 'warning' );
 
             $error_message = __( 'Tried to process payment twice', 'laskuhari' );
@@ -1238,14 +1238,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             if( $this->attach_invoice_to_wc_email ) {
                 Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action synchronously: process_payment, %d',
-                    $order_id,
+                    $order_id
                 ), 'info' );
 
                 laskuhari_process_action( $order_id, $this->auto_gateway_enabled, false, true );
             } else {
                 Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action delayed: process_payment, %d',
-                    $order_id,
+                    $order_id
                 ), 'info' );
 
                 laskuhari_process_action_delayed( $order_id, $this->auto_gateway_enabled, false, true );
@@ -1257,7 +1257,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( ! $order instanceof WC_Order ) {
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Error processing order %d: not instance of WC_Order',
-                intval( $order_id ),
+                intval( $order_id )
             ), 'error' );
 
             \delete_transient( $transient_name );
@@ -1273,7 +1273,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( ! is_string( $status_after_payment ) ) {
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Error processing order %d: Status after payment not valid',
-                intval( $order_id ),
+                intval( $order_id )
             ), 'error' );
 
             \delete_transient( $transient_name );
@@ -1290,14 +1290,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         if( $reduce_stock_levels ) {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Reducing stock levels for order %d',
-                intval( $order_id ),
+                intval( $order_id )
             ), 'debug' );
 
             wc_reduce_stock_levels( $order_id );
         } else {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Not reducing stock levels for order %d',
-                intval( $order_id ),
+                intval( $order_id )
             ), 'debug' );
         }
 
@@ -1313,7 +1313,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Payment processed for %d, returning to %s',
             intval( $order_id ),
-            $return_url,
+            $return_url
         ), 'debug' );
 
         \delete_transient( $transient_name );
