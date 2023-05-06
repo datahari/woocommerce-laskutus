@@ -19,6 +19,7 @@ use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
+use Laskuhari\Laskuhari_Uninstall;
 use Laskuhari\Logger;
 use Laskuhari\WC_Gateway_Laskuhari;
 
@@ -28,6 +29,8 @@ require_once dirname( __FILE__ ) . '/autoload.php';
 
 Laskuhari_Plugin_Updater::init();
 Laskuhari_Troubleshooter::register_endpoint();
+Laskuhari_Uninstall::register_uninstall_hook( __FILE__ );
+Logger::register_log_cleanup();
 
 if( apply_filters( "laskuhari_export_rest_api_enabled", true ) ) {
     Laskuhari_Export_Products_REST_API::init();

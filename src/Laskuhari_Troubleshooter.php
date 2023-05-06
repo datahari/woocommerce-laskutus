@@ -75,7 +75,7 @@ class Laskuhari_Troubleshooter
      * @return string
      */
     protected function read_logs( int $limit ): string {
-        $log_files = $this->get_log_files();
+        $log_files = Logger::get_log_files();
 
         if( ! $log_files ) {
             return "<unable to read log files>";
@@ -116,42 +116,6 @@ class Laskuhari_Troubleshooter
         }
 
         return $log_lines;
-    }
-
-    /**
-     * Get all Laskuhari log files
-     *
-     * @return array<string>|false
-     */
-    protected function get_log_files() {
-        $log_file = \WC_Log_Handler_File::get_log_file_path( 'laskuhari' );
-
-        if( ! is_string( $log_file ) ) {
-            return false;
-        }
-
-        $log_dir_path = dirname( $log_file );
-        $log_dir_res = opendir( $log_dir_path );
-
-        if( ! $log_dir_res ) {
-            return false;
-        }
-
-        $log_files = [];
-        $count = 0;
-        $limit = 30;
-        while( ( $file = readdir( $log_dir_res ) ) !== false ) {
-            $ext = pathinfo( $file, PATHINFO_EXTENSION );
-            if( $ext === "log" && strpos( $file, "laskuhari-" ) === 0 ) {
-                $log_files[] = rtrim( $log_dir_path, "/" ) . "/" . $file;
-                $count++;
-                if( $count > $limit ) {
-                    break;
-                }
-            }
-        }
-
-        return $log_files;
     }
 
     /**
