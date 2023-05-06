@@ -244,6 +244,11 @@ function laskuhari_checkout_update_customer( $customer ) {
 function laskuhari_handle_payment_complete( $order_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
+    Logger::enabled( 'info' ) && Logger::log( sprintf(
+        'Laskuhari: Handling payment complete of order %d',
+        $order_id,
+    ), 'info' );
+
     $order = wc_get_order( $order_id );
 
     if( ! $order ) {
@@ -2764,7 +2769,15 @@ function laskuhari_process_action(
             return array(
                 "notice" => urlencode( $error_notice )
             );
+        } else {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Forcibly creating another invoice for order %d.', $order_id
+            ), 'debug' );
         }
+    } else {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: No invoice for order %d. Creating a new one.', $order_id
+        ), 'debug' );
     }
 
     if ( isset( $_REQUEST['laskuhari-viitteenne'] ) ) {
