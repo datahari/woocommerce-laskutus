@@ -25,7 +25,7 @@ class Logger
     /**
      * A random identifier for the request
      *
-     * @var int
+     * @var ?int
      */
     protected static $request_id;
 

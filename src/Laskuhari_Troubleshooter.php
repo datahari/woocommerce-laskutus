@@ -45,9 +45,13 @@ class Laskuhari_Troubleshooter
     public function get_summary(): string {
         $options = get_option( $this->gateway->get_option_key(), "<settings not found>" );
 
-        unset( $options['apikey'] );
+        if( ! is_array( $options ) ) {
+            $settings = "<unable to read settings>";
+        } else {
+            unset( $options['apikey'] );
 
-        $settings = json_encode( $options, JSON_PRETTY_PRINT );
+            $settings = json_encode( $options, JSON_PRETTY_PRINT );
+        }
 
         $summary  = "////////////////////////////////////////////////\n";
         $summary .= "/// Laskuhari Plugin Troubleshooting Summary ///\n";

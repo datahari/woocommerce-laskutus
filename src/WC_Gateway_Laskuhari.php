@@ -7,6 +7,7 @@ use WC_Order_Item_Product;
 use WC_Payment_Gateway;
 use WC_Product;
 use WC_Shipping_Zones;
+use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
