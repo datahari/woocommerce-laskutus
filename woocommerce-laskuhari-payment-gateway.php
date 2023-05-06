@@ -2737,6 +2737,27 @@ function laskuhari_process_action(
     $from_gateway = false,
     $force_recreate = false
 ) {
+    $transient_name = "laskuhari_process_action_" . $order_id;
+    $sleep_time = 0;
+    while( \laskuhari_get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: Sleeping 5s while transient active, order %d',
+            $order_id,
+        ), 'debug' );
+        sleep( 5 );
+        $sleep_time += 5;
+    }
+
+    if( $sleep_time === 20 ) {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: Not processing Laskuhari action again while transient active, order %d',
+            $order_id,
+        ), 'debug' );
+        return false;
+    }
+
+    \set_transient( $transient_name, "yes", 60 );
+
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     delete_post_meta( $order_id, '_laskuhari_queued' );
@@ -2754,6 +2775,8 @@ function laskuhari_process_action(
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Invoice for order %s created already. Only sending via bulk action', $order_id
             ), 'debug' );
+
+            \delete_transient( $transient_name );
 
             return laskuhari_send_invoice( $order, $bulk_action );
         }
@@ -2811,6 +2834,8 @@ function laskuhari_process_action(
             'Laskuhari: UID error while processing action, order %d',
             $order_id,
         ), 'error' );
+
+        \delete_transient( $transient_name );
 
         return laskuhari_uid_error();
     }
@@ -3161,6 +3186,8 @@ function laskuhari_process_action(
             $order_id,
         ), 'error' );
 
+        \delete_transient( $transient_name );
+
         return array(
             "notice" => urlencode( $error_notice )
         );
@@ -3203,6 +3230,9 @@ function laskuhari_process_action(
 
     if( isset( $response['notice'] ) ) {
         $order->add_order_note( $response['notice'] );
+
+        \delete_transient( $transient_name );
+
         return $response;
     }
 
@@ -3214,6 +3244,8 @@ function laskuhari_process_action(
             'Laskuhari: Error in creating invoice, order %d',
             $order_id,
         ), 'error' );
+
+        \delete_transient( $transient_name );
 
         return array(
             "notice" => urlencode( $error_notice )
@@ -3234,6 +3266,8 @@ function laskuhari_process_action(
             $order_id,
             $response,
         ), 'error' );
+
+        \delete_transient( $transient_name );
 
         return array(
             "notice" => urlencode( $error_notice )
@@ -3281,6 +3315,8 @@ function laskuhari_process_action(
                 $order->get_id(),
             ), 'debug' );
 
+            \delete_transient( $transient_name );
+
             return laskuhari_send_invoice( $order, $bulk_action );
         }
 
@@ -3295,6 +3331,8 @@ function laskuhari_process_action(
             $response_json,
         ), 'error' );
 
+        \delete_transient( $transient_name );
+
         return array(
             "notice" => urlencode( $error_notice )
         );
@@ -3304,6 +3342,8 @@ function laskuhari_process_action(
         'Laskuhari: Created invoice for order %d',
         $order->get_id(),
     ), 'info' );
+
+    \delete_transient( $transient_name );
 
     return array(
         "luotu"   => $order->get_id(),
