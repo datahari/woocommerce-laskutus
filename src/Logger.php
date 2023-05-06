@@ -108,8 +108,6 @@ class Logger
 
     /**
      * Register log cleanup schedule.
-     * By default, logs older than 30 days will be deleted and
-     * a maximum of 1 megabyte of logs will be kept
      *
      * @return void
      */
@@ -120,28 +118,37 @@ class Logger
             }
         } );
 
-        add_action( self::SCHEDULED_EVENT_HOOK, function() {
-            $log_files = self::get_log_files();
+        add_action( self::SCHEDULED_EVENT_HOOK, [self::class, "cleanup_logs"] );
+    }
 
-            if( ! $log_files ) {
-                return;
+    /**
+     * Deletes old logs.
+     * By default, logs older than 30 days will be deleted and
+     * a maximum of 1 megabyte of logs will be kept
+     *
+     * @return void
+     */
+    public static function cleanup_logs() {
+        $log_files = self::get_log_files();
+
+        if( ! $log_files ) {
+            return;
+        }
+
+        sort( $log_files );
+
+        $keep_logs_for_days = apply_filters( "laskuhari_log_file_expiration_days", 30 );
+        $expiration_time = time() - 3600 * 24 * $keep_logs_for_days;
+
+        $max_filesize = apply_filters( "laskuhari_log_max_total_filesize_bytes", 1024*1024 );
+        $total_filesize = 0;
+
+        foreach( $log_files as $log_file ) {
+            $total_filesize += filesize( $log_file );
+            if( filemtime( $log_file ) < $expiration_time || $total_filesize > $max_filesize ) {
+                @unlink( $log_file );
             }
-
-            sort( $log_files );
-
-            $keep_logs_for_days = apply_filters( "laskuhari_log_file_expiration_days", 30 );
-            $expiration_time = time() - 3600 * 24 * $keep_logs_for_days;
-
-            $max_filesize = apply_filters( "laskuhari_log_max_total_filesize_bytes", 1024*1024 );
-            $total_filesize = 0;
-
-            foreach( $log_files as $log_file ) {
-                $total_filesize += filesize( $log_file );
-                if( filemtime( $log_file ) < $expiration_time || $total_filesize > $max_filesize ) {
-                    @unlink( $log_file );
-                }
-            }
-        } );
+        }
     }
 
     /**
