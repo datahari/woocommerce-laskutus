@@ -3338,8 +3338,11 @@ function laskuhari_process_action(
         );
     }
 
+    $invoice_number = laskuhari_get_post_meta( $order_id, '_laskuhari_invoice_number', true );
+
     Logger::enabled( 'info' ) && Logger::log( sprintf(
-        'Laskuhari: Created invoice for order %d',
+        'Laskuhari: Created invoice with number %s for order %d',
+        $invoice_number,
         $order->get_id(),
     ), 'info' );
 
