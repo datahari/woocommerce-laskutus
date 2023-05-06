@@ -288,14 +288,19 @@ function laskuhari_handle_payment_complete( $order_id ) {
                 'Laskuhari: Creating invoice for order %s synchronously', $order_id
             ), 'info' );
 
-            laskuhari_process_action( $order_id, false, false, false, $create_invoice );
+            laskuhari_process_action( $order_id, false, false, false );
         } else {
             Logger::enabled( 'info' ) && Logger::log( sprintf(
                 'Laskuhari: Creating invoice for order %s delayed', $order_id
             ), 'info' );
 
-            laskuhari_process_action_delayed( $order_id, false, false, false, $create_invoice );
+            laskuhari_process_action_delayed( $order_id, false, false, false );
         }
+    } else {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: Not creating invoice on payment complete, order %d',
+            $order_id,
+        ), 'debug' );
     }
 }
 
