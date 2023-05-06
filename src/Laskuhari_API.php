@@ -232,10 +232,10 @@ class Laskuhari_API
      * @return void
      */
     protected function check_timestamp() {
-        // check that timestamps are in sync at least 30 seconds
+        // check that timestamps are in sync at least 60 seconds
         $timestamp = intval( $this->get_header( 'x-timestamp' ) );
 
-        if( abs( $timestamp - time() ) > 30 ) {
+        if( abs( $timestamp - time() ) > 60 ) {
             do_action( "laskuhari_api_request_invalid_timestamp" );
 
             $this->response_error( "Blocked possible duplicate request", 401 );

@@ -1,11 +1,13 @@
 <?php
 namespace Laskuhari;
 
+use WC_Log_Handler_File;
 use WC_Order;
 use WC_Order_Item_Product;
 use WC_Payment_Gateway;
 use WC_Product;
 use WC_Shipping_Zones;
+use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -254,6 +256,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     protected $min_amount = 0;
 
     /**
+     * Which log level to log (will be overridden by options)
+     *
+     * @var string
+     */
+    public $log_level = 'info';
+
+    /**
      * Get a static instance of this class
      *
      * @return WC_Gateway_Laskuhari
@@ -320,6 +329,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->attach_receipt_to_wc_email                   = $this->lh_get_option( 'attach_receipt_to_wc_email', 'yes' ) === "yes";
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
+        $this->log_level                                    = $this->lh_get_option( 'log_level', 'info' );
     }
 
     /**
@@ -819,7 +829,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'       => __( 'Laskuttaja', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskuttajan nimi, joka näkyy sähköpostilaskun lähettäjänä', 'laskuhari' ),
-                'default'     => __( '', 'laskuhari' ),
+                'default'     => '',
                 'desc_tip'    => true,
             ),
             'title' => array(
@@ -852,14 +862,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'title'       => __( 'Laskutuslisä', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskutuslisä, joka lisätään jokaiselle laskulle (EUR, 0 = ei laskutuslisää)', 'laskuhari' ),
-                'default'     => __( '0', 'laskuhari' ),
+                'default'     => '0',
                 'desc_tip'    => true,
             ),
             'laskutuslisa_alv' => array(
                 'title'       => __( 'Laskutuslisän ALV-%', 'laskuhari' ),
                 'type'        => 'text',
                 'description' => __( 'Laskutuslisän arvonlisäveroprosentti', 'laskuhari' ),
-                'default'     => __( '24', 'laskuhari' ),
+                'default'     => '24',
                 'desc_tip'    => true,
             ),
             'heading_shipping_methods' => array(
@@ -972,7 +982,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             ),
             'show_quantity_unit' => array(
                 'title'             => __( 'Vie yksiköt laskulle', 'laskuhari' ),
-                'label'             => __( 'Vie laskulle tuotteen märään yksikkö (kpl, kg, m, jne.)', 'laskuhari' ),
+                'label'             => __( 'Vie laskulle tuotteen määrän yksikkö (kpl, kg, m, jne.)', 'laskuhari' ),
                 'type'              => 'checkbox',
                 'description'       => 'Toiminto vaatii yhteensopivan lisäosan (esim. Woocommerce Advanced Quantity tai Quantities and Units for WooCommerce)',
                 'default'           => 'yes'
@@ -989,7 +999,74 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'description' => __( 'Älä salli laskutus-maksutapaa, jos tilauksen summa ylittää tämän (0 = ei rajaa) (voit myös käyttää muotoa min-max, esim. 50-500)', 'laskuhari' ),
                 'default'     => '0',
             ),
+            'heading_troubleshooting' => array(
+                'title'       => __( 'Vianselvitys', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => '<a href="#" class="lh-show-debug-summary">Avaa vianselvitystiedot</a>',
+            ),
+            'log_level' => array(
+                'title'       => __( 'Lokitaso', 'laskuhari' ),
+                'label'       => __( 'Valitse, minkä tason lokimerkinnät tallennetaan', 'laskuhari' ),
+                'type'        => 'select',
+                'description' => sprintf(
+                    __( 'Lokit tallennetaan polkuun <code>%s</code>. <a target="_blank" href="%s">Avaa loki</a>', 'laskuhari' ),
+                    $this->get_nice_log_path(),
+                    $this->get_log_link()
+                ),
+                'default'     => 'info',
+                'options'     => array(
+                    'none' => __( 'Ei lokitusta', 'laskuhari' ),
+                    'error' => __( 'Virheet', 'laskuhari' ),
+                    'warning' => __( 'Varoitukset', 'laskuhari' ),
+                    'info' => __( 'Info', 'laskuhari' ),
+                    'debug' => __( 'Vianselvitys', 'laskuhari' ),
+                )
+            ),
         );
+    }
+
+    /**
+     * Get log path relative to wp-content folder
+     *
+     * @return string
+     */
+    public function get_nice_log_path() {
+        $full_path = WC_Log_Handler_File::get_log_file_path( 'laskuhari' );
+
+        if( ! is_string( $full_path ) ) {
+            return "";
+        }
+
+        if( strpos( $full_path, "/wp-content/" ) ) {
+            $path_parts = explode( "/wp-content/", $full_path, 2 );
+            return "/wp-content/" . end( $path_parts );
+        }
+
+        return $full_path;
+    }
+
+    /**
+     * Get link to logs
+     *
+     * @return string
+     */
+    public function get_log_link() {
+        $full_path = WC_Log_Handler_File::get_log_file_path( 'laskuhari' );
+
+        $log_name = str_replace( '.', '-', basename( (string) $full_path ) );
+        $link = "/wp-admin/admin.php?page=wc-status&tab=logs&log_file=" . $log_name;
+
+        return $link;
+    }
+
+    /**
+     * Generates a troubleshooting summary
+     *
+     * @return string
+     */
+    public function get_troubleshooting_summary(): string {
+        $troubleshooter = new Laskuhari_Troubleshooter( $this );
+        return $troubleshooter->get_summary();
     }
 
     /**
@@ -1140,14 +1217,37 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * Process the payment and return the result.
      *
      * @param int $order_id
-     * @return array<string, string>
+     * @return array<string, string>|WP_Error
      */
     public function process_payment( $order_id ) {
+        $transient_name = "laskuhari_processing_payment_" . $order_id;
+
+        if( laskuhari_get_transient( $transient_name ) === "yes" ) {
+            Logger::enabled( 'warning' ) && Logger::log( sprintf(
+                'Laskuhari: Not processing Laskuhari payment again while transient active, order %d',
+                $order_id
+            ), 'warning' );
+
+            $error_message = __( 'Tried to process payment twice', 'laskuhari' );
+            return new \WP_Error( 'payment_error', $error_message );
+        }
+
+        \set_transient( $transient_name, "yes", 60 );
 
         if( $this->auto_gateway_create_enabled ) {
             if( $this->attach_invoice_to_wc_email ) {
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
+                    'Laskuhari: Processing action synchronously: process_payment, %d',
+                    $order_id
+                ), 'info' );
+
                 laskuhari_process_action( $order_id, $this->auto_gateway_enabled, false, true );
             } else {
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
+                    'Laskuhari: Processing action delayed: process_payment, %d',
+                    $order_id
+                ), 'info' );
+
                 laskuhari_process_action_delayed( $order_id, $this->auto_gateway_enabled, false, true );
             }
         }
@@ -1155,6 +1255,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $order = wc_get_order( $order_id );
 
         if( ! $order instanceof WC_Order ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: Error processing order %d: not instance of WC_Order',
+                intval( $order_id )
+            ), 'error' );
+
+            \delete_transient( $transient_name );
+
             throw new \Exception( "Unable to process order" );
         }
 
@@ -1164,6 +1271,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $status_after_payment = apply_filters( "laskuhari_status_after_payment", $status_after_payment, $order_id );
 
         if( ! is_string( $status_after_payment ) ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: Error processing order %d: Status after payment not valid',
+                intval( $order_id )
+            ), 'error' );
+
+            \delete_transient( $transient_name );
+
             throw new \Exception( "Status after payment must be string, " . gettype( $status_after_payment ) . " given" );
         }
 
@@ -1174,7 +1288,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         // Reduce stock levels
         $reduce_stock_levels = apply_filters( "laskuhari_reduce_stock_levels_after_payment", true, $order_id );
         if( $reduce_stock_levels ) {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Reducing stock levels for order %d',
+                intval( $order_id )
+            ), 'debug' );
+
             wc_reduce_stock_levels( $order_id );
+        } else {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Not reducing stock levels for order %d',
+                intval( $order_id )
+            ), 'debug' );
         }
 
         do_action( "laskuhari_action_after_payment_completed_before_cart_empty" );
@@ -1184,10 +1308,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         do_action( "laskuhari_action_after_payment_completed_after_cart_empty" );
 
+        $return_url = $this->get_return_url( $order );
+
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: Payment processed for %d, returning to %s',
+            intval( $order_id ),
+            $return_url
+        ), 'debug' );
+
+        \delete_transient( $transient_name );
+
         // Return thankyou redirect
         return array(
-            'result'     => 'success',
-            'redirect'    => $this->get_return_url( $order )
+            'result'   => 'success',
+            'redirect' => $return_url
         );
     }
 

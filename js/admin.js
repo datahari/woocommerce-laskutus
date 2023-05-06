@@ -44,11 +44,74 @@
 				return false;
 			}
 		} );
+		$("body").on( "click", ".lh-show-debug-summary", function() {
+			laskuhari_loading();
+			$.ajax({
+				url: ajaxurl,
+				type: 'post',
+				dataType: 'json',
+				data: {
+					action: 'get_troubleshooting_summary'
+				},
+				success: function( response ) {
+					laskuhari_loading_stop();
+					if( response.success ) {
+						$(".lh-debug-summary-modal").remove();
+						$("body").append( `
+							<div class="lh-debug-summary-modal">
+								<h2>Laskuhari-vianselvitys</h2>
+								<p>Kopioi alla olevat tiedot ja välitä ne Laskuharin asiakaspalveluun, kun ilmoitat ongelmasta lisäosassa. Näiden tietojen avulla pystymme paremmin selvittää, mikä on vialla.</p>
+								<textarea readonly class="lh-debug-summary">${response.data}</textarea>
+								<button class="button-primary lh-close-debug-summary">Sulje</button>
+								<button class="button-secondary lh-download-debug-summary">Lataa</button>
+							</div>
+						` );
+					} else {
+						alert( response.data );
+					}
+				},
+			}).always( function() {
+				laskuhari_loading_stop();
+			} );
+
+			return false;
+		});
+		$("body").on( "click", function(e) {
+			if( ! $(e.target).closest(".lh-debug-summary-modal").length ) {
+				lh_hide_debug_summary();
+			}
+		} );
+		$("body").on( "focus", ".lh-debug-summary", function() {
+			$(this).select();
+		} );
+		$("body").on( "click", ".lh-close-debug-summary", function() {
+			lh_hide_debug_summary();
+		} );
+		$("body").on( "click", ".lh-download-debug-summary", function() {
+			let blob = new Blob( [$(".lh-debug-summary").val()], {type: "text/plain"} );
+			let url = URL.createObjectURL( blob );
+			let link = document.createElement( "a" );
+			link.href = url;
+			link.download = "laskuhari-vianselvitys.txt";
+			link.click();
+		} );
 	});
+
+	function lh_hide_debug_summary() {
+		$(".lh-debug-summary-modal").fadeOut( function() {
+			$(this).remove();
+		} );
+	}
 })(jQuery);
 
 function laskuhari_loading() {
 	jQuery("body").append('<div class=".blockUI" id="laskuhari-loading"></div>');
+}
+
+function laskuhari_loading_stop() {
+	jQuery("#laskuhari-loading").fadeOut( function() {
+		jQuery(this).remove();
+	} );
 }
 
 function laskuhari_admin_action( action ) {
