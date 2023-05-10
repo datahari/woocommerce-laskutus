@@ -261,6 +261,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @var string
      */
     public $log_level = 'info';
+	
+	/**
+	 * This variable is used for passing the ID of a paid order
+	 * from woocommerce_pre_payment_complete hook to
+	 * woocommerce_email_attachments hook
+	 *
+	 * @var ?int
+	 */
+	public $paid_order_id = null;
 
     /**
      * Get a static instance of this class

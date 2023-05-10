@@ -52,7 +52,17 @@ function laskuhari_payment_gateway_load() {
 
     laskuhari_maybe_create_webhook();
 
-    add_action( 'woocommerce_pre_payment_complete', 'laskuhari_handle_payment_complete' );
+    // Add actions for handling invoice creation from other payment methods
+    if( count( $laskuhari_gateway_object->send_invoice_from_payment_methods ) ) {
+        // Note: Creation of invoice PDF can not be hooked into this action, because
+        //       some payment gateways can't handle a long running pre_payment_complete action
+        //       and it will cause duplicate order confirmations to be sent
+        add_action( 'woocommerce_pre_payment_complete', 'laskuhari_grab_paid_order_id' );
+
+        // Note: This hook only runs if the invoice PDF is not attached to the order confirmation email.
+        //       This hook runs after the confirmation email has already been sent.
+        add_action( "woocommerce_payment_complete", "laskuhari_maybe_create_invoice_for_other_payment_method", 10, 1 );
+    }
 
     add_filter( 'plugin_row_meta', 'laskuhari_register_plugin_links', 10, 2 );
 
@@ -97,7 +107,7 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_order_status_failed_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
     add_action( 'woocommerce_order_status_on-hold_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
     add_action( 'woocommerce_order_status_pending_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
-    add_action( 'woocommerce_before_resend_order_emails', "laskuhari_send_invoice_attached", 10, 1 );
+    add_action( 'woocommerce_before_resend_order_emails', "laskuhari_resend_order_emails", 10, 2 );
 
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
@@ -243,12 +253,53 @@ function laskuhari_checkout_update_customer( $customer ) {
     }
 }
 
-// handle invoice creation & sending from other payment methods
-function laskuhari_handle_payment_complete( $order_id ) {
+/**
+ * This function saves the ID of an order paid at checkout
+ * so that it can be used in the woocommerce_email_attachments
+ * hook to create an invoice of the paid order and attach it
+ * to the order confirmation email
+ *
+ * Note: this function is hooked into woocommerce_pre_payment_complete
+ *       and should not include any long running tasks since some
+ *       payment gateways don't handle them properly, resulting in
+ *       duplicated order confirmation emails
+ *
+ * @param int $order_id
+ * @return void
+ */
+function laskuhari_grab_paid_order_id( $order_id ) {
+    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        'Laskuhari: Grabbing paid order ID %d',
+        $order_id
+    ), 'debug' );
+
+    laskuhari_get_gateway_object()->paid_order_id = intval( $order_id );
+}
+
+/**
+ * Creates an invoice from an order that was just paid at checkout using other payment methods
+ *
+ * WC_Gateway_Laskuhari->paid_order_id is set to the ID of the order that was paid during
+ * this request in woocommerce_pre_payment_complete hook - this function is hooked to
+ * woocommerce_payment_complete and the order status change hooks and will only
+ * be run in which ever hook runs first.
+ *
+ * @param int $order_id
+ * @return void
+ */
+function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
+    // create invoice only if the order was just paid
+    if( $laskuhari_gateway_object->paid_order_id !== $order_id ) {
+        return;
+    }
+
+    // prevent later hooks from creating invoice again
+    $laskuhari_gateway_object->paid_order_id = null;
+
     Logger::enabled( 'info' ) && Logger::log( sprintf(
-        'Laskuhari: Handling payment complete of order %d',
+        'Laskuhari: Handling maybe_create_invoice for order %d',
         $order_id
     ), 'info' );
 
@@ -2384,6 +2435,16 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
     return "yes" === laskuhari_get_post_meta( $order->get_id(), '_laskuhari_paid_by_other', true ) && $order->get_payment_method() !== "laskuhari";
 }
 
+/**
+ * Calls laskuhari_send_invoice_attached if the given order requires
+ * a PDF invoice to be attached to its order confirmation email.
+ *
+ * For other than Laskuhari payment methods, the invoice
+ * will be created if it does not exist yet
+ *
+ * @param WC_Order|int $order
+ * @return void
+ */
 function laskuhari_maybe_send_invoice_attached( $order ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
@@ -2400,47 +2461,50 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
         return false;
     }
 
-    if(
-        $order->get_payment_method() === "laskuhari" &&
-        laskuhari_get_order_send_method( $order->get_id() ) !== "email" &&
-        apply_filters( "laskuhari_attach_invoice_only_on_email_method", true )
-    ) {
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: Not attaching invoice to non-email method, order %s',
-            $order->get_id()
-        ), 'debug' );
+    if( $order->get_payment_method() === "laskuhari" ) {
+        // attach invoice to the order confirmation email only
+        // if that option is selected in the settings
+        if( ! $laskuhari_gateway_object->attach_invoice_to_wc_email ) {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Not attaching invoice to order %d',
+                $order->get_id()
+            ), 'debug' );
+            return false;
+        }
 
-        return false;
-    }
+        $send_method = laskuhari_get_order_send_method( $order->get_id() );
 
-    $invoice_number = laskuhari_get_post_meta( $order->get_id(), '_laskuhari_invoice_number', true );
+        // this filter can be used to attach PDF invoice to orders
+        // that are invoiced with other methods than email
+        $attach_on_methods = apply_filters( "laskuhari_attach_invoice_to_email_on_send_methods", ["email"] );
 
-    if( ! $invoice_number ) {
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: No invoice number, not attaching, order %s',
-            $order->get_id()
-        ), 'debug' );
-        return false;
-    }
+        // attach invoice to the order confirmation email only
+        // when the send method is allowed (default: only attach on email method)
+        if( in_array( $send_method, $attach_on_methods ) ) {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Not attaching invoice to send method \'%s\', order %d',
+                $send_method,
+                $order->get_id()
+            ), 'debug' );
 
-    if( ! $laskuhari_gateway_object->attach_invoice_to_wc_email && $order->get_payment_method() === "laskuhari" ) {
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: Not attaching invoice to order %s',
-            $order->get_id()
-        ), 'debug' );
-        return false;
-    }
+            return false;
+        }
+    } else {
+        // attach receipt to the order confirmation email when order is made
+        // with other payment methods, if that option is selected in the settings
+        if( ! $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
+            Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                'Laskuhari: Not attaching receipt to order %d',
+                $order->get_id()
+            ), 'debug' );
+            return false;
+        }
 
-    if( ! $laskuhari_gateway_object->attach_receipt_to_wc_email && $order->get_payment_method() !== "laskuhari" ) {
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: Not attaching receipt to order %s',
-            $order->get_id()
-        ), 'debug' );
-        return false;
+        laskuhari_maybe_create_invoice_for_other_payment_method( $order->get_id() );
     }
 
     Logger::enabled( 'info' ) && Logger::log( sprintf(
-        'Laskuhari: Attaching invoice to order %s',
+        'Laskuhari: Attaching invoice to order %d',
         $order->get_id()
     ), 'info' );
 
@@ -2448,6 +2512,18 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
     laskuhari_send_invoice_attached( $order );
 }
 
+/**
+ * Downloads invoice PDF of order and registers woocommerce_email_attachments filter
+ * to attach PDF to the order confirmation email.
+ *
+ * Also registers woocommerce_email_order_details filter to add extra text to the
+ * order confirmation email based on the plugin settings.
+ *
+ * Note: Invoice will only be attached if it has already been created for the order
+ *
+ * @param WC_Order|int $order
+ * @return void
+ */
 function laskuhari_send_invoice_attached( $order ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
@@ -2607,6 +2683,36 @@ function lh_get_file_from_url( $url ) {
     curl_close( $ch );
 
     return $data;
+}
+
+/**
+ * Attaches invoice PDF to resent order emails
+ *
+ * @param WC_Order|int $order
+ * @param string $email_type
+ * @return void
+ */
+function laskuhari_resend_order_emails( $order, $email_type ) {
+    if( ! is_object( $order ) ) {
+        $order = wc_get_order( $order );
+    }
+
+    if( ! $order ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Order not found in %s',
+            __FUNCTION__
+        ), 'error' );
+
+        return false;
+    }
+
+    $attach_on_email_types = apply_filters( "laskuhari_attach_invoice_on_resend_order_emails", [
+        "customer_invoice"
+    ], $order );
+
+    if( in_array( $email_type, $attach_on_email_types ) ) {
+        laskuhari_send_invoice_attached( $order );
+    }
 }
 
 function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
