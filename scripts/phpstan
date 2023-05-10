@@ -1,2 +1,3 @@
 #!/bin/bash
-vendor/bin/phpstan analyze $@ -c config/phpstan.neon
+cd "$(dirname "$BASH_SOURCE")"
+../vendor/bin/phpstan analyze $@ -c ../config/phpstan.neon

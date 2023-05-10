@@ -1,4 +1,6 @@
 #!/bin/bash
+cd "$(dirname "$BASH_SOURCE")/../"
+
 if [ -z "$1" ]; then
     VERSION=7.2
 else

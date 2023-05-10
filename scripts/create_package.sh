@@ -1,8 +1,12 @@
+#!/bin/bash
+
 #############################################################################
 #                                                                           #
 #  THIS SCRIPT GENERATES THE PLUGIN ZIP FILE FROM THE REMOTE MASTER BRANCH  #
 #                                                                           #
 #############################################################################
+
+cd "$(dirname "$BASH_SOURCE")"
 
 # if folder with git repository name already exists, quit
 # be cause we don't want to delete or overwrite anything!
