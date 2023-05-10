@@ -58,16 +58,17 @@ exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
     await page.waitForSelector( "#place_order" );
 }
 
-exports.make_order_before_select_invoice_method = async function( page ) {
+exports.make_order_before_select_invoice_method = async function( page, testid ) {
     await exports.add_product_to_cart_and_go_to_checkout( page );
-    await exports.fill_out_checkout_form( page );
+    await exports.fill_out_checkout_form( page, testid );
     await exports.select_laskuhari_payment_method( page );
+    await exports.wait_for_loading( page );
 }
 
-exports.fill_out_checkout_form = async function( page ) {
+exports.fill_out_checkout_form = async function( page, testid ) {
     // insert first name
     await page.click( "#billing_first_name" );
-    await page.keyboard.type( "John" );
+    await page.keyboard.type( "John " + testid );
 
     // insert last name
     await page.click( "#billing_last_name" );
@@ -140,35 +141,20 @@ exports.place_order = async function( page ) {
     } );
 }
 
-exports.make_order = async function( page ) {
-    await exports.make_order_before_select_invoice_method( page );
+exports.make_order = async function( page, testid ) {
+    await exports.make_order_before_select_invoice_method( page, testid );
 
     // select email invoicing
     await page.evaluate(function() {
         jQuery("#laskuhari-laskutustapa").val("email").change();
     });
-    await exports.sleep( 1000 );
+    await exports.wait_for_loading( page );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
     await page.keyboard.type( "testing reference" );
 
-    await exports.place_order( page );
-}
-
-exports.make_order_with_paytrail = async function( page ) {
-    await exports.make_order_before_select_invoice_method( page );
-
-    // select email invoicing
-    await page.evaluate(function() {
-        jQuery("#laskuhari-laskutustapa").val("email").change();
-    });
-    await exports.sleep( 1000 );
-
-    // insert reference
-    await page.click( "#laskuhari-viitteenne" );
-    await page.keyboard.type( "testing reference" );
-
+    await exports.wait_for_loading( page );
     await exports.place_order( page );
 }
 
@@ -239,7 +225,7 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
-exports.create_manual_order = async function( page ) {
+exports.create_manual_order = async function( page, testid ) {
     // go to new order creation
     await page.goto( config.wordpress_url + "/wp-admin/post-new.php?post_type=shop_order" );
 
@@ -250,7 +236,7 @@ exports.create_manual_order = async function( page ) {
     // input customer details
     await page.waitForSelector( "#_billing_first_name" );
     await page.click( "#_billing_first_name" );
-    await page.keyboard.type( "Jack" );
+    await page.keyboard.type( "Jack " + testid );
     await page.click( "#_billing_last_name" );
     await page.keyboard.type( "Smith" );
     await page.click( "#_billing_address_1" );

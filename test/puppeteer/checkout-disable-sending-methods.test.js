@@ -56,7 +56,7 @@ test("checkout-disable-sending-methods", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.make_order_before_select_invoice_method( page );
+    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-email" );
 
     // check that there is only email method available
     await page.waitForSelector( "#laskuhari-laskutustapa" );
@@ -86,7 +86,7 @@ test("checkout-disable-sending-methods", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.make_order_before_select_invoice_method( page );
+    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-einv" );
 
     // check that there is only einvoice method available
     await page.waitForSelector( "#laskuhari-laskutustapa" );
@@ -116,9 +116,9 @@ test("checkout-disable-sending-methods", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.make_order_before_select_invoice_method( page );
+    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-letter" );
 
-    // check that there is only einvoice method available
+    // check that there is only letter method available
     await page.waitForSelector( "#laskuhari-laskutustapa" );
     expect(!!(await page.$('#laskuhari-laskutustapa option[value=email]'))).toBe( false );
     expect(!!(await page.$('#laskuhari-laskutustapa option[value=verkkolasku]'))).toBe( false );

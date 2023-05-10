@@ -63,7 +63,7 @@ test("checkout-with-paytrail", async () => {
 
     // make an order
     await functions.add_product_to_cart_and_go_to_checkout( page );
-    await functions.fill_out_checkout_form( page );
+    await functions.fill_out_checkout_form( page, "paytrail-no-lh" );
     await functions.select_paytrail_payment_method( page );
     await functions.place_order( page );
 

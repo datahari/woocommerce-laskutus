@@ -55,7 +55,7 @@ test("checkout-letter", async () => {
     await functions.logout( page );
 
     // add products to cart and fill order form
-    await functions.make_order_before_select_invoice_method( page );
+    await functions.make_order_before_select_invoice_method( page, "checkout-send-letter" );
 
     // select letter method
     await page.evaluate(function() {

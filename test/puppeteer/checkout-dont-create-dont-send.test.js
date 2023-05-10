@@ -55,7 +55,7 @@ test("checkout-dont-create-dont-send", async () => {
     await functions.logout( page );
 
     // make an order
-    await functions.make_order( page );
+    await functions.make_order( page, "dont-create-dont-send" );
 
     // wait 30 seconds for cron queue to be processed
     await functions.sleep( 30000 );
