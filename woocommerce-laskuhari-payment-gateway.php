@@ -2352,7 +2352,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         $response_json = json_decode( $response, true );
 
         if( ! isset( $response_json['status'] ) ) {
-            $error_response = print_r( $response, true );
+            $error_response = wc_print_r( $response, true );
             if( $error_response == "" ) {
                 $error_response = "Empty response";
             }
@@ -2372,7 +2372,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: %s response JSON error: %s',
                 $action_name,
-                print_r( $response_json, true )
+                wc_print_r( $response_json, true )
             ), 'error' );
 
             if( true === $silent ) {
