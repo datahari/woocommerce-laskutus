@@ -2440,7 +2440,8 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
  * a PDF invoice to be attached to its order confirmation email.
  *
  * For other than Laskuhari payment methods, the invoice
- * will be created if it does not exist yet
+ * will be created if it does not exist yet and the order
+ * was paid in the current request
  *
  * @param WC_Order|int $order
  * @return void
@@ -2711,7 +2712,7 @@ function laskuhari_resend_order_emails( $order, $email_type ) {
     ], $order );
 
     if( in_array( $email_type, $attach_on_email_types ) ) {
-        laskuhari_send_invoice_attached( $order );
+        laskuhari_maybe_send_invoice_attached( $order );
     }
 }
 
