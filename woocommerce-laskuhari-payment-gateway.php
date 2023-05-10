@@ -2545,7 +2545,7 @@ function laskuhari_send_invoice_attached( $order ) {
 
     if( ! $invoice_id ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: No invoice id for order % in %s',
+            'Laskuhari: No invoice id for order %d in %s',
             $order->get_id(),
             __FUNCTION__
         ), 'error' );
