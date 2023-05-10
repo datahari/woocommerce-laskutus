@@ -2480,7 +2480,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
 
         // attach invoice to the order confirmation email only
         // when the send method is allowed (default: only attach on email method)
-        if( in_array( $send_method, $attach_on_methods ) ) {
+        if( ! in_array( $send_method, $attach_on_methods ) ) {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Not attaching invoice to send method \'%s\', order %d',
                 $send_method,
