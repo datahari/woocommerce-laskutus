@@ -22,7 +22,8 @@ rsync -av ../ woocommerce-laskuhari-payment-gateway/ \
       --exclude=".git/" \
       --exclude="scripts/" \
       --exclude="config/" \
-      --exclude="*.zip"
+      --exclude="*.zip" \
+      --exclude="*.txt"
 
 # remove git folder and files
 rm -rf woocommerce-laskuhari-payment-gateway/.git
@@ -41,7 +42,8 @@ rm -rf woocommerce-laskuhari-payment-gateway/scripts
 VERSION=`grep "Version: " woocommerce-laskuhari-payment-gateway/woocommerce-laskuhari-payment-gateway.php | awk '{print $2}'`
 
 # create zip arhive named with version number
-zip -r woocommerce-laskuhari-payment-gateway.$VERSION.zip woocommerce-laskuhari-payment-gateway
+mkdir package
+zip -r package/dev-woocommerce-laskuhari-payment-gateway.$VERSION.zip woocommerce-laskuhari-payment-gateway
 
 # remove original folder
 rm -rf woocommerce-laskuhari-payment-gateway
