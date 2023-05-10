@@ -19,3 +19,9 @@ test/phpunit/config.php
 
 # dont include composer packages
 /vendor/
+
+# dont include zip packages
+scripts/package
+
+# dont include txt files
+*.txt

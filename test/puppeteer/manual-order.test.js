@@ -42,7 +42,7 @@ test("manual-order", async () => {
     await page.click( ".woocommerce-save-button" );
 
     // create manual order
-    await functions.create_manual_order( page );
+    await functions.create_manual_order( page, "manual-create-send-create-and-send" );
 
     // check that invoice was not created
     let element = await page.$('.laskuhari-tila');

@@ -56,7 +56,7 @@ test("bulk-actions", async () => {
      */
 
     // create manual order
-    await functions.create_manual_order( page );
+    await functions.create_manual_order( page, "bulk-create-not-send1" );
 
     // change status of order
     await page.waitForSelector( "#order_status" );
@@ -102,7 +102,7 @@ test("bulk-actions", async () => {
      */
 
     // create another manual order
-    await functions.create_manual_order( page );
+    await functions.create_manual_order( page, "bulk-create-try-send-fallback-no-send" );
 
     // change status of order
     await page.waitForSelector( "#order_status" );
@@ -162,7 +162,7 @@ test("bulk-actions", async () => {
      */
 
     // create yet another manual order
-    await functions.create_manual_order( page );
+    await functions.create_manual_order( page, "bulk-create-send-email" );
 
     // change status of order
     await page.waitForSelector( "#order_status" );
@@ -207,7 +207,7 @@ test("bulk-actions", async () => {
      */
 
     // create a final manual order
-    await functions.create_manual_order( page );
+    await functions.create_manual_order( page, "bulk-create-not-send2" );
 
     // change status of order
     await page.waitForSelector( "#order_status" );
