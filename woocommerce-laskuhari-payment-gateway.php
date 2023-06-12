@@ -3705,7 +3705,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Error with notice sending invoice of order %d: %s',
                 $order->get_id(),
-                $response['notice']
+                $response
             ), 'error' );
 
             return array(
