@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.10.1
+Version: 1.10.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -898,10 +898,29 @@ function laskuhari_create_product_cron_hook() {
 
     $args = func_get_args();
 
-    laskuhari_create_product( ...$args );
+    if( ! did_action( "woocommerce_after_register_post_type" ) ) {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: WC post types not registered in %s',
+            __FUNCTION__
+        ), 'debug' );
+
+        add_action( "woocommerce_after_register_post_type", function() use ( $args ) {
+            laskuhari_create_product( ...$args );
+        } );
+    } else {
+        laskuhari_create_product( ...$args );
+    }
 }
 
 function laskuhari_create_product( $product, $update = false ) {
+    if( ! post_type_exists( "product" ) ) {
+        Logger::enabled( 'warn' ) && Logger::log( sprintf(
+            'Laskuhari: Product post type does not exist in %s',
+            __FUNCTION__
+        ), 'warn' );
+        return false;
+    }
+
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
         $product    = wc_get_product( $product_id );
@@ -1006,12 +1025,20 @@ function laskuhari_create_product( $product, $update = false ) {
 }
 
 function laskuhari_product_synced( $product, $set = null ) {
+    if( ! post_type_exists( "product" ) ) {
+        Logger::enabled( 'warn' ) && Logger::log( sprintf(
+            'Laskuhari: Product post type does not exist in %s',
+            __FUNCTION__
+        ), 'warn' );
+        return false;
+    }
+
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
         $product    = wc_get_product( $product_id );
     }
 
-    if( $product === null ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Product ID %s not found for sync check',
             $product_id
@@ -1047,16 +1074,35 @@ function laskuhari_update_stock_cron_hook() {
 
     $args = func_get_args();
 
-    laskuhari_update_stock( ...$args );
+    if( ! did_action( "woocommerce_after_register_post_type" ) ) {
+        Logger::enabled( 'debug' ) && Logger::log( sprintf(
+            'Laskuhari: WC post types not registered in %s',
+            __FUNCTION__
+        ), 'debug' );
+
+        add_action( "woocommerce_after_register_post_type", function() use ( $args ) {
+            laskuhari_update_stock( ...$args );
+        } );
+    } else {
+        laskuhari_update_stock( ...$args );
+    }
 }
 
 function laskuhari_update_stock( $product ) {
+    if( ! post_type_exists( "product" ) ) {
+        Logger::enabled( 'warn' ) && Logger::log( sprintf(
+            'Laskuhari: Product post type does not exist in %s',
+            __FUNCTION__
+        ), 'warn' );
+        return false;
+    }
+
     if( ! is_a( $product, WC_Product::class ) ) {
         $product_id = intval( $product );
         $product    = wc_get_product( $product_id );
     }
 
-    if( $product === null ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Product ID %s not found for stock update',
             $product_id
@@ -3705,7 +3751,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Error with notice sending invoice of order %d: %s',
                 $order->get_id(),
-                $response['notice']
+                $response
             ), 'error' );
 
             return array(
