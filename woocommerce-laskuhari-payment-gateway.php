@@ -1011,7 +1011,7 @@ function laskuhari_product_synced( $product, $set = null ) {
         $product    = wc_get_product( $product_id );
     }
 
-    if( $product === null ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Product ID %s not found for sync check',
             $product_id
@@ -1056,7 +1056,7 @@ function laskuhari_update_stock( $product ) {
         $product    = wc_get_product( $product_id );
     }
 
-    if( $product === null ) {
+    if( ! is_a( $product, WC_Product::class ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Product ID %s not found for stock update',
             $product_id
