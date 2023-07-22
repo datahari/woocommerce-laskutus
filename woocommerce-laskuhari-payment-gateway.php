@@ -1544,14 +1544,13 @@ function get_laskuhari_meta( $order_id, $meta_key, $single = true ) {
     }
 
     // for compatibility with WooCommerce Address Book plugin
+    $address_book_prefix = "";
     if( isset( $_POST['post_data'] ) ) {
         parse_str( $_POST['post_data'], $data );
 
         if( isset( $data['billing_address_book'] ) ) {
             $address_book_prefix = $data['billing_address_book']."_";
         }
-    } else {
-        $address_book_prefix = "";
     }
 
     return get_user_meta( $user_id, $address_book_prefix.$meta_key, $single );
@@ -3186,6 +3185,7 @@ function laskuhari_process_action(
             if( $laskuhari_gateway_object->calculate_discount_percent ) {
                 $price = laskuhari_get_product_price( $product );
 
+                $discount_percent = 0;
                 if( $price['price_without_tax'] != 0 ) {
                     $discount_percent = ( $price['price_without_tax'] - $yks_veroton ) / $price['price_without_tax'] * 100;
                 }
