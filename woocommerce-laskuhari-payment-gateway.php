@@ -3084,7 +3084,7 @@ function laskuhari_process_action(
 
     $payload = [
         "ref" => "wc",
-        "site" => $_SERVER['HTTP_HOST'],
+        "site" => get_site_url(),
         "tyyppi" => 0,
         "laskunro" => false,
         "pvm" => date( 'd.m.Y' ),
