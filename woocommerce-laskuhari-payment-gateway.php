@@ -1638,7 +1638,7 @@ function laskuhari_metabox() {
             'laskuhari_metabox',       // Unique ID
             'Laskuhari',               // Box title
             'laskuhari_metabox_html',  // Content callback
-            'shop_order',
+            wc_get_page_screen_id( 'shop-order' ),
             'side',
             'core'
         );
