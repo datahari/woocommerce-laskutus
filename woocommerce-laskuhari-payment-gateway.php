@@ -1323,6 +1323,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         $order = wc_get_order( $order_id );
 
         if( ! $order ) {
+            $data["notice"][] = __( sprintf( "Tilausta #%d ei löytynyt", $order_id ), 'laskuhari' );
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Could not find order ID %s in bulk invoice action',
                 $order_id
