@@ -1762,7 +1762,7 @@ function laskuhari_metabox_html( $post ) {
     if( $order && ! is_laskuhari_allowed_order_status ( $order->get_status() ) ) {
         echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
-        $edit_link = get_edit_post_link( $post );
+        $edit_link = $order->get_edit_order_url();
         $payment_terms = laskuhari_get_payment_terms();
         $payment_terms_select = "";
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
@@ -1935,7 +1935,7 @@ function laskuhari_actions() {
         return false;
     }
 
-    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? 0;
+    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? $_GET['id'] ?? 0;
 
     if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -1972,9 +1972,9 @@ function laskuhari_actions() {
         }
 
         if( $_GET['laskuhari_download'] === "current" ) {
-            $order_id = $_GET['post'];
+            $order_id = $_GET['post'] ?? $_GET['order_id'] ?? $_GET['id'];
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            $order_id = $_GET['order_id'];
+            $order_id = $_GET['order_id'] ?? $_GET['id'];
         }
 
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -1999,7 +1999,7 @@ function laskuhari_actions() {
         laskuhari_update_payment_status( $order_id, "", "", "" );
 
         // update payment status metadata
-        laskuhari_get_invoice_payment_status( $_GET['post'] );
+        laskuhari_get_invoice_payment_status( $order_id );
 
         // redirect back
         laskuhari_go_back();
