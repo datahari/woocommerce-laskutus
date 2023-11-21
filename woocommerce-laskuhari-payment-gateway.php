@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.10.3
+Version: 1.10.4
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -100,7 +100,6 @@ function laskuhari_payment_gateway_load() {
     add_action( 'edit_user_profile', 'laskuhari_user_profile_additional_info' );
     add_action( 'personal_options_update', 'laskuhari_update_user_meta' );
     add_action( 'edit_user_profile_update', 'laskuhari_update_user_meta' );
-    add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column' );
     add_action( 'add_meta_boxes', 'laskuhari_metabox' );
 
     add_action( 'woocommerce_order_status_cancelled_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
@@ -109,9 +108,16 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_order_status_pending_to_processing_notification', "laskuhari_maybe_send_invoice_attached", 10, 1 );
     add_action( 'woocommerce_before_resend_order_emails', "laskuhari_resend_order_emails", 10, 2 );
 
+    // Laskuhari custom column in order view (HPOS)
+    add_action( 'manage_shop_order_posts_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column' );
+    add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
+
+    // Laskuhari custom column in order view (legacy)
+    add_action( 'woocommerce_shop_order_list_table_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column', 10, 2 );
+    add_filter( 'woocommerce_shop_order_list_table_columns', 'laskuhari_add_column_to_order_list' );
+
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
-    add_filter( 'manage_edit-shop_order_columns', 'laskuhari_add_column_to_order_list' );
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
     add_action( 'laskuhari_create_product_action', 'laskuhari_create_product_cron_hook', 10, 2 );
@@ -1238,17 +1244,25 @@ function laskuhari_add_column_to_order_list( $columns ) {
 
 // Lisää Laskuhari-sarakkeeseen tilauksen laskutustila
 
-function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
-    global $post;
+function laskuhari_add_invoice_status_to_custom_order_list_column( $column, $order = null ) {
+    if( $order ) {
+        // HPOS
+        $order_id = $order->get_id();
+    } else {
+        // Legacy
+        global $post;
+        $order_id = $post->ID;
+    }
+
     if( 'laskuhari' === $column ) {
-        $data = laskuhari_invoice_status( $post->ID );
+        $data = laskuhari_invoice_status( $order_id );
         if( $data['tila'] == "LASKUTETTU" ) {
             $status = "processing";
         } elseif( $data['tila'] == "LASKU LUOTU" ) {
             $status = "on-hold";
         } else {
             $status = "pending";
-            $laskutustapa = laskuhari_get_post_meta( $post->ID, '_payment_method', true );
+            $laskutustapa = laskuhari_get_post_meta( $order_id, '_payment_method', true );
             if( $laskutustapa != "laskuhari" ) {
                 echo '-';
                 return;
@@ -1257,7 +1271,7 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column ) {
 
         $status_name = $data['tila'];
 
-        $payment_status = laskuhari_order_payment_status( $post->ID );
+        $payment_status = laskuhari_order_payment_status( $order_id );
 
         if( "laskuhari-paid" === $payment_status['payment_status_class'] ) {
             $status_name = strtoupper( $payment_status['payment_status_name'] );
@@ -1624,7 +1638,7 @@ function laskuhari_metabox() {
             'laskuhari_metabox',       // Unique ID
             'Laskuhari',               // Box title
             'laskuhari_metabox_html',  // Content callback
-            'shop_order',
+            wc_get_page_screen_id( 'shop-order' ),
             'side',
             'core'
         );
@@ -3070,7 +3084,7 @@ function laskuhari_process_action(
 
     $payload = [
         "ref" => "wc",
-        "site" => $_SERVER['HTTP_HOST'],
+        "site" => get_site_url(),
         "tyyppi" => 0,
         "laskunro" => false,
         "pvm" => date( 'd.m.Y' ),
