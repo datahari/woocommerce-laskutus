@@ -3650,7 +3650,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send = true;
         $miten    = "verkkolaskuna";
-        $mihin    = " osoitteeseen $verkkolaskuosoite ($valittaja)";
+        $mihin    = "$verkkolaskuosoite ($valittaja)";
 
         $payload = [
             "lahetystapa" => "verkkolasku",
@@ -3686,7 +3686,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send   = true;
         $miten      = "sähköpostitse";
-        $mihin      = " osoitteeseen $email";
+        $mihin      = $email;
         $sendername = $sendername ? $sendername : "Laskutus";
 
         if( $email_message == "" ) {
@@ -3788,7 +3788,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ), 'debug' );
 
         $order->add_order_note( sprintf(
-            __( 'Lasku lähetetty %s %s', 'laskuhari' ),
+            __( 'Lasku lähetetty %s osoitteeseen %s', 'laskuhari' ),
             $miten,
             $mihin
         ) );
