@@ -2915,7 +2915,7 @@ function laskuhari_process_action(
 ) {
     $transient_name = "laskuhari_process_action_" . $order_id;
     $sleep_time = 0;
-    while( \laskuhari_get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
+    while( ! $bulk_action && \laskuhari_get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Sleeping 5s while transient active, order %d',
             $order_id
