@@ -116,8 +116,14 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_shop_order_list_table_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column', 10, 2 );
     add_filter( 'woocommerce_shop_order_list_table_columns', 'laskuhari_add_column_to_order_list' );
 
+    // Laskuhari order bulk actions (HPOS)
+    add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
+    add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', 'laskuhari_handle_bulk_actions', 10, 3 );
+
+    // Laskuhari order bulk actions (legacy)
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
+
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
     add_action( 'laskuhari_create_product_action', 'laskuhari_create_product_cron_hook', 10, 2 );
@@ -1340,7 +1346,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         }
     }
 
-    foreach( $_GET['post'] as $order_id ) {
+    foreach( $order_ids as $order_id ) {
         $send   = apply_filters( "laskuhari_bulk_action_send", $send, $order_id );
         $lh     = laskuhari_process_action( $order_id, $send, true );
         $data[] = $lh;
