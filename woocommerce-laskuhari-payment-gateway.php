@@ -49,6 +49,7 @@ function laskuhari_payment_gateway_load() {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
+    add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
 
     laskuhari_maybe_create_webhook();
 
@@ -198,6 +199,18 @@ function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
         }
     }
     return $title;
+}
+
+/**
+ * Sanitizes the product name before adding it to the invoice.
+ * By default it strips tags from the product name.
+ *
+ * @param string $product_name
+ * @param array $data
+ * @return string
+ */
+function laskuhari_sanitize_product_name( $product_name, $data ) {
+    return strip_tags( $product_name );
 }
 
 function lh_create_select_box( $name, $options, $current = '' ) {
@@ -3229,7 +3242,7 @@ function laskuhari_process_action(
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
-            "nimike"        => strip_tags( $data['name'] ),
+            "nimike"        => apply_filters( "laskuhari_sanitize_product_name", $data['name'], $data ),
             "maara"         => $data['quantity'],
             "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
