@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.10.4
+Version: 1.10.5
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -49,6 +49,7 @@ function laskuhari_payment_gateway_load() {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
+    add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
 
     laskuhari_maybe_create_webhook();
 
@@ -116,8 +117,14 @@ function laskuhari_payment_gateway_load() {
     add_action( 'woocommerce_shop_order_list_table_custom_column', 'laskuhari_add_invoice_status_to_custom_order_list_column', 10, 2 );
     add_filter( 'woocommerce_shop_order_list_table_columns', 'laskuhari_add_column_to_order_list' );
 
+    // Laskuhari order bulk actions (HPOS)
+    add_filter( 'bulk_actions-woocommerce_page_wc-orders', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
+    add_filter( 'handle_bulk_actions-woocommerce_page_wc-orders', 'laskuhari_handle_bulk_actions', 10, 3 );
+
+    // Laskuhari order bulk actions (legacy)
     add_filter( 'bulk_actions-edit-shop_order', 'laskuhari_add_bulk_action_for_invoicing', 20, 1 );
     add_filter( 'handle_bulk_actions-edit-shop_order', 'laskuhari_handle_bulk_actions', 10, 3 );
+
     add_filter( 'woocommerce_order_get_payment_method_title', 'laskuhari_add_payment_terms_to_payment_method_title', 10, 2 );
 
     add_action( 'laskuhari_create_product_action', 'laskuhari_create_product_cron_hook', 10, 2 );
@@ -192,6 +199,18 @@ function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
         }
     }
     return $title;
+}
+
+/**
+ * Sanitizes the product name before adding it to the invoice.
+ * By default it strips tags from the product name.
+ *
+ * @param string $product_name
+ * @param array $data
+ * @return string
+ */
+function laskuhari_sanitize_product_name( $product_name, $data ) {
+    return strip_tags( $product_name );
 }
 
 function lh_create_select_box( $name, $options, $current = '' ) {
@@ -1317,6 +1336,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         $order = wc_get_order( $order_id );
 
         if( ! $order ) {
+            $data["notice"][] = __( sprintf( "Tilausta #%d ei löytynyt", $order_id ), 'laskuhari' );
             Logger::enabled( 'error' ) && Logger::log( sprintf(
                 'Laskuhari: Could not find order ID %s in bulk invoice action',
                 $order_id
@@ -1340,7 +1360,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         }
     }
 
-    foreach( $_GET['post'] as $order_id ) {
+    foreach( $order_ids as $order_id ) {
         $send   = apply_filters( "laskuhari_bulk_action_send", $send, $order_id );
         $lh     = laskuhari_process_action( $order_id, $send, true );
         $data[] = $lh;
@@ -1762,7 +1782,7 @@ function laskuhari_metabox_html( $post ) {
     if( $order && ! is_laskuhari_allowed_order_status ( $order->get_status() ) ) {
         echo __( 'Tilauksen statuksen täytyy olla Käsittelyssä tai Valmis, jotta voit laskuttaa sen.', 'laskuhari' );
     } else {
-        $edit_link = get_edit_post_link( $post );
+        $edit_link = $order->get_edit_order_url();
         $payment_terms = laskuhari_get_payment_terms();
         $payment_terms_select = "";
         if( is_array( $payment_terms ) && count( $payment_terms ) ) {
@@ -1935,7 +1955,7 @@ function laskuhari_actions() {
         return false;
     }
 
-    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? 0;
+    $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? $_GET['id'] ?? 0;
 
     if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -1972,9 +1992,9 @@ function laskuhari_actions() {
         }
 
         if( $_GET['laskuhari_download'] === "current" ) {
-            $order_id = $_GET['post'];
+            $order_id = $_GET['post'] ?? $_GET['order_id'] ?? $_GET['id'];
         } else if( $_GET['laskuhari_download'] > 0 ) {
-            $order_id = $_GET['order_id'];
+            $order_id = $_GET['order_id'] ?? $_GET['id'];
         }
 
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -1999,7 +2019,7 @@ function laskuhari_actions() {
         laskuhari_update_payment_status( $order_id, "", "", "" );
 
         // update payment status metadata
-        laskuhari_get_invoice_payment_status( $_GET['post'] );
+        laskuhari_get_invoice_payment_status( $order_id );
 
         // redirect back
         laskuhari_go_back();
@@ -2908,7 +2928,7 @@ function laskuhari_process_action(
 ) {
     $transient_name = "laskuhari_process_action_" . $order_id;
     $sleep_time = 0;
-    while( \laskuhari_get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
+    while( ! $bulk_action && \laskuhari_get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Sleeping 5s while transient active, order %d',
             $order_id
@@ -3222,7 +3242,7 @@ function laskuhari_process_action(
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
-            "nimike"        => $data['name'],
+            "nimike"        => apply_filters( "laskuhari_sanitize_product_name", $data['name'], $data ),
             "maara"         => $data['quantity'],
             "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
@@ -3643,7 +3663,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send = true;
         $miten    = "verkkolaskuna";
-        $mihin    = " osoitteeseen $verkkolaskuosoite ($valittaja)";
+        $mihin    = "$verkkolaskuosoite ($valittaja)";
 
         $payload = [
             "lahetystapa" => "verkkolasku",
@@ -3679,7 +3699,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send   = true;
         $miten      = "sähköpostitse";
-        $mihin      = " osoitteeseen $email";
+        $mihin      = $email;
         $sendername = $sendername ? $sendername : "Laskutus";
 
         if( $email_message == "" ) {
@@ -3781,7 +3801,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ), 'debug' );
 
         $order->add_order_note( sprintf(
-            __( 'Lasku lähetetty %s %s', 'laskuhari' ),
+            __( 'Lasku lähetetty %s osoitteeseen %s', 'laskuhari' ),
             $miten,
             $mihin
         ) );
