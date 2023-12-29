@@ -3229,7 +3229,7 @@ function laskuhari_process_action(
             "product_sku"   => $product_sku,
             "product_id"    => $data['product_id'],
             "variation_id"  => $data['variation_id'],
-            "nimike"        => $data['name'],
+            "nimike"        => strip_tags( $data['name'] ),
             "maara"         => $data['quantity'],
             "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
