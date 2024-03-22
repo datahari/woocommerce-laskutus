@@ -2829,6 +2829,22 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
             break;
         }
 
+        $meta_data = $item["meta_data"];
+        foreach( $meta_data as $meta ) {
+            $meta = $meta->get_data();
+            $key = strtolower( $meta["key"] );
+
+            if( $key === $unit_field ) {
+                $quantity_unit = $meta["value"];
+                break;
+            }
+
+            if( $key === "_".$unit_field ) {
+                $quantity_unit = $meta["value"];
+                break;
+            }
+        }
+
         if( $product_id && $quantity_unit = laskuhari_get_post_meta( $product_id, $unit_field, true )  ) {
            break;
         }
