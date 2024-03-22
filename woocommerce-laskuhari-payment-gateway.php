@@ -2814,7 +2814,7 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
         "qty_suffix",
         "quantity_unit",
         "yksikko",
-        "ykiskkö",
+        "yksikkö",
         "yks",
     ] );
 
