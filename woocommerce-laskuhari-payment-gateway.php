@@ -1667,7 +1667,8 @@ function laskuhari_metabox() {
 
 /**
  * Custom version of get_post_meta that flushes the cache
- * before getting post meta.
+ * before getting post meta and also fetches from the
+ * WooCommerce HPOS meta if not found in post meta
  *
  * @param int $post_id
  * @param string $key
@@ -1676,7 +1677,16 @@ function laskuhari_metabox() {
  */
 function laskuhari_get_post_meta( $post_id, $key, $single = true ) {
     wp_cache_flush();
-    return get_post_meta( $post_id, $key, $single );
+    $post_meta = get_post_meta( $post_id, $key, $single );
+
+    if( empty( $post_meta ) ) {
+        $order = wc_get_order( $post_id );
+        if( $order ) {
+            $post_meta = $order->get_meta( $key, $single );
+        }
+    }
+
+    return $post_meta;
 }
 
 /**
