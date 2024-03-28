@@ -951,7 +951,7 @@ function laskuhari_create_product( $product, $update = false ) {
         $product    = wc_get_product( $product_id );
     }
 
-    if( $product === null ) {
+    if( ! $product ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Product ID %d not found for product creation',
             $product_id
