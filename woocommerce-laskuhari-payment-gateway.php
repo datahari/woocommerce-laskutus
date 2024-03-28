@@ -2805,6 +2805,65 @@ function laskuhari_resend_order_emails( $order, $email_type ) {
     }
 }
 
+/**
+ * Finds the value of a meta field from a product item
+ *
+ * @param array $item
+ * @param array<string> $meta_keys
+ * @param int|null $product_id
+ * @return string|null
+ */
+function laskuhari_get_item_matching_meta( $item, $meta_keys, $product_id = null ) {
+    $return_value = null;
+
+    foreach( $meta_keys as $unit_field ) {
+        if( isset( $item[$unit_field] ) ) {
+            $return_value = $item[$unit_field];
+            break;
+        }
+
+        if( isset( $item["_".$unit_field] ) ) {
+            $return_value = $item["_".$unit_field];
+            break;
+        }
+
+        // Check meta data
+        $meta_data = $item["meta_data"];
+        foreach( $meta_data as $meta ) {
+            $meta = $meta->get_data();
+
+            if( $meta["key"] === $unit_field ) {
+                $return_value = $meta["value"];
+                break;
+            }
+
+            if( $meta["key"] === "_".$unit_field ) {
+                $return_value = $meta["value"];
+                break;
+            }
+        }
+
+        if( $product_id && $return_value = laskuhari_get_post_meta( $product_id, $unit_field, true )  ) {
+           break;
+        }
+
+        if( $product_id && $return_value = laskuhari_get_post_meta( $product_id, "_".$unit_field, true )  ) {
+           break;
+        }
+    }
+
+    return $return_value;
+}
+
+/**
+ * Determines the quantity unit to use for the invoice row
+ * based on the product's meta data
+ *
+ * @param array $item
+ * @param int $product_id
+ * @param int $order_id
+ * @return string
+ */
 function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     $quantity_unit = "";
 
@@ -2825,49 +2884,44 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
         "quantity_unit",
         "yksikko",
         "yksikkö",
+        "Yksikkö",
         "yks",
     ] );
 
-    foreach( $unit_fields as $unit_field ) {
-        if( isset( $item[$unit_field] ) ) {
-            $quantity_unit = $item[$unit_field];
-            break;
-        }
-
-        if( isset( $item["_".$unit_field] ) ) {
-            $quantity_unit = $item["_".$unit_field];
-            break;
-        }
-
-        $meta_data = $item["meta_data"];
-        foreach( $meta_data as $meta ) {
-            $meta = $meta->get_data();
-            $key = strtolower( $meta["key"] );
-
-            if( $key === $unit_field ) {
-                $quantity_unit = $meta["value"];
-                break;
-            }
-
-            if( $key === "_".$unit_field ) {
-                $quantity_unit = $meta["value"];
-                break;
-            }
-        }
-
-        if( $product_id && $quantity_unit = laskuhari_get_post_meta( $product_id, $unit_field, true )  ) {
-           break;
-        }
-
-        if( $product_id && $quantity_unit = laskuhari_get_post_meta( $product_id, "_".$unit_field, true )  ) {
-           break;
-        }
-
-    }
-
+    $quantity_unit = laskuhari_get_item_matching_meta( $item, $unit_fields );
     $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
 
     return $quantity_unit;
+}
+
+/**
+ * Determines the product SKU to use for the invoice row
+ * based on the product's meta data
+ *
+ * @param array $item
+ * @param int $product_id
+ * @param string $product_sku
+ * @param int $order_id
+ * @return string
+ */
+function laskuhari_determine_product_sku( $item, $product_id, $product_sku, $order_id ) {
+    $sku_fields = apply_filters( "laskuhari_product_sku_fields", [
+        "sku",
+        "product-sku",
+        "product_sku",
+        "tuotekoodi",
+        "Tuotekoodi",
+        "SKU",
+        "koodi",
+        "Koodi",
+        "product-code",
+        "product_code",
+    ], $product_id, $product_sku, $order_id );
+
+    $product_sku = laskuhari_get_item_matching_meta( $item, $sku_fields, $product_id );
+    $product_sku = apply_filters( "laskuhari_product_sku", $product_sku, $product_id, $order_id );
+
+    return $product_sku;
 }
 
 /**
@@ -3257,6 +3311,8 @@ function laskuhari_process_action(
                 }
             }
         }
+
+        $product_sku = laskuhari_determine_product_sku( $data, $product_id, $product_sku, $order_id );
 
         if( $laskuhari_gateway_object->show_quantity_unit ) {
             $quantity_unit = laskuhari_determine_quantity_unit( $data, $product_id, $order_id );
