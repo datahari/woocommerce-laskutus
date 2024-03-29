@@ -5,10 +5,9 @@
   "jest": {
     "preset": "jest-puppeteer"
   },
-  "dependencies": {},
   "devDependencies": {
     "jest": "latest",
     "jest-puppeteer": "latest",
-    "puppeteer": "latest"
+    "puppeteer": "^21.5.2"
   }
 }
