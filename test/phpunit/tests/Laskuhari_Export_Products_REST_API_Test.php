@@ -168,6 +168,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
         $args = array(
             'headers' => $headers,
             'timeout' => 20,
+            'sslverify' => false,
         );
 
         // send the GET request

@@ -188,6 +188,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
             'headers' => $headers,
             'timeout' => 20,
             'body' => $request,
+            'sslverify' => false,
         );
 
         // send the POST request

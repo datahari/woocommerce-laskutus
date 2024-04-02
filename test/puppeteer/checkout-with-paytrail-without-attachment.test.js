@@ -78,8 +78,9 @@ test("checkout-with-paytrail", async () => {
 
     // check that the order was added to the list
     await functions.wait_for_loading( page );
-    let element = await page.$('#post-'+order_id);
-    expect(element).toBeTruthy();
+    let element = await page.$('#post-'+order_id); // old
+    let element2 = await page.$('#order-'+order_id); // hpos
+    expect(!!(element || element2)).toBeTruthy();
 
     // close browser
     await browser.close();

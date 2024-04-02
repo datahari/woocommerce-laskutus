@@ -85,7 +85,15 @@ test("bulk-actions", async () => {
     }, notice_element );
 
     // go to order page
-    await page.click( "#post-"+order_id+" a.order-view" );
+    let order_view_selector = "#post-"+order_id+" a.order-view"; // old
+    let order_view_selector_alt = "#order-"+order_id+" a.order-view"; // hpos
+
+    if( await page.$( order_view_selector ) !== null ) {
+        await page.click( order_view_selector );
+    } else {
+        await page.click( order_view_selector_alt );
+    }
+
     await page.waitForNavigation();
 
     // check that invoice was created but not sent
@@ -191,7 +199,14 @@ test("bulk-actions", async () => {
     }, notice_element );
 
     // go to order page
-    await page.click( "#post-"+order_id+" a.order-view" );
+    order_view_selector = "#post-"+order_id+" a.order-view"; // old
+    order_view_selector_alt = "#order-"+order_id+" a.order-view"; // hpos
+
+    if( await page.$( order_view_selector ) !== null ) {
+        await page.click( order_view_selector );
+    } else {
+        await page.click( order_view_selector_alt );
+    }
     await page.waitForNavigation();
 
     // check that invoice was sent
