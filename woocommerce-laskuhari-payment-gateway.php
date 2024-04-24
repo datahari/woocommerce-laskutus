@@ -1561,7 +1561,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
     }
 
     // update order meta
-    $order->update_meta_data( $meta_key, sanitize_text_field( $meta_value ) );
+    $order->update_meta_data( $meta_key, sanitize_meta( $meta_key, $meta_value, 'post' ) );
     $order->save_meta_data();
 
     if( $update_user_meta ) {
@@ -1569,7 +1569,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
 
         // update user meta if it's not set already
         if( $user && ! $user->get( $meta_key ) ) {
-            update_user_meta( $user->ID, $meta_key, sanitize_text_field( $meta_value ) );
+            update_user_meta( $user->ID, $meta_key, sanitize_meta( $meta_key, $meta_value, 'user' ) );
         }
     }
 }
@@ -3002,6 +3002,23 @@ function laskuhari_maybe_process_queued_invoice( $order_id ) {
     $queued = laskuhari_get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
     $queued_args = laskuhari_get_post_meta( $order_id, '_laskuhari_queued_args', true );
 
+    if( ! is_array( $queued_args ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Error processing queued invoice for order %d: Queued args not found',
+            $order_id,
+        ), 'error' );
+
+        $order = wc_get_order( $order_id );
+
+        if( $order ) {
+            $order->delete_meta_data( '_laskuhari_queued' );
+            $order->delete_meta_data( '_laskuhari_queued_args' );
+            $order->save_meta_data();
+        }
+
+        return false;
+    }
+
     if( $queued && ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
         return laskuhari_process_action( ...$queued_args );
     }
@@ -3039,13 +3056,25 @@ function laskuhari_process_action(
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
-    delete_post_meta( $order_id, '_laskuhari_queued' );
-    delete_post_meta( $order_id, '_laskuhari_queued_args' );
-
     $error_notice = "";
     $success      = "";
 
     $order = wc_get_order( $order_id );
+
+    if( ! $order ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Order not found in %s',
+            __FUNCTION__
+        ), 'error' );
+
+        \delete_transient( $transient_name );
+
+        return false;
+    }
+
+    $order->delete_meta_data( '_laskuhari_queued' );
+    $order->delete_meta_data( '_laskuhari_queued_args' );
+    $order->save_meta_data();
 
     // if invoice has already been created from this order
     if( laskuhari_invoice_is_created_from_order( $order_id ) ) {
