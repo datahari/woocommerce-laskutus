@@ -2878,12 +2878,12 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     $quantity_unit = "";
 
     $unit_fields = apply_filters( "laskuhari_quantity_unit_fields", [
-        // Woocommerce Advanced Quantity
+        // Woocommerce Advanced Quantity (in product meta, not item meta)
         "_advanced-qty-quantity-suffix",
         "product-category-advanced-qty-quantity-suffix",
         "woo-advanced-qty-quantity-suffix",
 
-        // Quantities and Units for WooCommerce
+        // Quantities and Units for WooCommerce (in product meta, not item meta)
         "unit",
 
         // General
@@ -2898,7 +2898,7 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
         "yks",
     ] );
 
-    $quantity_unit = laskuhari_get_item_matching_meta( $item, $unit_fields );
+    $quantity_unit = laskuhari_get_item_matching_meta( $item, $unit_fields, $product_id );
     $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
 
     return $quantity_unit;
