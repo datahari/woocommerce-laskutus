@@ -251,7 +251,8 @@ exports.add_product_to_order = async function( page, product_name, quantity = 1 
     await page.click( ".select2-results__option[role=option]:not(.loading-results)" );
 
     // set quantity
-    await page.click( "input.quantity" );
+    const qty = await page.$$( "input.quantity" );
+    await qty[qty.length-2].click();
     await page.keyboard.type( quantity.toString() );
 
     // click on add product
