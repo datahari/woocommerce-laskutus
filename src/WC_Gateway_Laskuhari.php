@@ -955,7 +955,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'options'     => array(
                     'processing' => __( 'Käsittelyssä', 'laskuhari' ),
                     'completed' => __( 'Valmis', 'laskuhari' ),
-                    'on-hold' => __( 'Jonossa', 'laskuhari' )
+                    'on-hold' => __( 'Pidossa', 'laskuhari' )
                 )
             ),
             'status_after_paid' => array(
@@ -968,7 +968,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     '' => __( 'Ei muutosta', 'laskuhari' ),
                     'processing' => __( 'Käsittelyssä', 'laskuhari' ),
                     'completed' => __( 'Valmis', 'laskuhari' ),
-                    'on-hold' => __( 'Jonossa', 'laskuhari' )
+                    'on-hold' => __( 'Pidossa', 'laskuhari' )
                 )
             ),
             'heading_misc' => array(

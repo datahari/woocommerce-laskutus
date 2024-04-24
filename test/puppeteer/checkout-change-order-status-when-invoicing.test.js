@@ -73,7 +73,7 @@ test("checkout-change-order-status-when-invoicing", async () => {
     // check that order status was set to processing
     element = await page.$('#select2-order_status-container');
     let order_status = await page.evaluate(el => el.textContent, element);
-    expect( order_status ).toBe( "Jonossa" );
+    expect( order_status ).toBe( "Pidossa" );
 
     // wait for a while so we can inspect the result
     await functions.sleep( 5000 );

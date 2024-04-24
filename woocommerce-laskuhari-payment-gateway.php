@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.11.1
+Version: 1.11.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -1561,7 +1561,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
     }
 
     // update order meta
-    $order->update_meta_data( $meta_key, sanitize_text_field( $meta_value ) );
+    $order->update_meta_data( $meta_key, sanitize_meta( $meta_key, $meta_value, 'post' ) );
     $order->save_meta_data();
 
     if( $update_user_meta ) {
@@ -1569,7 +1569,7 @@ function laskuhari_set_order_meta( $order_id, $meta_key, $meta_value, $update_us
 
         // update user meta if it's not set already
         if( $user && ! $user->get( $meta_key ) ) {
-            update_user_meta( $user->ID, $meta_key, sanitize_text_field( $meta_value ) );
+            update_user_meta( $user->ID, $meta_key, sanitize_meta( $meta_key, $meta_value, 'user' ) );
         }
     }
 }
@@ -2878,12 +2878,12 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
     $quantity_unit = "";
 
     $unit_fields = apply_filters( "laskuhari_quantity_unit_fields", [
-        // Woocommerce Advanced Quantity
+        // Woocommerce Advanced Quantity (in product meta, not item meta)
         "_advanced-qty-quantity-suffix",
         "product-category-advanced-qty-quantity-suffix",
         "woo-advanced-qty-quantity-suffix",
 
-        // Quantities and Units for WooCommerce
+        // Quantities and Units for WooCommerce (in product meta, not item meta)
         "unit",
 
         // General
@@ -2898,7 +2898,7 @@ function laskuhari_determine_quantity_unit( $item, $product_id, $order_id ) {
         "yks",
     ] );
 
-    $quantity_unit = laskuhari_get_item_matching_meta( $item, $unit_fields );
+    $quantity_unit = laskuhari_get_item_matching_meta( $item, $unit_fields, $product_id );
     $quantity_unit = apply_filters( "laskuhari_product_quantity_unit", $quantity_unit, $product_id, $order_id );
 
     return $quantity_unit;
@@ -3000,9 +3000,31 @@ function laskuhari_process_action_delayed(
  */
 function laskuhari_maybe_process_queued_invoice( $order_id ) {
     $queued = laskuhari_get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
+
+    if( ! $queued ) {
+        return false;
+    }
+
     $queued_args = laskuhari_get_post_meta( $order_id, '_laskuhari_queued_args', true );
 
-    if( $queued && ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
+    if( ! is_array( $queued_args ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Error processing queued invoice for order %d: Queued args not found',
+            $order_id,
+        ), 'error' );
+
+        $order = wc_get_order( $order_id );
+
+        if( $order ) {
+            $order->delete_meta_data( '_laskuhari_queued' );
+            $order->delete_meta_data( '_laskuhari_queued_args' );
+            $order->save_meta_data();
+        }
+
+        return false;
+    }
+
+    if( ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
         return laskuhari_process_action( ...$queued_args );
     }
 
@@ -3039,13 +3061,25 @@ function laskuhari_process_action(
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
-    delete_post_meta( $order_id, '_laskuhari_queued' );
-    delete_post_meta( $order_id, '_laskuhari_queued_args' );
-
     $error_notice = "";
     $success      = "";
 
     $order = wc_get_order( $order_id );
+
+    if( ! $order ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Order not found in %s',
+            __FUNCTION__
+        ), 'error' );
+
+        \delete_transient( $transient_name );
+
+        return false;
+    }
+
+    $order->delete_meta_data( '_laskuhari_queued' );
+    $order->delete_meta_data( '_laskuhari_queued_args' );
+    $order->save_meta_data();
 
     // if invoice has already been created from this order
     if( laskuhari_invoice_is_created_from_order( $order_id ) ) {
@@ -3316,14 +3350,21 @@ function laskuhari_process_action(
 
                 if( $discount_percent > 0.009 ) {
                     $ale = $discount_percent;
-                    $yks_verollinen = round( $price["price_with_tax"], 2 );
-                    $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
+                    if( $data["quantity"] != 0 ) {
+                        // Calculate price per unit so that it matches the rounded total price, tax included.
+                        // This avoids rounding differences between Laskuhari and WooCommerce.
+                        $yks_verollinen = round( $price["price_with_tax"] * $data['quantity'], 2 ) / $data['quantity'];
+                        $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
 
-                    $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
-                    $yht_verollinen = ( $yks_verollinen - $ale_maara_verollinen ) * $data['quantity'];
+                        $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
+                        $yht_verollinen = ( $yks_verollinen - $ale_maara_verollinen ) * $data['quantity'];
 
-                    $ale_maara_veroton = $yks_veroton * ($ale / 100);
-                    $yht_veroton = ( $yks_veroton - $ale_maara_veroton ) * $data['quantity'];
+                        $ale_maara_veroton = $yks_veroton * ($ale / 100);
+                        $yht_veroton = ( $yks_veroton - $ale_maara_veroton ) * $data['quantity'];
+                    } else {
+                        $yks_verollinen = 0;
+                        $yks_veroton = 0;
+                    }
                 }
             }
         }
