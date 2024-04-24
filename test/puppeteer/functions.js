@@ -309,7 +309,7 @@ exports.create_manual_order = async function( page, testid ) {
     await page.click( ".button.button-primary.calculate-action" );
 
     // wait for changes to take effect
-    await exports.sleep( 3000 );
+    await exports.sleep( 4000 );
 
     // create order
     await page.click( ".button.save_order.button-primary" );
