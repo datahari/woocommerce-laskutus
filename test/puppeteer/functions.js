@@ -1,6 +1,6 @@
 const config = require( "./config.js" );
 
-const accept_dialog = dialog => {
+exports.accept_dialog = dialog => {
     dialog.accept("1.43");
 };
 
@@ -225,6 +225,39 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
+exports.add_product_to_order = async function( page, product_name ) {
+    // click "Add line item"
+    await page.click( ".button.add-line-item" );
+    await exports.sleep( 600 );
+
+    // click "Add product"
+    await page.click( ".button.add-order-item" );
+    await exports.sleep( 400 );
+
+    // click "Search for a product"
+    await page.hover( ".wc-backbone-modal-content .select2-selection--single" );
+    await exports.sleep( 200 );
+    await page.click( ".wc-backbone-modal-content .select2-selection--single" );
+    await exports.sleep( 700 );
+
+    // input search keyword
+    await page.click( ".select2-container .select2-search__field[aria-expanded=true]" );
+    await page.keyboard.type( product_name );
+
+    // wait for results
+    await page.waitForSelector( ".select2-results__option[role=option]:not(.loading-results)" );
+
+    // click on first result
+    await page.click( ".select2-results__option[role=option]:not(.loading-results)" );
+
+    // click on add product
+    await page.click( ".wc-backbone-modal-content .button.button-primary.button-large" );
+
+    // wait for product to appear in list
+    await page.waitForSelector( "#order_line_items tr.item" );
+    await exports.sleep( 1000 );
+}
+
 exports.create_manual_order = async function( page, testid ) {
     // go to new order creation
     await page.goto( config.wordpress_url + "/wp-admin/post-new.php?post_type=shop_order" );
@@ -249,44 +282,15 @@ exports.create_manual_order = async function( page, testid ) {
     await page.click( "#_billing_email" );
     await page.keyboard.type( config.test_email );
 
-    // click "Add line item"
-    await page.click( ".button.add-line-item" );
-    await exports.sleep( 600 );
-
-    // click "Add product"
-    await page.click( ".button.add-order-item" );
-    await exports.sleep( 400 );
-
-    // click "Search for a product"
-    await page.hover( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 200 );
-    await page.click( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 700 );
-
-    // input search keyword
-    await page.click( ".select2-container .select2-search__field[aria-expanded=true]" );
-    await page.keyboard.type( "Hoodie" );
-
-    // wait for results
-    await page.waitForSelector( ".select2-results__option[role=option]:not(.loading-results)" );
-
-    // click on first result
-    await page.click( ".select2-results__option[role=option]:not(.loading-results)" );
-
-    // click on add product
-    await page.click( ".wc-backbone-modal-content .button.button-primary.button-large" );
-
-    // wait for product to appear in list
-    await page.waitForSelector( "#order_line_items tr.item" );
-    await exports.sleep( 1000 );
+    await exports.add_product_to_order( page, "Hoodie" );
 
     // click "Add line item"
     await page.click( ".button.add-line-item" );
     await exports.sleep( 600 );
 
     // prepare for the fee amount prompt
-    page.off('dialog', accept_dialog);
-    page.on('dialog', accept_dialog);
+    page.off('dialog', exports.accept_dialog);
+    page.on('dialog', exports.accept_dialog);
 
     // click "Add fee"
     await page.click( ".button.add-order-fee" );
