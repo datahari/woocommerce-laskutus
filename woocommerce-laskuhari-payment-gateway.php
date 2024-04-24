@@ -3000,6 +3000,11 @@ function laskuhari_process_action_delayed(
  */
 function laskuhari_maybe_process_queued_invoice( $order_id ) {
     $queued = laskuhari_get_post_meta( $order_id, '_laskuhari_queued', true ) === "yes";
+
+    if( ! $queued ) {
+        return false;
+    }
+
     $queued_args = laskuhari_get_post_meta( $order_id, '_laskuhari_queued_args', true );
 
     if( ! is_array( $queued_args ) ) {
@@ -3019,7 +3024,7 @@ function laskuhari_maybe_process_queued_invoice( $order_id ) {
         return false;
     }
 
-    if( $queued && ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
+    if( ! wp_next_scheduled( 'laskuhari_process_action_delayed_action', $queued_args ) ) {
         return laskuhari_process_action( ...$queued_args );
     }
 
