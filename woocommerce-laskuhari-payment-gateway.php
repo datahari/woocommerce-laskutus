@@ -3316,14 +3316,8 @@ function laskuhari_process_action(
 
                 if( $discount_percent > 0.009 ) {
                     $ale = $discount_percent;
-                    $yks_verollinen = round( $price["price_with_tax"], 2 );
-                    $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
-
-                    $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
-                    $yht_verollinen = ( $yks_verollinen - $ale_maara_verollinen ) * $data['quantity'];
-
-                    $ale_maara_veroton = $yks_veroton * ($ale / 100);
-                    $yht_veroton = ( $yks_veroton - $ale_maara_veroton ) * $data['quantity'];
+                    $yks_verollinen = $price["price_with_tax"];
+                    $yks_veroton = $price["price_without_tax"];
                 }
             }
         }
