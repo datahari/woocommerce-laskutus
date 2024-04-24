@@ -225,7 +225,7 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
-exports.add_product_to_order = async function( page, product_name ) {
+exports.add_product_to_order = async function( page, product_name, quantity = 1 ) {
     // click "Add line item"
     await page.click( ".button.add-line-item" );
     await exports.sleep( 600 );
@@ -249,6 +249,10 @@ exports.add_product_to_order = async function( page, product_name ) {
 
     // click on first result
     await page.click( ".select2-results__option[role=option]:not(.loading-results)" );
+
+    // set quantity
+    await page.click( "input.quantity" );
+    await page.keyboard.type( quantity.toString() );
 
     // click on add product
     await page.click( ".wc-backbone-modal-content .button.button-primary.button-large" );
