@@ -742,7 +742,7 @@ function laskuhari_get_customer_payment_terms_default( $customerID ) {
 }
 
 function laskuhari_common_vat_rates( $product = null ) {
-    $common_vat_rates = [24, 14, 10];
+    $common_vat_rates = [25.5, 24, 14, 10];
     $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
 
     return $common_vat_rates;
@@ -759,7 +759,7 @@ function laskuhari_vat_percent( $percent ) {
 
     // calculate difference between given percent and common vat rates
     foreach( laskuhari_common_vat_rates() as $vat_rate ) {
-        $diff[$vat_rate] = abs( $vat_rate - $percent );
+        $diff[(string)$vat_rate] = abs( $vat_rate - $percent );
     }
 
     // sort differences smallest to largest
@@ -767,7 +767,7 @@ function laskuhari_vat_percent( $percent ) {
 
     // if the difference is larger than 2 %
     if( current( $diff ) > 2 ) {
-        return round( $percent ); // return original percent
+        return round( $percent, 2 ); // return original percent
     }
 
     // go back to first vat rate
@@ -3296,6 +3296,21 @@ function laskuhari_process_action(
     foreach( $products as $item ) {
 
         $data = $item->get_data();
+        $tax_data = $item->get_taxes();
+
+        if( isset( $tax_data['total'] ) ) {
+            // Use the more accurate total tax (4DP) amount if available
+            $tax_data['total'] = array_values( $tax_data['total'] )[0];
+        } else {
+            $tax_data['total'] = $data['total_tax'];
+        }
+
+        if( isset( $tax_data['subtotal'] ) ) {
+            // Use the more accurate subtotal tax (4DP) amount if available
+            $tax_data['subtotal'] = array_values( $tax_data['subtotal'] )[0];
+        } else {
+            $tax_data['subtotal'] = $data['subtotal_tax'];
+        }
 
         if( $has_coupons ) {
             $sub = 'sub';
@@ -3303,10 +3318,10 @@ function laskuhari_process_action(
             $sub = '';
         }
 
-        $yht_verollinen = round( $data[$sub.'total'] + $data[$sub.'total_tax'], 2 );
+        $yht_verollinen = round( $data[$sub.'total'] + $tax_data[$sub.'total'], 2 );
 
         if( $data[$sub.'total'] != 0 ) {
-            $alv         = round( $data[$sub.'total_tax'] / $data[$sub.'total'] * 100, 0 );
+            $alv         = laskuhari_vat_percent( $tax_data[$sub.'total'] / $data[$sub.'total'] * 100 );
             $yht_veroton = $yht_verollinen / ( 1 + $alv / 100 );
         } else {
             $alv         = 0;
@@ -3323,7 +3338,7 @@ function laskuhari_process_action(
 
         if( $sub === '' ) {
             $cart_discount -= $data['subtotal'] - $data['total'];
-            $cart_discount_tax -= $data['subtotal_tax'] - $data['total_tax'];
+            $cart_discount_tax -= $tax_data['subtotal'] - $tax_data['total'];
         }
 
         $ale = 0;
@@ -3344,11 +3359,13 @@ function laskuhari_process_action(
                 $price = laskuhari_get_product_price( $product );
 
                 $discount_percent = 0;
+                $discount_amount = 0;
                 if( $price['price_without_tax'] != 0 ) {
-                    $discount_percent = ( $price['price_without_tax'] - $yks_veroton ) / $price['price_without_tax'] * 100;
+                    $discount_amount = $price['price_without_tax'] - $yks_veroton;
+                    $discount_percent = $discount_amount / $price['price_without_tax'] * 100;
                 }
 
-                if( $discount_percent > 0.009 ) {
+                if( $discount_percent > 0.009 && $discount_amount > 0.009 ) {
                     $ale = $discount_percent;
                     if( $data["quantity"] != 0 ) {
                         // Calculate price per unit so that it matches the rounded total price, tax included.
@@ -3402,7 +3419,7 @@ function laskuhari_process_action(
             "nimike"        => "Toimitustapa: " . $toimitustapa,
             "maara"         => 1,
             "veroton"       => $toimitusmaksu,
-            "alv"           => round( $toimitus_vero / $toimitusmaksu * 100, 0 ),
+            "alv"           => laskuhari_vat_percent( $toimitus_vero / $toimitusmaksu * 100 ),
             "verollinen"    => $toimitusmaksu + $toimitus_vero,
             "ale"           => 0,
             "yhtveroton"    => $toimitusmaksu,
@@ -3431,7 +3448,7 @@ function laskuhari_process_action(
             "nimike"        => $discount_name,
             "maara"         => 1,
             "veroton"       => $cart_discount * -1,
-            "alv"           => round( $cart_discount_tax / $cart_discount * 100, 0 ),
+            "alv"           => laskuhari_vat_percent( $cart_discount_tax / $cart_discount * 100 ),
             "verollinen"    => ( $cart_discount + $cart_discount_tax ) * -1,
             "ale"           => 0,
             "yhtveroton"    => $cart_discount * -1,
@@ -3457,7 +3474,7 @@ function laskuhari_process_action(
         }
 
         if( $fee_total != 0 ) {
-            $alv         = round( $fee_total_tax / $fee_total * 100, 0 );
+            $alv         = laskuhari_vat_percent( $fee_total_tax / $fee_total * 100 );
             $yht_veroton = $fee_total;
         } else {
             $alv         = 0;
