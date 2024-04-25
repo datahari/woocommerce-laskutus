@@ -129,6 +129,9 @@ test("manual-order", async () => {
     await page.waitForNavigation();
     await page.waitForSelector( ".laskuhari-payment-status" );
 
+    // get order id from url
+    const order_id = await functions.get_order_id( page );
+
     // check that an invoice was sent
     element = await page.$('.laskuhari-tila');
     invoice_status = await page.evaluate(el => el.textContent, element);
@@ -149,6 +152,9 @@ test("manual-order", async () => {
 
     // wait for a while so we can assess the results
     await functions.sleep( 6000 );
+
+    // check amounts
+    await functions.check_invoice_amounts( page, order_id, 46.43, 11.14, 57.57 );
 
     // close browser
     await browser.close();

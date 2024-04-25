@@ -65,6 +65,9 @@ test("checkout-with-invoicing-fee", async () => {
     // open order page
     await functions.open_order_page( page );
 
+    // get order id from url
+    const order_id = await functions.get_order_id( page );
+
     // check that invoicing fee was added
     let element = await page.$('#order_fee_line_items .name .view');
     let invoice_status = await page.evaluate(el => el.textContent, element);
@@ -75,6 +78,9 @@ test("checkout-with-invoicing-fee", async () => {
 
     // wait for a while so we can inspect the result
     await functions.sleep( 8000 );
+
+    // check amounts
+    await functions.check_invoice_amounts( page, order_id, 19.65, 4.72, 24.37 );
 
     // close browser
     await browser.close();

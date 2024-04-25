@@ -107,11 +107,17 @@ test("vat-percentages-with-coupons", async () => {
     // wait for page to load
     await page.waitForSelector( ".laskuhari-payment-status" );
 
+    // get order id from url
+    const order_id = await functions.get_order_id( page );
+
     // open invoice pdf
     await functions.open_invoice_pdf( page );
 
     // wait for a while so we can assess the results
     await functions.sleep( 10000 );
+
+    // check amounts
+    await functions.check_invoice_amounts( page, order_id, 54, 8.6, 62.6 );
 
     // close browser
     await browser.close();

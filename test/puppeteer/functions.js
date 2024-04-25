@@ -28,6 +28,19 @@ exports.open_settings = async function( page ) {
     await page.waitForSelector( "#woocommerce_laskuhari_enabled" );
 }
 
+exports.check_invoice_amounts = async function( page, order_id, excl_tax, tax, incl_tax ) {
+    await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-orders&action=edit&id="+order_id+"&laskuhari_action=get_amount_data" );
+    await page.waitForSelector( "pre" );
+
+    const data = await page.evaluate(() => {
+        return JSON.parse( document.querySelector( "pre" ).textContent );
+    });
+
+    expect( data.veroton ).toBe( excl_tax );
+    expect( data.alv ).toBe( tax );
+    expect( data.verollinen ).toBe( incl_tax );
+}
+
 exports.logout = async function( page ) {
     await exports.wait_for_loading( page );
     await page.hover( "#wp-admin-bar-my-account" );
@@ -158,11 +171,27 @@ exports.make_order = async function( page, testid ) {
     await exports.place_order( page );
 }
 
+/**
+ * Gets the order ID from the order received page
+ * @param {Page} page
+ * @returns {Promise<string>}
+ */
 exports.grab_order_id = async function( page ) {
     // grab order ID
     let element = await page.$('li.woocommerce-order-overview__order.order strong');
     let order_id = await page.evaluate(el => el.textContent, element);
 
+    return order_id;
+}
+
+/**
+ * Gets the order ID from the URL (from admin area order page)
+ * @param {Page} page
+ * @returns {Promise<string>}
+ */
+exports.get_order_id = async function( page ) {
+    const url = page.url();
+    const order_id = url.match( /id=([0-9]+)/ )[1];
     return order_id;
 }
 

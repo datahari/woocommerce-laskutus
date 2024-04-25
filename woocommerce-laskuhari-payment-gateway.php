@@ -1322,7 +1322,7 @@ function is_laskuhari_allowed_order_status( $status ) {
 }
 
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
-    if( ! is_admin() ) {
+    if( ! is_admin() || ! current_user_can( 'edit_shop_orders' ) ) {
         return false;
     }
 
@@ -1978,7 +1978,7 @@ function laskuhari_plugin_action_links( $links, $file ) {
 }
 
 function laskuhari_actions() {
-    if( ! is_admin() ) {
+    if( ! is_admin() || ! current_user_can( "edit_shop_orders" ) ) {
         return false;
     }
 
@@ -2050,6 +2050,15 @@ function laskuhari_actions() {
 
         // redirect back
         laskuhari_go_back();
+        exit;
+    }
+
+    // get the invoice amount data (for automated testing)
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "get_amount_data" ) {
+        $data = laskuhari_get_invoice_amount( $order_id );
+        ?>
+        <pre><?php echo json_encode( $data, JSON_PRETTY_PRINT ); ?></pre>
+        <?php
         exit;
     }
 
@@ -2238,6 +2247,32 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
         }
 
         // return payment status
+        return $status;
+    }
+
+    return false;
+}
+
+/**
+ * Gets the invoice amount data from Laskuhari API
+ *
+ * @param ?int $order_id
+ * @param ?int $invoice_id
+ * @return array|false
+ */
+function laskuhari_get_invoice_amount( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    // get invoice amount from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/loppusumma";
+    $response = laskuhari_api_request( array(), $api_url, "Get amount" );
+
+    if( $response['status'] === "OK" ) {
+        $status = $response['vastaus'];
+
+        // return amount data
         return $status;
     }
 
