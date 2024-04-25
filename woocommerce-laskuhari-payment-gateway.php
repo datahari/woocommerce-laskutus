@@ -3303,7 +3303,17 @@ function laskuhari_process_action(
     foreach( $products as $item ) {
 
         $data = $item->get_data();
-        $tax_data = $item->get_taxes();
+
+        if( is_a( $item, WC_Order_Item_Product::class ) ) {
+            /** @var WC_Order_Item_Product $item */
+            $tax_data = $item->get_taxes();
+        } else {
+            Logger::enabled( 'notice' ) && Logger::log( sprintf(
+                'Laskuhari: Order item is not a product item, but a %s, order %d',
+                get_class( $item ),
+                $order_id,
+            ), 'notice' );
+        }
 
         if( isset( $tax_data['total'] ) ) {
             // Use the more accurate total tax (4DP) amount if available
