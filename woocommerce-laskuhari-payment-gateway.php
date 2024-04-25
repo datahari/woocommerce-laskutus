@@ -3201,8 +3201,8 @@ function laskuhari_process_action(
 
     // calculate shipping cost down to multiple decimals
     // get_shipping_total returns rounded excluding tax
-    $toimitus_veropros  = $toimitusmaksu != 0 ? round( $toimitus_vero / $toimitusmaksu, 2) : 0;
-    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros );
+    $toimitus_veropros  = $toimitusmaksu != 0 ? laskuhari_vat_percent( $toimitus_vero / $toimitusmaksu * 100 ) : 0;
+    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros / 100 );
 
     $cart_discount      = $order->get_discount_total();
     $cart_discount_tax  = $order->get_discount_tax();
