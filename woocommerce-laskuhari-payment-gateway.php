@@ -3370,7 +3370,10 @@ function laskuhari_process_action(
         if( $product_id ) {
             set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
             $product = wc_get_product( $product_id );
-            $product_sku = $product->get_sku();
+
+            if( is_object( $product ) ) {
+                $product_sku = $product->get_sku();
+            }
         }
 
         if( $laskuhari_gateway_object->calculate_discount_percent ) {
