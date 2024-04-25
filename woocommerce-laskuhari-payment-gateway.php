@@ -874,21 +874,28 @@ function laskuhari_sync_product_on_save( $product_id ) {
     }
 }
 
-function laskuhari_get_product_price( $product ) {
+/**
+ * Get the product price with and without tax
+ *
+ * @param WC_Product $product
+ * @param ?float $vat
+ * @return array<string, float>
+ */
+function laskuhari_get_product_price( $product, $vat = null ) {
     $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) == 'yes' ? true : false;
 
-    $vat = laskuhari_get_vat_rate( $product );
+    $vat = $vat ?? laskuhari_get_vat_rate( $product );
 
     $vat_multiplier = (100 + $vat) / 100;
 
     if( $prices_include_tax ) {
-        $price_with_tax = $product->get_regular_price( 'edit' );
+        $price_with_tax = (float) $product->get_regular_price( 'edit' );
         if( ! $price_with_tax ) {
             $price_with_tax = 0;
         }
         $price_without_tax = $price_with_tax / $vat_multiplier;
     } else {
-        $price_without_tax = $product->get_regular_price( 'edit' );
+        $price_without_tax = (float) $product->get_regular_price( 'edit' );
         if( ! $price_without_tax ) {
             $price_without_tax = 0;
         }
@@ -3356,7 +3363,7 @@ function laskuhari_process_action(
             $product_sku = $product->get_sku();
 
             if( $laskuhari_gateway_object->calculate_discount_percent ) {
-                $price = laskuhari_get_product_price( $product );
+                $price = laskuhari_get_product_price( $product, $alv );
 
                 $discount_percent = 0;
                 $discount_amount = 0;
