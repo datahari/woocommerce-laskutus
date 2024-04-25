@@ -3329,6 +3329,9 @@ function laskuhari_process_action(
             $tax_data['subtotal'] = $data['subtotal_tax'];
         }
 
+        // For orders with coupons, we will use the non-discounted
+        // price for the invoice rows, since we will add the
+        // coupons as negative discount rows in the end
         if( $has_coupons ) {
             $sub = 'sub';
         } else {
