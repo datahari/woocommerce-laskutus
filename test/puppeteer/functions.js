@@ -225,6 +225,20 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
+exports.add_coupon_to_order = async function( page, coupon_code ) {
+    const set_coupon_code = dialog => {
+        dialog.accept( coupon_code );
+    }
+
+    page.on('dialog', set_coupon_code);
+
+    // click "Add coupon"
+    await page.click( ".button.add-coupon" );
+    await exports.sleep( 600 );
+
+    page.off('dialog', set_coupon_code);
+}
+
 exports.add_product_to_order = async function( page, product_name, quantity = 1 ) {
     // click "Add line item"
     await page.click( ".button.add-line-item" );
