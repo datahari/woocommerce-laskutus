@@ -63,6 +63,9 @@ test("checkout-create-dont-send", async () => {
     // open order page
     await functions.open_order_page( page );
 
+    // get order id from url
+    const order_id = await functions.get_order_id( page );
+
     // check that invoice created but not sent
     let element = await page.$('.laskuhari-tila');
     let invoice_status = await page.evaluate(el => el.textContent, element);
@@ -73,6 +76,9 @@ test("checkout-create-dont-send", async () => {
 
     // wait for a while so we can inspect the result
     await functions.sleep( 5000 );
+
+    // check amounts
+    await functions.check_invoice_amounts( page, order_id, 18, 4.32, 22.32 );
 
     // close browser
     await browser.close();

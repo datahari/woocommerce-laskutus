@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.11.2
+Version: 1.12.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -742,7 +742,7 @@ function laskuhari_get_customer_payment_terms_default( $customerID ) {
 }
 
 function laskuhari_common_vat_rates( $product = null ) {
-    $common_vat_rates = [24, 14, 10];
+    $common_vat_rates = [25.5, 24, 14, 10];
     $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
 
     return $common_vat_rates;
@@ -759,7 +759,7 @@ function laskuhari_vat_percent( $percent ) {
 
     // calculate difference between given percent and common vat rates
     foreach( laskuhari_common_vat_rates() as $vat_rate ) {
-        $diff[$vat_rate] = abs( $vat_rate - $percent );
+        $diff[(string)$vat_rate] = abs( $vat_rate - $percent );
     }
 
     // sort differences smallest to largest
@@ -767,7 +767,7 @@ function laskuhari_vat_percent( $percent ) {
 
     // if the difference is larger than 2 %
     if( current( $diff ) > 2 ) {
-        return round( $percent ); // return original percent
+        return round( $percent, 2 ); // return original percent
     }
 
     // go back to first vat rate
@@ -874,21 +874,28 @@ function laskuhari_sync_product_on_save( $product_id ) {
     }
 }
 
-function laskuhari_get_product_price( $product ) {
+/**
+ * Get the product price with and without tax
+ *
+ * @param WC_Product $product
+ * @param ?float $vat
+ * @return array<string, float>
+ */
+function laskuhari_get_product_price( $product, $vat = null ) {
     $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) == 'yes' ? true : false;
 
-    $vat = laskuhari_get_vat_rate( $product );
+    $vat = $vat ?? laskuhari_get_vat_rate( $product );
 
     $vat_multiplier = (100 + $vat) / 100;
 
     if( $prices_include_tax ) {
-        $price_with_tax = $product->get_regular_price( 'edit' );
+        $price_with_tax = (float) $product->get_regular_price( 'edit' );
         if( ! $price_with_tax ) {
             $price_with_tax = 0;
         }
         $price_without_tax = $price_with_tax / $vat_multiplier;
     } else {
-        $price_without_tax = $product->get_regular_price( 'edit' );
+        $price_without_tax = (float) $product->get_regular_price( 'edit' );
         if( ! $price_without_tax ) {
             $price_without_tax = 0;
         }
@@ -1315,7 +1322,7 @@ function is_laskuhari_allowed_order_status( $status ) {
 }
 
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
-    if( ! is_admin() ) {
+    if( ! is_admin() || ! current_user_can( 'edit_shop_orders' ) ) {
         return false;
     }
 
@@ -1971,7 +1978,7 @@ function laskuhari_plugin_action_links( $links, $file ) {
 }
 
 function laskuhari_actions() {
-    if( ! is_admin() ) {
+    if( ! is_admin() || ! current_user_can( "edit_shop_orders" ) ) {
         return false;
     }
 
@@ -2043,6 +2050,15 @@ function laskuhari_actions() {
 
         // redirect back
         laskuhari_go_back();
+        exit;
+    }
+
+    // get the invoice amount data (for automated testing)
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "get_amount_data" ) {
+        $data = laskuhari_get_invoice_amount( $order_id );
+        ?>
+        <pre><?php echo json_encode( $data, JSON_PRETTY_PRINT ); ?></pre>
+        <?php
         exit;
     }
 
@@ -2231,6 +2247,32 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
         }
 
         // return payment status
+        return $status;
+    }
+
+    return false;
+}
+
+/**
+ * Gets the invoice amount data from Laskuhari API
+ *
+ * @param ?int $order_id
+ * @param ?int $invoice_id
+ * @return array|false
+ */
+function laskuhari_get_invoice_amount( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    // get invoice amount from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/loppusumma";
+    $response = laskuhari_api_request( array(), $api_url, "Get amount" );
+
+    if( $response['status'] === "OK" ) {
+        $status = $response['vastaus'];
+
+        // return amount data
         return $status;
     }
 
@@ -3194,11 +3236,11 @@ function laskuhari_process_action(
 
     // calculate shipping cost down to multiple decimals
     // get_shipping_total returns rounded excluding tax
-    $toimitus_veropros  = $toimitusmaksu != 0 ? round( $toimitus_vero / $toimitusmaksu, 2) : 0;
-    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros );
+    $toimitus_veropros  = $toimitusmaksu != 0 ? laskuhari_vat_percent( $toimitus_vero / $toimitusmaksu * 100 ) : 0;
+    $toimitusmaksu      = round( $toimitusmaksu + $toimitus_vero, 2 ) / ( 1 + $toimitus_veropros / 100 );
 
-    $cart_discount      = $order->get_discount_total();
-    $cart_discount_tax  = $order->get_discount_tax();
+    // Cart discounts by VAT rate (key is VAT rate, value is sum, incl. tax)
+    $cart_discounts = [];
 
     $viitteenne        = get_laskuhari_meta( $order->get_id(), '_laskuhari_viitteenne', true );
     $ytunnus           = get_laskuhari_meta( $order->get_id(), '_laskuhari_ytunnus', true );
@@ -3297,16 +3339,44 @@ function laskuhari_process_action(
 
         $data = $item->get_data();
 
+        if( is_a( $item, WC_Order_Item_Product::class ) ) {
+            /** @var WC_Order_Item_Product $item */
+            $tax_data = $item->get_taxes();
+        } else {
+            Logger::enabled( 'notice' ) && Logger::log( sprintf(
+                'Laskuhari: Order item is not a product item, but a %s, order %d',
+                get_class( $item ),
+                $order_id,
+            ), 'notice' );
+        }
+
+        if( isset( $tax_data['total'] ) ) {
+            // Use the more accurate total tax (4DP) amount if available
+            $tax_data['total'] = array_sum( $tax_data['total'] );
+        } else {
+            $tax_data['total'] = $data['total_tax'];
+        }
+
+        if( isset( $tax_data['subtotal'] ) ) {
+            // Use the more accurate subtotal tax (4DP) amount if available
+            $tax_data['subtotal'] = array_sum( $tax_data['subtotal'] );
+        } else {
+            $tax_data['subtotal'] = $data['subtotal_tax'];
+        }
+
+        // For orders with coupons, we will use the non-discounted
+        // price for the invoice rows, since we will add the
+        // coupons as negative discount rows in the end
         if( $has_coupons ) {
             $sub = 'sub';
         } else {
             $sub = '';
         }
 
-        $yht_verollinen = round( $data[$sub.'total'] + $data[$sub.'total_tax'], 2 );
+        $yht_verollinen = round( $data[$sub.'total'] + $tax_data[$sub.'total'], 2 );
 
         if( $data[$sub.'total'] != 0 ) {
-            $alv         = round( $data[$sub.'total_tax'] / $data[$sub.'total'] * 100, 0 );
+            $alv         = laskuhari_vat_percent( $tax_data[$sub.'total'] / $data[$sub.'total'] * 100 );
             $yht_veroton = $yht_verollinen / ( 1 + $alv / 100 );
         } else {
             $alv         = 0;
@@ -3321,9 +3391,14 @@ function laskuhari_process_action(
             $yks_veroton    = 0;
         }
 
-        if( $sub === '' ) {
-            $cart_discount -= $data['subtotal'] - $data['total'];
-            $cart_discount_tax -= $data['subtotal_tax'] - $data['total_tax'];
+        $row_discount = $yht_verollinen - round( $data['total'] + $tax_data['total'], 2 );
+
+        if( $has_coupons ) {
+            if( ! isset( $cart_discounts[(string)$alv] ) ) {
+                $cart_discounts[(string)$alv] = 0;
+            }
+
+            $cart_discounts[(string)$alv] += $row_discount;
         }
 
         $ale = 0;
@@ -3338,33 +3413,39 @@ function laskuhari_process_action(
         if( $product_id ) {
             set_transient( "laskuhari_update_product_" . $product_id, $product_id, 4 );
             $product = wc_get_product( $product_id );
-            $product_sku = $product->get_sku();
 
-            if( $laskuhari_gateway_object->calculate_discount_percent ) {
-                $price = laskuhari_get_product_price( $product );
+            if( is_object( $product ) ) {
+                $product_sku = $product->get_sku();
+            }
+        }
 
-                $discount_percent = 0;
-                if( $price['price_without_tax'] != 0 ) {
-                    $discount_percent = ( $price['price_without_tax'] - $yks_veroton ) / $price['price_without_tax'] * 100;
-                }
+        if( $laskuhari_gateway_object->calculate_discount_percent ) {
+            $price_with_tax = $data['subtotal'] + $tax_data['subtotal'];
+            $price_without_tax = $data['subtotal'];
 
-                if( $discount_percent > 0.009 ) {
-                    $ale = $discount_percent;
-                    if( $data["quantity"] != 0 ) {
-                        // Calculate price per unit so that it matches the rounded total price, tax included.
-                        // This avoids rounding differences between Laskuhari and WooCommerce.
-                        $yks_verollinen = round( $price["price_with_tax"] * $data['quantity'], 2 ) / $data['quantity'];
-                        $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
+            $discount_percent = 0;
+            $discount_amount = 0;
+            if( $price_without_tax != 0 ) {
+                $discount_amount = $price_without_tax - $yks_veroton;
+                $discount_percent = $discount_amount / $price_without_tax * 100;
+            }
 
-                        $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
-                        $yht_verollinen = ( $yks_verollinen - $ale_maara_verollinen ) * $data['quantity'];
+            if( $discount_percent > 0.009 && $discount_amount > 0.009 ) {
+                $ale = $discount_percent;
+                if( $data["quantity"] != 0 ) {
+                    // Calculate price per unit so that it matches the rounded total price, tax included.
+                    // This avoids rounding differences between Laskuhari and WooCommerce.
+                    $yks_verollinen = round( $price_with_tax * $data['quantity'], 2 ) / $data['quantity'];
+                    $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
 
-                        $ale_maara_veroton = $yks_veroton * ($ale / 100);
-                        $yht_veroton = ( $yks_veroton - $ale_maara_veroton ) * $data['quantity'];
-                    } else {
-                        $yks_verollinen = 0;
-                        $yks_veroton = 0;
-                    }
+                    $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
+                    $yht_verollinen = ( $yks_verollinen - $ale_maara_verollinen ) * $data['quantity'];
+
+                    $ale_maara_veroton = $yks_veroton * ($ale / 100);
+                    $yht_veroton = ( $yks_veroton - $ale_maara_veroton ) * $data['quantity'];
+                } else {
+                    $yks_verollinen = 0;
+                    $yks_veroton = 0;
                 }
             }
         }
@@ -3402,7 +3483,7 @@ function laskuhari_process_action(
             "nimike"        => "Toimitustapa: " . $toimitustapa,
             "maara"         => 1,
             "veroton"       => $toimitusmaksu,
-            "alv"           => round( $toimitus_vero / $toimitusmaksu * 100, 0 ),
+            "alv"           => laskuhari_vat_percent( $toimitus_vero / $toimitusmaksu * 100 ),
             "verollinen"    => $toimitusmaksu + $toimitus_vero,
             "ale"           => 0,
             "yhtveroton"    => $toimitusmaksu,
@@ -3412,33 +3493,37 @@ function laskuhari_process_action(
         $laskettu_summa += $toimitusmaksu + $toimitus_vero;
     }
 
-    // lisätään alennus
-    if( round( $cart_discount, 2 ) > 0 && round( $cart_discount_tax, 2 ) >= 0 ) {
-        $discount_name = "Alennus";
+    // lisätään alennusrivit
+    foreach( $cart_discounts as $vat_rate => $amount_with_vat ) {
+        if( round( $amount_with_vat, 2 ) > 0 ) {
+            $discount_name = "Alennus";
 
-        $coupon_count = count( $coupon_codes );
+            $coupon_count = count( $coupon_codes );
 
-        if( $coupon_count > 0 ) {
-            if( $coupon_count > 1 ) {
-                $discount_name = __( "Kupongit", "laskuhari" );
-            } else {
-                $discount_name = __( "Kuponki", "laskuhari" );
+            if( $coupon_count > 0 ) {
+                if( $coupon_count > 1 ) {
+                    $discount_name = __( "Kupongit", "laskuhari" );
+                } else {
+                    $discount_name = __( "Kuponki", "laskuhari" );
+                }
+                $discount_name .= " (".implode( ", ", $coupon_codes ).")";
             }
-            $discount_name .= " (".implode( ", ", $coupon_codes ).")";
+
+            $discount_row = [
+                "nimike"        => $discount_name,
+                "maara"         => 1,
+                "veroton"       => $amount_with_vat / (1 + $vat_rate / 100) * -1,
+                "alv"           => $vat_rate,
+                "verollinen"    => $amount_with_vat * -1,
+                "ale"           => 0,
+                "yhtveroton"    => $amount_with_vat / (1 + $vat_rate / 100) * -1,
+                "yhtverollinen" => $amount_with_vat * -1
+            ];
+
+            $laskurivit[] = laskuhari_invoice_row( $discount_row );
+
+            $laskettu_summa += $amount_with_vat * -1;
         }
-
-        $laskurivit[] = laskuhari_invoice_row( [
-            "nimike"        => $discount_name,
-            "maara"         => 1,
-            "veroton"       => $cart_discount * -1,
-            "alv"           => round( $cart_discount_tax / $cart_discount * 100, 0 ),
-            "verollinen"    => ( $cart_discount + $cart_discount_tax ) * -1,
-            "ale"           => 0,
-            "yhtveroton"    => $cart_discount * -1,
-            "yhtverollinen" => ( $cart_discount + $cart_discount_tax ) * -1
-        ] );
-
-        $laskettu_summa += ( $cart_discount + $cart_discount_tax ) * -1;
     }
 
     // lisätään maksut
@@ -3457,7 +3542,7 @@ function laskuhari_process_action(
         }
 
         if( $fee_total != 0 ) {
-            $alv         = round( $fee_total_tax / $fee_total * 100, 0 );
+            $alv         = laskuhari_vat_percent( $fee_total_tax / $fee_total * 100 );
             $yht_veroton = $fee_total;
         } else {
             $alv         = 0;

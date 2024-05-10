@@ -3,17 +3,12 @@ const functions = require('./functions.js');
 const config    = require('./config.js');
 
 /**
- * This test checks a special case where rounding issues
- * could cause the invoice to be created with incorrect
- * totals when using a discounted price.
- *
- * Expected totals:
- * 283,81 excl. VAT
- *  68,11 VAT
- * 351,92 incl. VAT
+ * This test checks that the plugin supports
+ * different VAT percentages, including
+ * ones with decimals.
  */
 
-test("rounding-issues", async () => {
+test("vat-percentages-multi", async () => {
     const browser = await puppeteer.launch({
         headless: config.headless,
         defaultViewport: {
@@ -57,7 +52,7 @@ test("rounding-issues", async () => {
     // input customer details
     await page.waitForSelector( "#_billing_first_name" );
     await page.click( "#_billing_first_name" );
-    await page.keyboard.type( "Jack Rounding" );
+    await page.keyboard.type( "Jack VAT rates" );
     await page.click( "#_billing_last_name" );
     await page.keyboard.type( "Smith" );
     await page.click( "#_billing_address_1" );
@@ -71,27 +66,10 @@ test("rounding-issues", async () => {
     await page.keyboard.type( config.test_email );
 
     // Add testing products
-    await functions.add_product_to_order( page, "Rounding test 1" );
-    await functions.add_product_to_order( page, "Rounding test 2" );
-    await functions.add_product_to_order( page, "Rounding test 3" );
-
-    // Go to edit mode for all products
-    let product_edit_buttons = await page.$$( ".edit-order-item" );
-    await product_edit_buttons[0].click();
-    await product_edit_buttons[1].click();
-    await product_edit_buttons[2].click();
-    await functions.sleep( 100 );
-
-    // Set prices for products
-    await page.waitForSelector( ".line_total" );
-    let totals = await page.$$( ".line_total" );
-    await totals[0].evaluate(e => { e.value = "178,65"; });
-    await totals[1].evaluate(e => { e.value = "72,15"; });
-    await totals[2].evaluate(e => { e.value = "33"; });
-
-    // Save changes
-    await page.click( ".save-action" );
-    await functions.sleep( 3000 );
+    await functions.add_product_to_order( page, "VAT 25.5 test 1" );
+    await functions.add_product_to_order( page, "VAT 25.5 test 2" );
+    await functions.add_product_to_order( page, "VAT 14 test" );
+    await functions.add_product_to_order( page, "VAT conflict" );
 
     // prepare for confirmation dialog
     page.off('dialog', functions.accept_dialog);
@@ -136,10 +114,10 @@ test("rounding-issues", async () => {
     await functions.open_invoice_pdf( page );
 
     // wait for a while so we can assess the results
-    await functions.sleep( 6000 );
+    await functions.sleep( 10000 );
 
     // check amounts
-    await functions.check_invoice_amounts( page, order_id, 283.81, 68.11, 351.92 );
+    await functions.check_invoice_amounts( page, order_id, 70.13, 12.13, 82.26 );
 
     // close browser
     await browser.close();

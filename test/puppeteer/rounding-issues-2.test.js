@@ -102,6 +102,9 @@ test("rounding-issues-2", async () => {
     // wait for page to load
     await page.waitForSelector( "#laskuhari_metabox" );
 
+    // get order id from url
+    const order_id = await functions.get_order_id( page );
+
     // check that invoice was not created
     let element = await page.$('.laskuhari-tila');
     let invoice_status = await page.evaluate(el => el.textContent, element);
@@ -126,6 +129,9 @@ test("rounding-issues-2", async () => {
 
     // wait for a while so we can assess the results
     await functions.sleep( 10000 );
+
+    // check amounts
+    await functions.check_invoice_amounts( page, order_id, 162, 38.88, 200.88 );
 
     // close browser
     await browser.close();
