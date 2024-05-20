@@ -3426,7 +3426,7 @@ function laskuhari_process_action(
             $discount_percent = 0;
             $discount_amount = 0;
             if( $price_without_tax != 0 ) {
-                $discount_amount = $price_without_tax - $yks_veroton;
+                $discount_amount = $price_without_tax - $yht_veroton;
                 $discount_percent = $discount_amount / $price_without_tax * 100;
             }
 
@@ -3435,7 +3435,7 @@ function laskuhari_process_action(
                 if( $data["quantity"] != 0 ) {
                     // Calculate price per unit so that it matches the rounded total price, tax included.
                     // This avoids rounding differences between Laskuhari and WooCommerce.
-                    $yks_verollinen = round( $price_with_tax * $data['quantity'], 2 ) / $data['quantity'];
+                    $yks_verollinen = round( $price_with_tax, 2 ) / $data['quantity'];
                     $yks_veroton = $yks_verollinen / ( 1 + $alv / 100 );
 
                     $ale_maara_verollinen = $yks_verollinen * ($ale / 100);
