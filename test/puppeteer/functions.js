@@ -41,6 +41,23 @@ exports.check_invoice_amounts = async function( page, order_id, excl_tax, tax, i
     expect( data.verollinen ).toBe( incl_tax );
 }
 
+exports.check_invoice_row_amounts = async function( page, order_id, correct_rows ) {
+    await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-orders&action=edit&id="+order_id+"&laskuhari_action=get_invoice_data" );
+    await page.waitForSelector( "pre" );
+
+    const data = await page.evaluate(() => {
+        return JSON.parse( document.querySelector( "pre" ).textContent );
+    });
+
+    const rows = data.laskurivit;
+
+    for( i in correct_rows ) {
+        for( const key in correct_rows[i] ) {
+            expect( Math.round( rows[i][key] * 100 ) / 100 ).toBe( correct_rows[i][key] );
+        }
+    }
+}
+
 exports.logout = async function( page ) {
     await exports.wait_for_loading( page );
     await page.hover( "#wp-admin-bar-my-account" );

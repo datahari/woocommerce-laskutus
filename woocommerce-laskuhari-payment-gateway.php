@@ -2062,6 +2062,15 @@ function laskuhari_actions() {
         exit;
     }
 
+    // get the invoice data (for automated testing)
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "get_invoice_data" ) {
+        $data = laskuhari_get_invoice_data( $order_id );
+        ?>
+        <pre><?php echo json_encode( $data, JSON_PRETTY_PRINT ); ?></pre>
+        <?php
+        exit;
+    }
+
     // update list of payment terms
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "fetch_payment_terms" ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2273,6 +2282,32 @@ function laskuhari_get_invoice_amount( $order_id, $invoice_id = null ) {
         $status = $response['vastaus'];
 
         // return amount data
+        return $status;
+    }
+
+    return false;
+}
+
+/**
+ * Gets the invoice data from Laskuhari API
+ *
+ * @param ?int $order_id
+ * @param ?int $invoice_id
+ * @return array|false
+ */
+function laskuhari_get_invoice_data( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    // get invoice data from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/json";
+    $response = laskuhari_api_request( array(), $api_url, "Get invoice data" );
+
+    if( $response['status'] === "OK" ) {
+        $status = $response['vastaus'];
+
+        // return data
         return $status;
     }
 
