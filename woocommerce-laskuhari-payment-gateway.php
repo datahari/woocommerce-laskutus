@@ -2609,7 +2609,7 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
 
     Logger::enabled( 'debug' ) && Logger::log( sprintf(
         'Laskuhari cURL response: %s',
-        $response,
+        $response
     ), 'debug' );
 
     $curl_errno = curl_errno( $ch );
@@ -3209,7 +3209,7 @@ function laskuhari_maybe_process_queued_invoice( $order_id ) {
     if( ! is_array( $queued_args ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Error processing queued invoice for order %d: Queued args not found',
-            $order_id,
+            $order_id
         ), 'error' );
 
         $order = wc_get_order( $order_id );
@@ -3503,7 +3503,7 @@ function laskuhari_process_action(
             Logger::enabled( 'notice' ) && Logger::log( sprintf(
                 'Laskuhari: Order item is not a product item, but a %s, order %d',
                 get_class( $item ),
-                $order_id,
+                $order_id
             ), 'notice' );
         }
 
