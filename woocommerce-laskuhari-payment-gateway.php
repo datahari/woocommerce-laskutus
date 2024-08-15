@@ -564,6 +564,7 @@ function laskuhari_operators() {
             "885790000000418" => "HighJump AS (885790000000418)",
             "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
             "EXPSYS"          => "Kofax Sweden Services AB (EXPSYS)",
+            "981012224"       => "LOGIQ AS (981012224)",
             "003721291126"    => "Maventa (003721291126)",
             "003726044706"    => "Netbox Finland Oy (003726044706)",
             "003708599126"    => "OpenText Oy (003708599126)",
@@ -571,7 +572,7 @@ function laskuhari_operators() {
             "003723609900"    => "Pagero (003723609900)",
             "FI28768767"      => "Posti Messaging Oy (FI28768767)",
             "003701150617"    => "PostNord Strålfors Oy (003701150617)",
-            "003714377140"    => "Ropo Capital Oy (003714377140)",
+            "003714377140"    => "Ropo Suomi Oy (003714377140)",
             "003703575029"    => "Telia / CGI (003703575029)",
             "003701011385"    => "TietoEvry Oyj (003701011385)",
             "885060259470028" => "Tradeshift (885060259470028)",
@@ -583,12 +584,11 @@ function laskuhari_operators() {
             "DNBAFIHX"        => "DNB (DNBAFIHX)",
             "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
             "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
-            "ITELFIHH"        => "Oma Säästöpankki Oyj (ITELFIHH)",
+            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
             "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
             "POPFFI22"        => "POP Pankki  (POPFFI22)",
             "SBANFIHH"        => "S-Pankki (SBANFIHH)",
             "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
-            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
             "AABAFI22"        => "Ålandsbanken (AABAFI22)"
         ]
     ] );
