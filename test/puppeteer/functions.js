@@ -108,7 +108,7 @@ exports.fill_out_checkout_form = async function( page, testid ) {
     await page.click( "#billing_address_1" );
     await page.keyboard.type( "Testroad 123" );
     await page.click( "#billing_postcode" );
-    await page.keyboard.type( "123456" );
+    await page.keyboard.type( "00100" );
     await page.click( "#billing_city" );
     await page.keyboard.type( "Testplace" );
     await page.click( "#billing_phone" );
