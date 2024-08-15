@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.12.1
+Version: 1.12.2
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -556,14 +556,15 @@ function laskuhari_operators() {
         "operators" => [
             "UTMOST"          => "4US Oy (UTMOST)",
             "003723327487"    => "Apix Messaging Oy (003723327487)",
+            "APPER"           => "Apper Systems AB (APPER)",
             "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
-            "003703575029"    => "CGI (003703575029)",
             "5909000716438"   => "Comarch (5909000716438)",
             "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
             "ROUTTY"          => "Dynatos (ROUTTY)",
             "885790000000418" => "HighJump AS (885790000000418)",
             "INEXCHANGE"      => "InExchange Factorum AB (INEXCHANGE)",
-            "EXPSYS"          => "Lexmark Expert Systems AB (EXPSYS)",
+            "EXPSYS"          => "Kofax Sweden Services AB (EXPSYS)",
+            "981012224"       => "LOGIQ AS (981012224)",
             "003721291126"    => "Maventa (003721291126)",
             "003726044706"    => "Netbox Finland Oy (003726044706)",
             "003708599126"    => "OpenText Oy (003708599126)",
@@ -571,8 +572,8 @@ function laskuhari_operators() {
             "003723609900"    => "Pagero (003723609900)",
             "FI28768767"      => "Posti Messaging Oy (FI28768767)",
             "003701150617"    => "PostNord Strålfors Oy (003701150617)",
-            "003714377140"    => "Ropo Capital Oy (003714377140)",
-            "003703575029"    => "Telia (003703575029)",
+            "003714377140"    => "Ropo Suomi Oy (003714377140)",
+            "003703575029"    => "Telia / CGI (003703575029)",
             "003701011385"    => "TietoEvry Oyj (003701011385)",
             "885060259470028" => "Tradeshift (885060259470028)",
             "003722207029"    => "Ålands Post Ab (003722207029)"
@@ -583,12 +584,11 @@ function laskuhari_operators() {
             "DNBAFIHX"        => "DNB (DNBAFIHX)",
             "HANDFIHH"        => "Handelsbanken (HANDFIHH)",
             "NDEAFIHH"        => "Nordea Pankki (NDEAFIHH)",
-            "ITELFIHH"        => "Oma Säästöpankki Oyj (ITELFIHH)",
+            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
             "OKOYFIHH"        => "Osuuspankit (OKOYFIHH)",
             "POPFFI22"        => "POP Pankki  (POPFFI22)",
             "SBANFIHH"        => "S-Pankki (SBANFIHH)",
             "TAPIFI22"        => "LähiTapiola (TAPIFI22)",
-            "ITELFIHH"        => "Säästöpankit (ITELFIHH)",
             "AABAFI22"        => "Ålandsbanken (AABAFI22)"
         ]
     ] );
@@ -1242,6 +1242,10 @@ function laskuhari_set_invoice_sent_status( $invoice_id, $sent, $send_date = fal
     $response = laskuhari_api_request( $payload, $api_url, "Set invoice sent status" );
 
     if( $response === false ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to set invoice sent status'
+        ), 'error' );
+
         return false;
     }
 
@@ -2062,6 +2066,15 @@ function laskuhari_actions() {
         exit;
     }
 
+    // get the invoice data (for automated testing)
+    if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "get_invoice_data" ) {
+        $data = laskuhari_get_invoice_data( $order_id );
+        ?>
+        <pre><?php echo json_encode( $data, JSON_PRETTY_PRINT ); ?></pre>
+        <?php
+        exit;
+    }
+
     // update list of payment terms
     if( isset( $_GET['laskuhari_action'] ) && $_GET['laskuhari_action'] === "fetch_payment_terms" ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2218,9 +2231,20 @@ function laskuhari_invoice_number_by_order( $orderid ) {
     return laskuhari_get_post_meta( $orderid, '_laskuhari_invoice_number', true );
 }
 
+/**
+ * Gets invoice ID by invoice number via API
+ *
+ * @param string $invoice_number
+ * @return int|false Invoice ID or false on failure
+ */
 function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_number . "/get-id-by-number";
     $response = laskuhari_api_request( array(), $api_url, "Get ID by number" );
+
+    if( false === $response ) {
+        return false;
+    }
+
     return intval( $response['invoice_id'] );
 }
 
@@ -2232,6 +2256,15 @@ function laskuhari_get_invoice_payment_status( $order_id, $invoice_id = null ) {
     // get invoice payment status from API
     $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/status";
     $response = laskuhari_api_request( array(), $api_url, "Get status" );
+
+    if( false === $response ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to get payment status for order %d',
+            $order_id
+        ), 'error' );
+
+        return false;
+    }
 
     if( $response['status'] === "OK" ) {
         $status = $response['vastaus'];
@@ -2269,10 +2302,54 @@ function laskuhari_get_invoice_amount( $order_id, $invoice_id = null ) {
     $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/loppusumma";
     $response = laskuhari_api_request( array(), $api_url, "Get amount" );
 
+    if( false === $response ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to get amount data for order %d',
+            $order_id
+        ), 'error' );
+
+        return false;
+    }
+
     if( $response['status'] === "OK" ) {
         $status = $response['vastaus'];
 
         // return amount data
+        return $status;
+    }
+
+    return false;
+}
+
+/**
+ * Gets the invoice data from Laskuhari API
+ *
+ * @param ?int $order_id
+ * @param ?int $invoice_id
+ * @return array|false
+ */
+function laskuhari_get_invoice_data( $order_id, $invoice_id = null ) {
+    if ( null === $invoice_id ) {
+        $invoice_id = laskuhari_invoice_id_by_order( $order_id );
+    }
+
+    // get invoice data from API
+    $api_url  = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/json";
+    $response = laskuhari_api_request( array(), $api_url, "Get invoice data" );
+
+    if( false === $response ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to get invoice data for order %d',
+            $order_id
+        ), 'error' );
+
+        return false;
+    }
+
+    if( $response['status'] === "OK" ) {
+        $status = $response['vastaus'];
+
+        // return data
         return $status;
     }
 
@@ -2343,6 +2420,11 @@ function laskuhari_get_payment_terms( $force = false ) {
     $api_url = "https://" . laskuhari_domain() . "/rest-api/maksuehdot";
     $response = laskuhari_api_request( array(), $api_url, "Get payment terms" );
 
+    if( false === $response ) {
+        Logger::enabled( 'error' ) && Logger::log( 'Laskuhari: Failed to get payment terms', 'error' );
+        return false;
+    }
+
     if( $response['status'] === "OK" ) {
         update_option( "_laskuhari_payment_terms", $response['vastaus'], false );
         return apply_filters( "laskuhari_payment_terms", $response['vastaus'] );
@@ -2351,12 +2433,23 @@ function laskuhari_get_payment_terms( $force = false ) {
     return false;
 }
 
+/**
+ * Get invoice ID for an order
+ *
+ * @param int $orderid
+ * @return int|false Invoice ID or false on failure
+ */
 function laskuhari_invoice_id_by_order( $orderid ) {
     $invoice_id = laskuhari_get_post_meta( $orderid, '_laskuhari_invoice_id', true );
 
     if( ! $invoice_id ) {
         $invoice_number = laskuhari_invoice_number_by_order( $orderid );
         $invoice_id = laskuhari_invoice_id_by_invoice_number( $invoice_number );
+
+        if( false === $invoice_id ) {
+            return false;
+        }
+
         laskuhari_set_order_meta( $orderid, '_laskuhari_invoice_id', $invoice_id );
     }
 
@@ -2418,11 +2511,15 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
 
     $response = laskuhari_api_request( $payload, $api_url, "Get PDF", "url" );
 
-    // tarkastetaan virheet
-    if( stripos( $response, "error" ) !== false || strlen( $response ) < 10 ) {
-        $error_notice = __( "Tilauksen PDF-laskun lataaminen epäonnistui", "laskuhari" );
+    if( false === $response ) {
         return array(
-            "notice" => urlencode( $error_notice )
+            "notice" => urlencode( __( "Tilauksen PDF-laskun lataaminen epäonnistui", "laskuhari" ) )
+        );
+    }
+
+    if( strpos( $response, "https://" ) !== 0 ) {
+        return array(
+            "notice" => urlencode( __( "Tilauksen PDF-laskun lataaminen epäonnistui (virheellinen URL)", "laskuhari" ) )
         );
     }
 
@@ -2435,7 +2532,21 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
     exit;
 }
 
-function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json", $silent = true ) {
+/**
+ * Performs an API request to Laskuhari and returns the response
+ *
+ * @param array|string $payload Request payload
+ * @param string $api_url API URL
+ * @param string $action_name Action name for logging
+ * @param string $format Response format ("json" | "url")
+ *
+ * @return array|false|string Response data (associative array for "json" type
+ *                            and string for "url" type) or false on failure.
+ *
+ *                            Response data may also contain a list of error
+ *                            messages under the key "virheet".
+ */
+function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json" ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2446,11 +2557,21 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     if( ! $laskuhari_gateway_object->uid ) {
         Logger::enabled( 'error' ) && Logger::log( 'Laskuhari: UID error while sending API request', 'error' );
 
-        return laskuhari_uid_error();
+        return false;
     }
 
     if( is_array( $payload ) ) {
         $payload = json_encode( $payload, laskuhari_json_flag() );
+
+        if( false === $payload ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: %s JSON error: %s',
+                $action_name,
+                json_last_error_msg()
+            ), 'error' );
+
+            return false;
+        }
     }
 
     $auth_key = Laskuhari_API::generate_auth_key(
@@ -2458,6 +2579,15 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         $laskuhari_gateway_object->apikey,
         $payload
     );
+
+    if( ! function_exists( "curl_init" ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: %s cURL not available',
+            $action_name
+        ), 'error' );
+
+        return false;
+    }
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -2477,6 +2607,11 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
 
     $response = curl_exec( $ch );
 
+    Logger::enabled( 'debug' ) && Logger::log( sprintf(
+        'Laskuhari cURL response: %s',
+        $response,
+    ), 'debug' );
+
     $curl_errno = curl_errno( $ch );
     $curl_error = curl_error( $ch );
 
@@ -2487,10 +2622,22 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
             $curl_errno,
             $curl_error
         ), 'error' );
+
+        return false;
     }
 
     if( "json" === $format ) {
         $response_json = json_decode( $response, true );
+
+        if( null === $response_json ) {
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: %s JSON decode error: %s',
+                $action_name,
+                json_last_error_msg()
+            ), 'error' );
+
+            return false;
+        }
 
         if( ! isset( $response_json['status'] ) ) {
             $error_response = wc_print_r( $response, true );
@@ -2504,28 +2651,38 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
                 $error_response
             ), 'error' );
 
-            if( true === $silent ) {
-                return false;
-            }
+            return false;
         }
 
         if( $response_json['status'] != "OK" ) {
-            Logger::enabled( 'error' ) && Logger::log( sprintf(
-                'Laskuhari: %s response JSON error: %s',
-                $action_name,
-                wc_print_r( $response_json, true )
-            ), 'error' );
+            if( isset( $response_json["virheet"] ) && is_array( $response_json["virheet"] ) ) {
+                Logger::enabled( 'debug' ) && Logger::log( sprintf(
+                    'Laskuhari: %s API raw error: %s',
+                    $action_name,
+                    wc_print_r( $response_json, true )
+                ), 'debug' );
 
-            if( true === $silent ) {
-                return false;
+                foreach( $response_json["virheet"] as $virhe ) {
+                    Logger::enabled( 'error' ) && Logger::log( sprintf(
+                        'Laskuhari: %s API error: %s',
+                        $action_name,
+                        $virhe
+                    ), 'error' );
+                }
+            } else {
+                Logger::enabled( 'error' ) && Logger::log( sprintf(
+                    'Laskuhari: %s API raw error: %s',
+                    $action_name,
+                    wc_print_r( $response_json, true )
+                ), 'error' );
+
+                $response_json["virheet"] = [
+                    __( "Tuntematon virhe", "laskuhari" )
+                ];
             }
         }
 
-        $response = $response_json;
-    }
-
-    if( $curl_errno ) {
-        return false;
+        return $response_json;
     }
 
     return $response;
@@ -3637,20 +3794,12 @@ function laskuhari_process_action(
     $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order_id );
     $payload = json_encode( $payload, laskuhari_json_flag() );
 
-    $response = laskuhari_api_request( $payload, $api_url, "Create invoice", "json", false );
+    $response = laskuhari_api_request( $payload, $api_url, "Create invoice" );
 
     $error_notice = "";
     $success = "";
 
-    if( isset( $response['notice'] ) ) {
-        $order->add_order_note( $response['notice'] );
-
-        \delete_transient( $transient_name );
-
-        return $response;
-    }
-
-    if( $response === false ) {
+    if( false === $response ) {
         $error_notice = 'Virhe laskun luomisessa.';
         $order->add_order_note( $error_notice );
 
@@ -3666,19 +3815,16 @@ function laskuhari_process_action(
         );
     }
 
-    if( is_array( $response ) ) {
-        $response = json_encode( $response, laskuhari_json_flag() );
-    }
-
-    if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
-        $error_notice = 'Virhe laskun luomisessa: ' . $response;
+    if( $response["status"] !== "OK" ) {
+        $response_json = json_encode( $response, laskuhari_json_flag() );
+        $error_notice = 'Virhe laskun luomisessa: ' . $response_json;
 
         $order->add_order_note( $error_notice );
 
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Error in creating invoice, order %d: %s',
             $order_id,
-            $response
+            $response_json
         ), 'error' );
 
         \delete_transient( $transient_name );
@@ -3688,9 +3834,38 @@ function laskuhari_process_action(
         );
     }
 
-    $response = json_decode( $response, true );
-    $laskunro = $response['vastaus']['laskunro'];
-    $laskuid  = $response['vastaus']['lasku_id'];
+    if( ! isset( $response['vastaus']['laskunro'] ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Invoice number not found in response for order %d',
+            $order_id
+        ), 'error' );
+    }
+
+    if( ! isset( $response['vastaus']['lasku_id'] ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Invoice ID not found in response for order %d',
+            $order_id
+        ), 'error' );
+    }
+
+    if( ! isset( $response['vastaus']['meta']['maksuehto'] ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Payment terms not found in response for order %d',
+            $order_id
+        ), 'error' );
+    }
+
+    if( ! isset( $response['vastaus']['meta']['maksuehtonimi'] ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Payment terms name not found in response for order %d',
+            $order_id
+        ), 'error' );
+    }
+
+    $laskunro = $response['vastaus']['laskunro'] ?? null;
+    $laskuid  = $response['vastaus']['lasku_id'] ?? null;
+    $maksuehto = $response['vastaus']['meta']['maksuehto'] ?? null;
+    $maksuehtonimi = $response['vastaus']['meta']['maksuehtonimi'] ?? null;
 
     // jatketaan vain, jos ei ollut virheitä
     if( intval( $laskuid ) > 0 ) {
@@ -3701,8 +3876,8 @@ function laskuhari_process_action(
         laskuhari_set_order_meta( $order->get_id(), '_laskuhari_invoice_number', $laskunro );
         laskuhari_set_order_meta( $order->get_id(), '_laskuhari_invoice_id', $laskuid );
         laskuhari_set_order_meta( $order->get_id(), '_laskuhari_uid', $laskuhari_uid );
-        laskuhari_set_order_meta( $order->get_id(), '_laskuhari_payment_terms', $response['vastaus']['meta']['maksuehto'] );
-        laskuhari_set_order_meta( $order->get_id(), '_laskuhari_payment_terms_name', $response['vastaus']['meta']['maksuehtonimi'] );
+        laskuhari_set_order_meta( $order->get_id(), '_laskuhari_payment_terms', $maksuehto );
+        laskuhari_set_order_meta( $order->get_id(), '_laskuhari_payment_terms_name', $maksuehtonimi );
 
         $order->add_order_note( sprintf( __( 'Lasku #%s luotu Laskuhariin', 'laskuhari' ), $laskunro ) );
 
@@ -3887,7 +4062,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send = true;
         $miten    = "verkkolaskuna";
-        $mihin    = "$verkkolaskuosoite ($valittaja)";
+        $mihin    = "osoitteeseen $verkkolaskuosoite ($valittaja)";
 
         $payload = [
             "lahetystapa" => "verkkolasku",
@@ -3923,7 +4098,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $can_send   = true;
         $miten      = "sähköpostitse";
-        $mihin      = $email;
+        $mihin      = "osoitteeseen " . $email;
         $sendername = $sendername ? $sendername : "Laskutus";
 
         if( $email_message == "" ) {
@@ -3955,24 +4130,9 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
         $payload = json_encode( $payload, laskuhari_json_flag() );
 
-        $response = laskuhari_api_request( $payload, $api_url, "Send invoice", "json", false );
+        $response = laskuhari_api_request( $payload, $api_url, "Send invoice" );
 
-        if( isset( $response['notice'] ) ) {
-            $order->add_order_note( $response['notice'] );
-            if( function_exists( 'wc_add_notice' ) ) {
-                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
-            }
-
-            Logger::enabled( 'error' ) && Logger::log( sprintf(
-                'Laskuhari: Error with notice sending invoice of order %d: %s',
-                $order->get_id(),
-                $response['notice']
-            ), 'error' );
-
-            return $response;
-        }
-
-        if( $response === false ) {
+        if( false === $response ) {
             $error_notice = 'Virhe laskun lähetyksessä.';
             $order->add_order_note( $error_notice );
 
@@ -3990,15 +4150,15 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             );
         }
 
-        if( is_array( $response ) ) {
-            $response = json_encode( $response, laskuhari_json_flag() );
-        }
-
-        if( stripos( $response, "error" ) !== false || stripos( $response, "ok" ) === false ) {
-            $error_notice = 'Virhe laskun lähetyksessä: ' . $response;
-
-            if( false !== stripos( $response, "KEY_ERROR" ) ) {
-                $error_notice .= ". Huomaathan, että kokeilujaksolla tai demotunnuksilla ei voi lähettää kirje- ja verkkolaskuja.";
+        if( $response["status"] !== "OK") {
+            $error_notice = 'Virhe laskun lähetyksessä: ';
+            $slash = "";
+            foreach( $response["virheet"] as $virhe ) {
+                if( $virhe === "KEY_ERROR" ) {
+                    $virhe .= " (Huomaathan, että kokeilujaksolla tai demotunnuksilla ei voi lähettää kirje- ja verkkolaskuja)";
+                }
+                $error_notice .= $virhe . $slash;
+                $slash = " / ";
             }
 
             $order->add_order_note( $error_notice );
@@ -4007,9 +4167,9 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             }
 
             Logger::enabled( 'error' ) && Logger::log( sprintf(
-                'Laskuhari: Error with notice sending invoice of order %d: %s',
+                'Laskuhari: Error sending invoice of order %d: %s',
                 $order->get_id(),
-                $response
+                $error_notice
             ), 'error' );
 
             return array(
@@ -4025,7 +4185,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ), 'debug' );
 
         $order->add_order_note( sprintf(
-            __( 'Lasku lähetetty %s osoitteeseen %s', 'laskuhari' ),
+            __( 'Lasku lähetetty %s %s', 'laskuhari' ),
             $miten,
             $mihin
         ) );
