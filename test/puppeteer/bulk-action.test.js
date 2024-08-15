@@ -115,6 +115,7 @@ test("bulk-actions", async () => {
     // change status of order
     await page.waitForSelector( "#order_status" );
     await page.select( "#order_status", "wc-processing" );
+    await functions.sleep( 500 );
 
     // save order
     await page.click( ".button.save_order.button-primary" );
@@ -136,6 +137,8 @@ test("bulk-actions", async () => {
     await page.waitForSelector( "[data-testid='laskuhari-success']" );
 
     // click latest order
+    await page.waitForSelector( ".wp-list-table tbody a.order-view" );
+    await functions.sleep( 500 );
     await page.click( '.wp-list-table tbody a.order-view' );
     await page.waitForNavigation();
 
