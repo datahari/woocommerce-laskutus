@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed compatibility with PHP 7.2
 
+### Added
+
+- Added GitHub workflow to check for PHP compatibility automatically
+
 ## [1.12.2] 2024-08-15
 
 ### Fixed
