@@ -38,6 +38,9 @@ rm -rf woocommerce-laskuhari-payment-gateway/config
 rm -f woocommerce-laskuhari-payment-gateway/composer.json
 rm -f woocommerce-laskuhari-payment-gateway/composer.lock
 
+# remove .github folder
+rm -rf woocommerce-laskuhari-payment-gateway/.github
+
 # get version number
 VERSION=`grep "Version: " woocommerce-laskuhari-payment-gateway/woocommerce-laskuhari-payment-gateway.php | awk '{print $2}'`
 
