@@ -3231,6 +3231,33 @@ function laskuhari_maybe_process_queued_invoice( $order_id ) {
     return false;
 }
 
+/**
+ * Get the invoicing address for an order
+ *
+ * @param WC_Order $order
+ * @return array<string, mixed>
+ */
+function laskuhari_get_invoicing_address( $order ) {
+    $customer_id = $order->get_customer_id();
+    $customer = $order->get_address( 'billing' );
+    $ytunnus = get_laskuhari_meta( $order->get_id(), '_laskuhari_ytunnus', true );
+
+    return [
+        "yritys" => $customer['company'],
+        "ytunnus" => $ytunnus,
+        "henkilo" => trim( $customer['first_name'].' '.$customer['last_name'] ),
+        "lahiosoite" => [
+            $customer['address_1'],
+            $customer['address_2']
+        ],
+        "postinumero" => $customer['postcode'],
+        "postitoimipaikka" => $customer['city'],
+        "email" => $customer['email'],
+        "puhelin" => $customer['phone'],
+        "asiakasnro" => $customer_id
+    ];
+}
+
 function laskuhari_process_action(
     $order_id,
     $send = false,
@@ -3424,20 +3451,7 @@ function laskuhari_process_action(
           "maksupvm" => false,
           "status" => $invoice_status
         ],
-        "laskutusosoite" => [
-            "yritys" => $customer['company'],
-            "ytunnus" => $ytunnus,
-            "henkilo" => trim( $customer['first_name'].' '.$customer['last_name'] ),
-            "lahiosoite" => [
-                $customer['address_1'],
-                $customer['address_2']
-            ],
-            "postinumero" => $customer['postcode'],
-            "postitoimipaikka" => $customer['city'],
-            "email" => $customer['email'],
-            "puhelin" => $customer['phone'],
-            "asiakasnro" => $customer_id
-        ],
+        "laskutusosoite" => laskuhari_get_invoicing_address( $order ),
         "toimitusosoite" => [
             "yritys" => $shippingdata['company'],
             "henkilo" => trim( $shippingdata['first_name'].' '.$shippingdata['last_name'] ),
