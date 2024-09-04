@@ -1848,6 +1848,27 @@ function laskuhari_metabox_html( $post ) {
         $luo_ja_laheta       = __( "Luo ja lähetä lasku", "laskuhari" );
         $luo_laheta_varoitus = __( "Haluatko varmasti laskuttaa tämän tilauksen?", "laskuhari" );
 
+        $invoicing_address = laskuhari_get_invoicing_address( $order );
+
+        $missing_field = null;
+        if( empty( $invoicing_address["lahiosoite"][0] ) && empty( $invoicing_address["lahiosoite"][1] ) ) {
+            $missing_field = __( "lähiosoite", "laskuhari" );
+        } elseif( empty( $invoicing_address["postinumero"] ) ) {
+            $missing_field = __( "postinumero", "laskuhari" );
+        } elseif( empty( $invoicing_address["postitoimipaikka"] ) ) {
+            $missing_field = __( "postitoimipaikka", "laskuhari" );
+        }
+
+        $warning = null;
+        if( $missing_field ) {
+            $warning =  sprintf( __( "HUOM! Tilaukselta puuttuu %s, joten laskua ei voi lähettää kirjeenä eikä verkkolaskuna. Haluatko jatkaa?", "laskuhari" ), $missing_field );
+            $warning_email =  sprintf( __( "HUOM! Tilaukselta puuttuu %s. Haluatko jatkaa?", "laskuhari" ), $missing_field );
+            $warning_einvoice_letter =  sprintf( __( "Tilaukselta puuttuu %s. Laskua ei voida lähettää.", "laskuhari" ), $missing_field );
+        }
+
+        $warning_confirm = $warning ? "if( ! laskuhari_no_address_confirm( '".esc_attr( $warning )."' ) ) {return false;}" : "";
+        $send_warning_confirm = $warning_email ? "if( ! laskuhari_no_address_confirm_send( '".esc_attr( $warning_email )."', '".esc_attr($warning_einvoice_letter)."' ) ) {return false;}" : "";
+
         $laskuhari = $laskuhari_gateway_object;
         if( $lasku_luotu ) {
 
@@ -1908,9 +1929,9 @@ function laskuhari_metabox_html( $post ) {
                 <div id="lahetystapa-lomake2">';
                 $laskuhari->lahetystapa_lomake( $post->ID );
         echo '</div>
-                <input type="button" value="'.$luo_ja_laheta.'" id="laskuhari-create-and-send" onclick="if(!confirm(\''.$luo_laheta_varoitus.'\')) {return false;} laskuhari_admin_action(\'send\');" />
+                <input type="button" value="'.$luo_ja_laheta.'" id="laskuhari-create-and-send" onclick="'.$send_warning_confirm.'if(!confirm(\''.$luo_laheta_varoitus.'\')) {return false;} laskuhari_admin_action(\'send\');" />
             </div>
-            <input type="button" id="laskuhari-create-only" value="'.$luo_teksti.'" onclick="if(!confirm(\''.$luo_varoitus.'\')) {return false;} laskuhari_admin_action(\'create\');" />
+            <input type="button" id="laskuhari-create-only" value="'.$luo_teksti.'" onclick="'.$warning_confirm.'if(!confirm(\''.$luo_varoitus.'\')) {return false;} laskuhari_admin_action(\'create\');" />
         </div>';
     }
 
