@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- When WP Cron is disabled with `DISABLE_WP_CRON`, the plugin will now call `/wp-cron.php` asynchronously when there are Laskuhari jobs in queue so that invoices are processed in a timely manner.
+
+### Added
+
+- An option for disabling using WP Cron for delaying invoice generation at checkout (before always on)
+- A warning when trying to send an invoice without address info
+
 ## [1.12.3] 2024-08-16
 
 ### Fixed
