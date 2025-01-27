@@ -2231,6 +2231,33 @@ function laskuhari_add_admin_styles() {
     );
 }
 
+/**
+ * When WP Cron is disabled, we need to run it manually to make sure
+ * the scheduled actions are executed. This function checks if
+ * WP Cron is disabled and there are scheduled actions that
+ * need to be executed.
+ *
+ * @return bool
+ */
+function laskuhari_cron_needs_to_run() {
+    if( defined( "DISABLE_WP_CRON" ) && DISABLE_WP_CRON ) {
+        $hooks = [
+            "laskuhari_create_product_action",
+            "laskuhari_update_stock_action",
+            "laskuhari_process_action_delayed_action"
+        ];
+
+        foreach( $hooks as $hook ) {
+            $time = laskuhari_wp_last_scheduled( $hook );
+            if( $time !== false && $time < time() ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function laskuhari_add_public_scripts() {
     wp_enqueue_script(
         'laskuhari-js-public',
@@ -2238,6 +2265,13 @@ function laskuhari_add_public_scripts() {
         array( 'jquery' ),
         filemtime( __FILE__ )
     );
+
+    $cron_needs_to_run = laskuhari_cron_needs_to_run();
+
+    wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
+        'cron_url' => site_url( '/wp-cron.php?doing_wp_cron&laskuhari_cron' ),
+        'cron_needs_to_run' => $cron_needs_to_run ? "yes" : "no"
+    ] );
 }
 
 function laskuhari_add_admin_scripts() {
