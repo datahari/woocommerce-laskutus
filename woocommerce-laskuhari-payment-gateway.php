@@ -75,6 +75,10 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_demo_notice' );
     }
 
+    if( $laskuhari_gateway_object->use_wp_cron && defined( "DISABLE_WP_CRON" ) && DISABLE_WP_CRON ) {
+        add_action( 'admin_notices', 'laskuhari_wp_cron_disabled_notice' );
+    }
+
     if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
         laskuhari_maybe_add_vat_id_field();
         add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
@@ -368,7 +372,7 @@ function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
     $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order_id );
 
     if( $create_invoice ) {
-        if( $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
+        if( ! $laskuhari_gateway_object->use_wp_cron || $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
             Logger::enabled( 'info' ) && Logger::log( sprintf(
                 'Laskuhari: Creating invoice for order %s synchronously', $order_id
             ), 'info' );
@@ -2167,6 +2171,13 @@ function laskuhari_demo_notice() {
     </div>';
 }
 
+function laskuhari_wp_cron_disabled_notice() {
+    echo '
+    <div class="notice is-dismissible">
+        <p>HUOM! Olet poistanut WP Cronin käytöstä sivustollasi, mutta Laskuhari-lisäosan <a href="' . laskuhari_settings_link() . '">asetuksista</a> on otettu käyttöön viivästetty laskujen luonti WP Cronia käyttämällä. Tämä saattaa aiheuttaa viivästystä laskujen muodostamiseen.</p>
+    </div>';
+}
+
 function laskuhari_not_activated() {
     echo '
     <div class="notice notice-error is-dismissible">
@@ -2240,6 +2251,10 @@ function laskuhari_add_admin_styles() {
  * @return bool
  */
 function laskuhari_cron_needs_to_run() {
+    if( defined( "DISABLE_LASKUHARI_CRON" ) && DISABLE_LASKUHARI_CRON ) {
+        return false;
+    }
+
     if( defined( "DISABLE_WP_CRON" ) && DISABLE_WP_CRON ) {
         $hooks = [
             "laskuhari_create_product_action",

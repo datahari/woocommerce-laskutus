@@ -261,7 +261,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @var string
      */
     public $log_level = 'info';
-	
+
+    /**
+     * Whether to create invoices delayed with WP Cron
+     *
+     * @var bool
+     */
+    public $use_wp_cron = true;
+
 	/**
 	 * This variable is used for passing the ID of a paid order
 	 * from woocommerce_pre_payment_complete hook to
@@ -339,6 +346,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
         $this->log_level                                    = $this->lh_get_option( 'log_level', 'info' );
+        $this->use_wp_cron                                  = $this->lh_get_option( 'use_wp_cron', 'yes' ) === "yes";
     }
 
     /**
@@ -971,6 +979,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'on-hold' => __( 'Pidossa', 'laskuhari' )
                 )
             ),
+            'heading_background_processing' => array(
+                'title'       => __( 'Tausta-ajo', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => ''
+            ),
+            'use_wp_cron' => array(
+                'title'       => __( 'Luo laskut taustalla', 'laskuhari' ),
+                'label'       => __( 'Luo laskut viivästetysti taustalla WP-Cronia käyttämällä', 'laskuhari' ),
+                'description' => __( 'Tämä nopeuttaa tilausprosessia, mutta viivästyttää laskujen luomista', 'laskuhari' ),
+                'type'        => 'checkbox',
+                'default'     => 'yes'
+            ),
             'heading_misc' => array(
                 'title'       => __( 'Sekalaiset', 'laskuhari' ),
                 'type'        => 'title',
@@ -1244,7 +1264,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         \set_transient( $transient_name, "yes", 60 );
 
         if( $this->auto_gateway_create_enabled ) {
-            if( $this->attach_invoice_to_wc_email ) {
+            if( ! $this->use_wp_cron || $this->attach_invoice_to_wc_email ) {
                 Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action synchronously: process_payment, %d',
                     $order_id
