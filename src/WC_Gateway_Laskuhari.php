@@ -587,7 +587,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         foreach( $operators['operators'] as $code => $name ) {
             $selected = $selected_operator === $code ? ' selected' : '';
-            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
         $output .= '</optgroup>';
@@ -596,7 +596,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         foreach( $operators['banks'] as $code => $name ) {
             $selected = $selected_operator === $code ? ' selected' : '';
-            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
         $output .= '</optgroup>';
