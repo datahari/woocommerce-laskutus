@@ -9,7 +9,7 @@
 
 namespace Laskuhari;
 
-use WC_Logger;
+use WC_Logger_Interface;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -18,7 +18,7 @@ class Logger
     /**
      * The WC_Logger instance
      *
-     * @var ?WC_Logger
+     * @var ?WC_Logger_Interface
      */
     protected static $logger;
 
@@ -138,6 +138,7 @@ class Logger
         sort( $log_files );
 
         $keep_logs_for_days = apply_filters( "laskuhari_log_file_expiration_days", 30 );
+        $keep_logs_for_days = is_numeric( $keep_logs_for_days ) ? (int) $keep_logs_for_days : 30;
         $expiration_time = time() - 3600 * 24 * $keep_logs_for_days;
 
         $max_filesize = apply_filters( "laskuhari_log_max_total_filesize_bytes", 1024*1024 );

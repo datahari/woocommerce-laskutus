@@ -162,6 +162,10 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      */
     private function send_api_request( $api_endpoint, $config, $headers ) {
         // get the API url from the config array
+        if( ! is_string( $config['wc_api']['url'] ) ) {
+            throw new \Exception( "API URL not found in config" );
+        }
+
         $api_url = $config['wc_api']['url'];
 
         // build the request arguments
@@ -186,6 +190,12 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
 
         if( ! is_array( $response ) ) {
             throw new \Exception( "Error in JSON decode" );
+        }
+
+        foreach( $response as $key => $_ ) {
+            if( ! is_string( $key ) ) {
+                throw new \Exception( "Invalid response" );
+            }
         }
 
         return $response;

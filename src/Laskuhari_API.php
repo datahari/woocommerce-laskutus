@@ -149,6 +149,13 @@ class Laskuhari_API
             return;
         }
 
+        foreach( $decoded as $key => $_ ) {
+            if( ! is_string( $key ) ) {
+                $this->error( 400, "Unexpected request" );
+                exit;
+            }
+        }
+
         $this->request_json = $decoded;
     }
 
@@ -262,7 +269,7 @@ class Laskuhari_API
      * @return bool
      */
     protected function api_is_called() {
-        return isset( $_GET['__laskuhari_api'] ) && (string) $_GET['__laskuhari_api'] === "true";
+        return isset( $_GET['__laskuhari_api'] ) && $_GET['__laskuhari_api'] === "true";
     }
 
     /**
@@ -354,8 +361,13 @@ class Laskuhari_API
         }
 
         if( isset( $this->request_json['wc_order_id'] ) && $this->request_json['wc_order_id'] > 0 ) {
-            $invoice_number = laskuhari_invoice_number_by_order( $this->request_json['wc_order_id'] );
-            $invoice_id     = laskuhari_invoice_id_by_order( $this->request_json['wc_order_id']);
+            if( ! is_numeric( $this->request_json['wc_order_id'] ) ) {
+                $this->error( 400, "Invalid order ID" );
+                exit;
+            }
+
+            $invoice_number = laskuhari_invoice_number_by_order( (int) $this->request_json['wc_order_id'] );
+            $invoice_id     = laskuhari_invoice_id_by_order( (int) $this->request_json['wc_order_id'] );
 
             // if invoice id or number doesn't match, dont update status
             if( $this->request_json['invoice_id'] != $invoice_id || $this->request_json['invoice_number'] != $invoice_number ) {

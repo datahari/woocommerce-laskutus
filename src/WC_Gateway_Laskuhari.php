@@ -6,6 +6,8 @@ use WC_Order;
 use WC_Order_Item_Product;
 use WC_Payment_Gateway;
 use WC_Product;
+use WC_Shipping_Method;
+use WC_Shipping_Zone;
 use WC_Shipping_Zones;
 use WP_Error;
 
@@ -415,8 +417,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $max_amount = $amounts[1];
         }
 
-        $this->min_amount = intval( apply_filters( "laskuhari_min_amount", $min_amount ) );
-        $this->max_amount = intval( apply_filters( "laskuhari_max_amount", $max_amount ) );
+        $min_amount = apply_filters( "laskuhari_min_amount", $min_amount );
+        $max_amount = apply_filters( "laskuhari_max_amount", $max_amount );
+
+        $this->min_amount = is_numeric( $min_amount ) ? intval( $min_amount ) : 0;
+        $this->max_amount = is_numeric( $max_amount ) ? intval( $max_amount ) : 0;
     }
 
     /**
@@ -437,10 +442,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Parse decimal number to float
      *
-     * @param string|int|float $number
+     * @param mixed $number
      * @return float
      */
     public function parse_decimal( $number ) {
+        if( ! is_int( $number ) && ! is_float( $number ) && ! is_string( $number ) ) {
+            return 0;
+        }
+
         return floatval( preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], (string)$number ) );
     }
 
@@ -477,6 +486,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function veroton_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
+        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
 
         if( $sis_alv ) {
             return $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
@@ -494,7 +504,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
-        $laskutuslisa = floatval( $laskutuslisa );
+        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
 
         if( $sis_alv ) {
             return $laskutuslisa;
@@ -632,6 +642,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $shipping_methods = [];
 
         if ( is_admin() && class_exists( "WC_Shipping_Zones" ) ) {
+            /** @var array<array<mixed>> $shipping_zones */
             $shipping_zones = WC_Shipping_Zones::get_zones();
 
             if( ! is_array( $shipping_zones ) ) {
@@ -639,14 +650,16 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
 
             foreach ($shipping_zones as $key => $zone ) {
-                $locations = $zone['zone_locations'];
+                /** @var array<WC_Shipping_Zone> $locations */
+                $locations = isset( $zone['zone_locations'] ) ? $zone['zone_locations'] : [];
 
                 // Get shipping methods for zone
-                $zone_shipping_methods = $zone['shipping_methods'];
+                $zone_shipping_methods = isset( $zone['shipping_methods'] ) ? $zone['shipping_methods'] : [];
                 if( ! is_array( $zone_shipping_methods ) ) {
                     $zone_shipping_methods = [];
                 }
 
+                /** @var array<WC_Shipping_Method> $zone_shipping_methods */
                 foreach( $zone_shipping_methods as $method ) {
                     $method_id = $method->id;
 
@@ -674,6 +687,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                         $p = "";
                         $n = 0;
                         foreach( $locations as $location ) {
+                            if( ! isset( $location->code ) ) {
+                                continue;
+                            }
                             $method_title .= $p.$location->code;
 
                             // list only 5 locations max
