@@ -1399,6 +1399,9 @@ function laskuhari_vat_number_fields() {
         "vat-id",
         "business_id",
         "businessid",
+        "alv_tunnus",
+        "alv-tunnus",
+        "alvtunnus",
     ];
 }
 
