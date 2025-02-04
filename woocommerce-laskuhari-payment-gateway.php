@@ -16,6 +16,8 @@ Author URI: http://shamokaldarpon.com/
 */
 
 use Automattic\WooCommerce\Utilities\NumberUtil;
+use Laskuhari\Exception\Finvoice\FinvoiceException;
+use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Plugin_Updater;
@@ -1462,11 +1464,25 @@ function lh_is_custom_billing_email_field( $field ) {
 // Anna ilmoitus puutteellisista verkkolaskutiedoista kassasivulla
 function laskuhari_einvoice_notices( $fields, $errors ) {
     if( $_POST['payment_method'] == "laskuhari" ) {
-        if ( ! $_POST['laskuhari-laskutustapa'] ) {
+        if( empty( $_POST['laskuhari-laskutustapa'] ) ) {
             $errors->add( 'validation', __( 'Ole hyvä ja valitse laskutustapa' ) );
-        }
-        if ( ! laskuhari_is_valid_vat_id( laskuhari_vat_id_at_checkout() ) && in_array( $_POST['laskuhari-laskutustapa'], laskuhari_vat_id_mandatory_for_methods() ) ) {
-            $errors->add( 'validation', __( 'Y-tunnus on pakollinen '.laskuhari_method_name_by_slug( $_POST['laskuhari-laskutustapa'] ).'-laskutustavalla' ) );
+        } else {
+            $vat_id = laskuhari_vat_id_at_checkout();
+            $vat_id_required = in_array( $_POST['laskuhari-laskutustapa'], laskuhari_vat_id_mandatory_for_methods() );
+
+            if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
+                $method_name = laskuhari_method_name_by_slug( $_POST['laskuhari-laskutustapa'] );
+                $errors->add( 'validation', sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ) );
+            }
+
+            try {
+                $verkkolaskuosoite = $_POST['laskuhari-verkkolaskuosoite'];
+                $valittaja = $_POST['laskuhari-valittaja'];
+
+                FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
+            } catch( FinvoiceException $e ) {
+                $errors->add( 'validation', sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ) );
+            }
         }
     }
 }
@@ -4145,9 +4161,30 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
     $mihin = "";
 
     if( $send_method == "verkkolasku" ) {
-        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
-        $valittaja         = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
-        $ytunnus           = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true );
+        $verkkolaskuosoite = trim( get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true ) );
+        $valittaja         = trim( get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true ) );
+        $ytunnus           = trim( get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true ) );
+
+        try {
+            FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $ytunnus );
+        } catch( FinvoiceException $e ) {
+            $error_notice = 'Virhe laskun lähetyksessä: ' . $e->getMessage();
+            $order->add_order_note( $error_notice );
+
+            if( function_exists( 'wc_add_notice' ) ) {
+                wc_add_notice( 'Laskun automaattinen lähetys epäonnistui. Lähetämme laskun manuaalisesti.', 'notice' );
+            }
+
+            Logger::enabled( 'error' ) && Logger::log( sprintf(
+                'Laskuhari: Invalid e-invoice address for order %d: %s',
+                $order->get_id(),
+                $e->getMessage()
+            ), 'error' );
+
+            return array(
+                "notice" => urlencode( $error_notice )
+            );
+        }
 
         $can_send = true;
         $miten    = "verkkolaskuna";

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - An option for disabling using WP Cron for delaying invoice generation at checkout (before always on)
 - A warning when trying to send an invoice without address info
+- Checks for einvoice address validity at checkout
 
 ## [1.12.3] 2024-08-16
 
