@@ -1482,6 +1482,13 @@ function laskuhari_einvoice_notices( $fields, $errors ) {
                 FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
             } catch( FinvoiceException $e ) {
                 $errors->add( 'validation', sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ) );
+
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
+                    'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
+                    $e->getMessage(),
+                    $verkkolaskuosoite,
+                    $valittaja
+                ), 'info' );
             }
         }
     }
