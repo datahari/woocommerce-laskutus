@@ -4183,9 +4183,11 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             }
 
             Logger::enabled( 'error' ) && Logger::log( sprintf(
-                'Laskuhari: Invalid e-invoice address for order %d: %s',
+                'Laskuhari: Invalid e-invoice address for order %d: %s (%s/%s)',
                 $order->get_id(),
-                $e->getMessage()
+                $e->getMessage(),
+                $verkkolaskuosoite,
+                $valittaja
             ), 'error' );
 
             return array(
