@@ -42,7 +42,7 @@ test("bulk-actions", async () => {
     } );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // wait for settings to be saved
     await page.waitForNavigation();
@@ -159,7 +159,7 @@ test("bulk-actions", async () => {
     } );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // wait for settings to be saved
     await page.waitForNavigation();

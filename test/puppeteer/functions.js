@@ -272,6 +272,14 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
+exports.save_settings = async function( page ) {
+    await page.evaluate( function() {
+        let $ = jQuery;
+        $(".woocommerce-save-button").prop( "disabled", false );
+    } );
+    await page.click( ".woocommerce-save-button" );
+}
+
 exports.add_coupon_to_order = async function( page, coupon_code ) {
     const set_coupon_code = dialog => {
         dialog.accept( coupon_code );

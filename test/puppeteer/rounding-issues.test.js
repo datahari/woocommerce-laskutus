@@ -41,7 +41,7 @@ test("rounding-issues", async () => {
     await functions.reset_settings( page );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // go to new order creation
     await page.goto( config.wordpress_url + "/wp-admin/post-new.php?post_type=shop_order" );
