@@ -57,9 +57,6 @@ test("checkout-create-and-send", async () => {
     // make an order
     await functions.make_order( page, "create-and-send" );
 
-    // wait 30 seconds for cron queue to be processed
-    await functions.sleep( 30000 );
-
     // open order page
     await functions.open_order_page( page );
 

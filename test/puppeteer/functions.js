@@ -268,6 +268,7 @@ exports.reset_settings = async function( page ) {
         $("#woocommerce_laskuhari_max_amount").val("0");
         $("#woocommerce_laskuhari_status_after_gateway").val("processing");
         $("#woocommerce_laskuhari_status_after_paid").val("");
+        $("#use_wp_cron").val("no");
     } );
 }
 
