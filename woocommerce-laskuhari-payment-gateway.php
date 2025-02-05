@@ -1475,20 +1475,22 @@ function laskuhari_einvoice_notices( $fields, $errors ) {
                 $errors->add( 'validation', sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ) );
             }
 
-            try {
-                $verkkolaskuosoite = $_POST['laskuhari-verkkolaskuosoite'];
-                $valittaja = $_POST['laskuhari-valittaja'];
+            if( $_POST['laskuhari-laskutustapa'] === "verkkolasku" ) {
+                try {
+                    $verkkolaskuosoite = $_POST['laskuhari-verkkolaskuosoite'];
+                    $valittaja = $_POST['laskuhari-valittaja'];
 
-                FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
-            } catch( FinvoiceException $e ) {
-                $errors->add( 'validation', sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ) );
+                    FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
+                } catch( FinvoiceException $e ) {
+                    $errors->add( 'validation', sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ) );
 
-                Logger::enabled( 'info' ) && Logger::log( sprintf(
-                    'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
-                    $e->getMessage(),
-                    $verkkolaskuosoite,
-                    $valittaja
-                ), 'info' );
+                    Logger::enabled( 'info' ) && Logger::log( sprintf(
+                        'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
+                        $e->getMessage(),
+                        $verkkolaskuosoite,
+                        $valittaja
+                    ), 'info' );
+                }
             }
         }
     }
