@@ -158,7 +158,7 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * @param string $api_endpoint
      * @param array<string, array<string, mixed>> $config
      * @param array<string, string> $headers
-     * @return array<string, mixed>
+     * @return array<mixed>
      */
     private function send_api_request( $api_endpoint, $config, $headers ) {
         // get the API url from the config array
@@ -190,12 +190,6 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
 
         if( ! is_array( $response ) ) {
             throw new \Exception( "Error in JSON decode" );
-        }
-
-        foreach( $response as $key => $_ ) {
-            if( ! is_string( $key ) ) {
-                throw new \Exception( "Invalid response" );
-            }
         }
 
         return $response;
