@@ -119,7 +119,7 @@ function laskuhari_admin_action( action ) {
 
 	var laskutustapa = $('#laskuhari-laskutustapa').val();
 
-	if( laskutustapa === "" ) {
+	if( laskutustapa === "" && action === "send" ) {
 		alert( "Valitse laskutustapa!" );
 		return false;
 	}
