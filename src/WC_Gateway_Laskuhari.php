@@ -6,6 +6,8 @@ use WC_Order;
 use WC_Order_Item_Product;
 use WC_Payment_Gateway;
 use WC_Product;
+use WC_Shipping_Method;
+use WC_Shipping_Zone;
 use WC_Shipping_Zones;
 use WP_Error;
 
@@ -261,7 +263,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @var string
      */
     public $log_level = 'info';
-	
+
+    /**
+     * Whether to create invoices delayed with WP Cron
+     *
+     * @var bool
+     */
+    public $use_wp_cron = true;
+
 	/**
 	 * This variable is used for passing the ID of a paid order
 	 * from woocommerce_pre_payment_complete hook to
@@ -339,6 +348,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->paid_stamp                                   = $this->lh_get_option( 'paid_stamp' ) === "yes";
         $this->receipt_template                             = $this->lh_get_option( 'receipt_template' ) === "yes";
         $this->log_level                                    = $this->lh_get_option( 'log_level', 'info' );
+        $this->use_wp_cron                                  = $this->lh_get_option( 'use_wp_cron', 'yes' ) === "yes";
     }
 
     /**
@@ -407,8 +417,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $max_amount = $amounts[1];
         }
 
-        $this->min_amount = intval( apply_filters( "laskuhari_min_amount", $min_amount ) );
-        $this->max_amount = intval( apply_filters( "laskuhari_max_amount", $max_amount ) );
+        $min_amount = apply_filters( "laskuhari_min_amount", $min_amount );
+        $max_amount = apply_filters( "laskuhari_max_amount", $max_amount );
+
+        $this->min_amount = is_numeric( $min_amount ) ? intval( $min_amount ) : 0;
+        $this->max_amount = is_numeric( $max_amount ) ? intval( $max_amount ) : 0;
     }
 
     /**
@@ -429,10 +442,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Parse decimal number to float
      *
-     * @param string|int|float $number
+     * @param mixed $number
      * @return float
      */
     public function parse_decimal( $number ) {
+        if( ! is_int( $number ) && ! is_float( $number ) && ! is_string( $number ) ) {
+            return 0;
+        }
+
         return floatval( preg_replace( ['/,/', '/[^0-9\.,]+/'], ['.', ''], (string)$number ) );
     }
 
@@ -469,6 +486,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function veroton_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
+        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
 
         if( $sis_alv ) {
             return $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
@@ -486,7 +504,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
         $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
-        $laskutuslisa = floatval( $laskutuslisa );
+        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
 
         if( $sis_alv ) {
             return $laskutuslisa;
@@ -507,9 +525,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
         $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true );
 
-        $email_method_text    = apply_filters( "laskuhari_email_method_text", "Sähköposti", $order_id );
-        $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", "Verkkolasku", $order_id );
-        $letter_method_text   = apply_filters( "laskuhari_letter_method_text", "Kirje", $order_id );
+        $email_method_text    = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
+        $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ), $order_id );
+        $letter_method_text   = apply_filters( "laskuhari_letter_method_text", __( "Kirje", "laskuhari" ), $order_id );
 
         if( ! is_string( $email_method_text ) || ! is_string( $einvoice_method_text ) || ! is_string( $letter_method_text ) ) {
             throw new \Exception( "Invoicing method texts must be strings" );
@@ -519,9 +537,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             <div id="laskuhari-lahetystapa-lomake">
             <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
                 <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
-                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo __($email_method_text, 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo __($einvoice_method_text, 'laskuhari'); ?></option><?php endif; ?>
-                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo __($letter_method_text, 'laskuhari'); ?></option><?php endif; ?>
+                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option><?php endif; ?>
+                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option><?php endif; ?>
+                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo $letter_method_text; ?></option><?php endif; ?>
             </select>
             <?php
             if( is_admin() ) {
@@ -569,7 +587,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         foreach( $operators['operators'] as $code => $name ) {
             $selected = $selected_operator === $code ? ' selected' : '';
-            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
         $output .= '</optgroup>';
@@ -578,7 +596,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         foreach( $operators['banks'] as $code => $name ) {
             $selected = $selected_operator === $code ? ' selected' : '';
-            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).' ('.esc_html( $code ).')</option>';
+            $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
         $output .= '</optgroup>';
@@ -624,6 +642,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $shipping_methods = [];
 
         if ( is_admin() && class_exists( "WC_Shipping_Zones" ) ) {
+            /** @var array<array<mixed>> $shipping_zones */
             $shipping_zones = WC_Shipping_Zones::get_zones();
 
             if( ! is_array( $shipping_zones ) ) {
@@ -631,14 +650,16 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
 
             foreach ($shipping_zones as $key => $zone ) {
-                $locations = $zone['zone_locations'];
+                /** @var array<WC_Shipping_Zone> $locations */
+                $locations = isset( $zone['zone_locations'] ) ? $zone['zone_locations'] : [];
 
                 // Get shipping methods for zone
-                $zone_shipping_methods = $zone['shipping_methods'];
+                $zone_shipping_methods = isset( $zone['shipping_methods'] ) ? $zone['shipping_methods'] : [];
                 if( ! is_array( $zone_shipping_methods ) ) {
                     $zone_shipping_methods = [];
                 }
 
+                /** @var array<WC_Shipping_Method> $zone_shipping_methods */
                 foreach( $zone_shipping_methods as $method ) {
                     $method_id = $method->id;
 
@@ -666,6 +687,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                         $p = "";
                         $n = 0;
                         foreach( $locations as $location ) {
+                            if( ! isset( $location->code ) ) {
+                                continue;
+                            }
                             $method_title .= $p.$location->code;
 
                             // list only 5 locations max
@@ -971,6 +995,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     'on-hold' => __( 'Pidossa', 'laskuhari' )
                 )
             ),
+            'heading_background_processing' => array(
+                'title'       => __( 'Tausta-ajo', 'laskuhari' ),
+                'type'        => 'title',
+                'description' => ''
+            ),
+            'use_wp_cron' => array(
+                'title'       => __( 'Luo laskut taustalla', 'laskuhari' ),
+                'label'       => __( 'Luo laskut viivästetysti taustalla WP-Cronia käyttämällä', 'laskuhari' ),
+                'description' => __( 'Tämä nopeuttaa tilausprosessia, mutta viivästyttää laskujen luomista', 'laskuhari' ),
+                'type'        => 'checkbox',
+                'default'     => 'yes'
+            ),
             'heading_misc' => array(
                 'title'       => __( 'Sekalaiset', 'laskuhari' ),
                 'type'        => 'title',
@@ -1244,7 +1280,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         \set_transient( $transient_name, "yes", 60 );
 
         if( $this->auto_gateway_create_enabled ) {
-            if( $this->attach_invoice_to_wc_email ) {
+            if( ! $this->use_wp_cron || $this->attach_invoice_to_wc_email ) {
                 Logger::enabled( 'info' ) && Logger::log( sprintf(
                     'Laskuhari: Processing action synchronously: process_payment, %d',
                     $order_id

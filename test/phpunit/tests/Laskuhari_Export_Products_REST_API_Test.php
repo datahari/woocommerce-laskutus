@@ -158,10 +158,14 @@ class Laskuhari_Export_Products_REST_API_Test extends \PHPUnit\Framework\TestCas
      * @param string $api_endpoint
      * @param array<string, array<string, mixed>> $config
      * @param array<string, string> $headers
-     * @return array<string, mixed>
+     * @return array<mixed>
      */
     private function send_api_request( $api_endpoint, $config, $headers ) {
         // get the API url from the config array
+        if( ! is_string( $config['wc_api']['url'] ) ) {
+            throw new \Exception( "API URL not found in config" );
+        }
+
         $api_url = $config['wc_api']['url'];
 
         // build the request arguments

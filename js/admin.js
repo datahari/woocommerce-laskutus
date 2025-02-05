@@ -116,6 +116,14 @@ function laskuhari_loading_stop() {
 
 function laskuhari_admin_action( action ) {
 	var $ = jQuery;
+
+	var laskutustapa = $('#laskuhari-laskutustapa').val();
+
+	if( laskutustapa === "" && action === "send" ) {
+		alert( "Valitse laskutustapa!" );
+		return false;
+	}
+
 	var errors = false;
 	$( ".laskuhari-pakollinen:visible" ).each(function() {
 		if( $(this).val() == "" ) {
@@ -139,7 +147,6 @@ function laskuhari_admin_action( action ) {
 		urli = urli + '&';
 	}
 
-	var laskutustapa      = $('#laskuhari-laskutustapa').val();
 	var maksuehto         = $('#laskuhari-maksuehto').val();
 	var ytunnus           = $('#laskuhari-ytunnus').val();
 	var verkkolaskuosoite = $('#laskuhari-verkkolaskuosoite').val();
@@ -156,4 +163,24 @@ function laskuhari_admin_action( action ) {
 		'&laskuhari-valittaja='+encodeURIComponent(valittajatunnus)+
 		'&laskuhari-viitteenne='+encodeURIComponent(viitteenne)+
 		'&laskuhari-email='+encodeURIComponent(email);
+}
+
+function laskuhari_no_address_confirm( warning ) {
+	return confirm( warning );
+}
+
+function laskuhari_no_address_confirm_send( warning_email, warning_einvoice_letter ) {
+	const $ = jQuery;
+
+	if( $('#laskuhari-laskutustapa').val() === "" ) {
+		alert( "Valitse laskutustapa!" );
+		return false;
+	}
+
+	if( $('#laskuhari-laskutustapa').val() === "email" ) {
+		return confirm( warning_email );
+	} else {
+		alert( warning_einvoice_letter );
+		return false;
+	}
 }
