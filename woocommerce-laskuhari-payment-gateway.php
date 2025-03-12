@@ -2787,7 +2787,16 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     return $response;
 }
 
-function laskuhari_invoice_row( $data ) {
+/**
+ * Create an invoice row payload for Laskuhari API
+ *
+ * @param string $type "item" | "discount" | "invoicing_fee" | "rounding"
+ * @param WC_Order_Item|null $item
+ * @param int $order_id
+ * @param array<string, mixed> $data
+ * @return void
+ */
+function laskuhari_invoice_row( $type, $item, $order_id, $data ) {
     $row_payload = [
         "koodi" => $data['product_sku'] ?? "",
         "tyyppi" => "",
@@ -2813,7 +2822,7 @@ function laskuhari_invoice_row( $data ) {
         ]
     ];
 
-    $row_payload = apply_filters( "laskuhari_invoice_row_payload", $row_payload );
+    $row_payload = apply_filters( "laskuhari_invoice_row_payload", $row_payload, $item, $order_id, $type );
 
     return $row_payload;
 }
@@ -3793,7 +3802,7 @@ function laskuhari_process_action(
             $quantity_unit = "";
         }
 
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "item", $item, $order_id, [
             "product_sku"   => $product_sku,
             "product_id"    => $product_id,
             "variation_id"  => $variation_id,
@@ -3838,7 +3847,7 @@ function laskuhari_process_action(
                 "yhtverollinen" => $amount_with_vat * -1
             ];
 
-            $laskurivit[] = laskuhari_invoice_row( $discount_row );
+            $laskurivit[] = laskuhari_invoice_row( "discount", null, $order_id, $discount_row );
 
             $laskettu_summa += $amount_with_vat * -1;
         }
@@ -3847,7 +3856,7 @@ function laskuhari_process_action(
     // Add an invoice surcharge row if needed. Don't add an invoicing surcharge
     // if the order is paid by another method and the invoice is only a receipt
     if( $add_surcharge && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "invoicing_fee", null, $order_id, [
             "nimike"        => "Laskutuslisä",
             "maara"         => 1,
             "veroton"       => $laskutuslisa_veroton,
@@ -3886,7 +3895,7 @@ function laskuhari_process_action(
             $laskettu_summa
         ), 'notice' );
 
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "rounding", null, $order_id, [
             "nimike"        => "Pyöristys",
             "maara"         => 1,
             "veroton"       => ($loppusumma-$laskettu_summa),
