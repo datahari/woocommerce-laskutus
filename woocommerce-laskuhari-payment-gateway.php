@@ -3587,12 +3587,13 @@ function laskuhari_process_action(
     }
 
     $coupon_codes = $order->get_coupon_codes();
-    $has_coupons = count( $coupon_codes ) > 0;
 
     // remove coupons starting with an underscore
     $coupon_codes = array_filter( $coupon_codes, function($v) {
         return $v[0] !== '_';
     } );
+
+    $has_coupons = count( $coupon_codes ) > 0;
 
     // Cart discounts by VAT rate (key is VAT rate, value is sum, incl. tax)
     $cart_discounts = [];
