@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.13.0
+Version: 1.14.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -20,6 +20,7 @@ use Laskuhari\Exception\Finvoice\FinvoiceException;
 use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
+use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\Laskuhari_Uninstall;
@@ -1319,8 +1320,9 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column, $ord
 }
 
 function laskuhari_add_bulk_action_for_invoicing( $actions ) {
-    $actions['laskuhari_batch_send'] = __( 'Luo ja lähetä laskut valituista tilauksista (Laskuhari)', 'laskuhari' );
-    $actions['laskuhari_batch_create'] = __( 'Luo laskut valituista tilauksista (älä lähetä) (Laskuhari)', 'laskuhari' );
+    $nonce = Laskuhari_Nonce::create();
+    $actions['laskuhari_batch_send_'.$nonce] = __( 'Luo ja lähetä laskut valituista tilauksista (Laskuhari)', 'laskuhari' );
+    $actions['laskuhari_batch_create_'.$nonce] = __( 'Luo laskut valituista tilauksista (älä lähetä) (Laskuhari)', 'laskuhari' );
     return $actions;
 }
 
@@ -1337,6 +1339,11 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
         return false;
     }
 
+    $nonce = substr( $action, strrpos( $action, '_' ) + 1 );
+    $action = substr( $action, 0, strrpos( $action, '_' ) );
+
+    Laskuhari_Nonce::verify( $nonce );
+
     $allowed_actions = [
         "laskuhari_batch_send",
         "laskuhari_batch_create",
@@ -1349,6 +1356,8 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     $send = $action === "laskuhari_batch_send";
 
     $data = array();
+
+    $order_ids = array_unique( array_map( 'intval', $order_ids ) );
 
     foreach( $order_ids as $order_id ) {
         $order = wc_get_order( $order_id );
@@ -1972,8 +1981,12 @@ function laskuhari_metabox_html( $post ) {
     }
 }
 
-// Lisää laskutuslisä tilaukselle
-
+/**
+ * Adds invoice surcharge to the cart
+ *
+ * @param WC_Cart $cart
+ * @return void
+ */
 function laskuhari_add_invoice_surcharge( $cart ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
     $laskuhari = $laskuhari_gateway_object;
@@ -1990,14 +2003,10 @@ function laskuhari_add_invoice_surcharge( $cart ) {
 
     $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
 
-    $laskutuslisa = $laskuhari->veroton_laskutuslisa( $prices_include_tax, $send_method );
+    $laskutuslisa = $laskuhari->veroton_laskutuslisa( $prices_include_tax, $send_method, $cart->get_subtotal(), $cart, null );
 
     if( $laskutuslisa == 0 ) {
         return;
-    }
-
-    if( true === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa, $cart ) ) {
-        return false;
     }
 
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskutuslisa, true );
@@ -2042,7 +2051,9 @@ function laskuhari_actions() {
 
     $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? $_GET['id'] ?? 0;
 
-    if( isset( $_GET['laskuhari_send_invoice'] ) || ( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) ) {
+    if( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) {
+        Laskuhari_Nonce::verify();
+
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Sending invoice of order %s via bulk action',
             $order_id
@@ -2054,6 +2065,8 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari'] ) ) {
+        Laskuhari_Nonce::verify();
+
         $send = ($_GET['laskuhari'] == "send");
 
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2324,6 +2337,10 @@ function laskuhari_add_admin_scripts() {
         array( 'jquery' ),
         filemtime( __FILE__ )
     );
+
+    wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
+        'nonce' => Laskuhari_Nonce::create(),
+    ] );
 }
 
 function laskuhari_invoice_number_by_order( $orderid ) {
@@ -2787,7 +2804,16 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
     return $response;
 }
 
-function laskuhari_invoice_row( $data ) {
+/**
+ * Create an invoice row payload for Laskuhari API
+ *
+ * @param string $type "item" | "discount" | "invoicing_fee" | "rounding"
+ * @param WC_Order_Item|null $item
+ * @param int $order_id
+ * @param array<string, mixed> $data
+ * @return void
+ */
+function laskuhari_invoice_row( $type, $item, $order_id, $data ) {
     $row_payload = [
         "koodi" => $data['product_sku'] ?? "",
         "tyyppi" => "",
@@ -2813,7 +2839,7 @@ function laskuhari_invoice_row( $data ) {
         ]
     ];
 
-    $row_payload = apply_filters( "laskuhari_invoice_row_payload", $row_payload );
+    $row_payload = apply_filters( "laskuhari_invoice_row_payload", $row_payload, $item, $order_id, $type );
 
     return $row_payload;
 }
@@ -3460,12 +3486,11 @@ function laskuhari_process_action(
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid           = $info->uid;
-    $laskutuslisa            = $info->laskutuslisa;
     $laskutuslisa_alv        = $info->laskutuslisa_alv;
-    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax, $send_method );
-    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax, $send_method );
+    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax, $send_method, $order->get_subtotal(), null, $order );
+    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax, $send_method, $order->get_subtotal(), null, $order );
 
-    $add_surcharge = ($laskutuslisa_veroton && false === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa ));
+    $add_surcharge = $laskutuslisa_veroton > 0;
 
     if( ! $laskuhari_uid ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
@@ -3578,12 +3603,13 @@ function laskuhari_process_action(
     }
 
     $coupon_codes = $order->get_coupon_codes();
-    $has_coupons = count( $coupon_codes ) > 0;
 
     // remove coupons starting with an underscore
     $coupon_codes = array_filter( $coupon_codes, function($v) {
         return $v[0] !== '_';
     } );
+
+    $has_coupons = count( $coupon_codes ) > 0;
 
     // Cart discounts by VAT rate (key is VAT rate, value is sum, incl. tax)
     $cart_discounts = [];
@@ -3793,7 +3819,7 @@ function laskuhari_process_action(
             $quantity_unit = "";
         }
 
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "item", $item, $order_id, [
             "product_sku"   => $product_sku,
             "product_id"    => $product_id,
             "variation_id"  => $variation_id,
@@ -3838,7 +3864,7 @@ function laskuhari_process_action(
                 "yhtverollinen" => $amount_with_vat * -1
             ];
 
-            $laskurivit[] = laskuhari_invoice_row( $discount_row );
+            $laskurivit[] = laskuhari_invoice_row( "discount", null, $order_id, $discount_row );
 
             $laskettu_summa += $amount_with_vat * -1;
         }
@@ -3847,7 +3873,7 @@ function laskuhari_process_action(
     // Add an invoice surcharge row if needed. Don't add an invoicing surcharge
     // if the order is paid by another method and the invoice is only a receipt
     if( $add_surcharge && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "invoicing_fee", null, $order_id, [
             "nimike"        => "Laskutuslisä",
             "maara"         => 1,
             "veroton"       => $laskutuslisa_veroton,
@@ -3886,7 +3912,7 @@ function laskuhari_process_action(
             $laskettu_summa
         ), 'notice' );
 
-        $laskurivit[] = laskuhari_invoice_row( [
+        $laskurivit[] = laskuhari_invoice_row( "rounding", null, $order_id, [
             "nimike"        => "Pyöristys",
             "maara"         => 1,
             "veroton"       => ($loppusumma-$laskettu_summa),

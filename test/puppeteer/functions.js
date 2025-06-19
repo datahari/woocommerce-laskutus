@@ -272,6 +272,14 @@ exports.reset_settings = async function( page ) {
     } );
 }
 
+exports.save_settings = async function( page ) {
+    await page.evaluate( function() {
+        let $ = jQuery;
+        $(".woocommerce-save-button").prop( "disabled", false );
+    } );
+    await page.click( ".woocommerce-save-button" );
+}
+
 exports.add_coupon_to_order = async function( page, coupon_code ) {
     const set_coupon_code = dialog => {
         dialog.accept( coupon_code );
@@ -389,4 +397,20 @@ exports.set_field_value = async function( page, selector, text ) {
     } else {
         await element.type( text );
     }
+}
+
+// Selects an option of a select box whose value starts with text
+exports.select_starting_with = async function( page, selector, text ) {
+    let element = await page.waitForSelector( selector, {
+        visible: true
+    } );
+    let options = await element.$$('option');
+    for( const option of options ) {
+        let value = await page.evaluate( el => el.value, option );
+        if( value.startsWith( text ) ) {
+            element.select( value );
+            return;
+        }
+    }
+    throw new Error( "No option found starting with: " + text );
 }

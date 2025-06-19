@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] 2025-06-19
+
+### Changed
+
+- Coupons starting with an underscore are not added as a separate discount row
+- The filter `laskuhari_invoice_row_payload` now takes in more arguments (`?WC_Order_Item $item, int $order_id, string $type`) so invoice row information can be changed based on order details and row type
+- The filter `laskuhari_invoice_surcharge` now takes in more arguments (`float $order_subtotal, string $send_method, ?WC_Cart $cart, ?WC_Order $order, bool $includes_tax`) so that changes to the invoicing surcharge can be made based on order/cart details
+
+### Added
+
+- Nonce checking for invoice creation and sending actions to prevent accidental double invoicing
+
+### Removed
+
+- Removed the filter `laskuhari_disable_invoice_surcharge`. The same behavior can be achieved now through `laskuhari_invoice_surcharge` by setting the surcharge to zero.
+
 ## [1.13.0] 2025-02-05
 
 ### Changed

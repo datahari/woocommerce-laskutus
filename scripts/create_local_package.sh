@@ -6,7 +6,7 @@
 #                                                                           #
 #############################################################################
 
-cd "$(dirname "$BASH_SOURCE")"
+cd "$(dirname "$0")"
 
 # if folder with git repository name already exists, quit
 # be cause we don't want to delete or overwrite anything!

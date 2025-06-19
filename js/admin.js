@@ -1,10 +1,5 @@
 (function($) {
 	$(document).ready(function() {
-		$("body").on("click", "#doaction", function() {
-			if( $("#bulk-action-selector-top").val().indexOf("laskuhari") != -1 ) {
-				laskuhari_loading();
-			}
-		});
 		$("body").on("click", ".laskuhari-nappi.uusi-lasku", function() {
 			$('#laskuhari-laheta-lasku-lomake').slideUp();
 			$("#laskuhari-lahetystapa-lomake").appendTo( $("#lahetystapa-lomake2") );
@@ -36,14 +31,8 @@
 		$("body").on( "click", ".laskuhari-sidebutton-menu a", function() {
 			$("#"+$(this).closest(".laskuhari-sidebutton-menu").attr("id")).slideUp();
 		} );
-		$("body").on( "submit", "#posts-filter", function() {
-			if( $("#bulk-action-selector-top").val() === "laskuhari_batch_send" && ! confirm( "Haluatko varmasti luoda ja LÄHETTÄÄ laskut valituista tilauksista?" ) ) {
-				return false;
-			}
-			if( $("#bulk-action-selector-top").val() === "laskuhari_batch_create" && ! confirm( "Haluatko varmasti luoda laskut valituista tilauksista? (laskuja ei lähetetä)" ) ) {
-				return false;
-			}
-		} );
+		$("body").on( "submit", "#posts-filter", handle_laskuhari_action ); // legacy
+		$("body").on( "submit", "#wc-orders-filter", handle_laskuhari_action );
 		$("body").on( "click", ".lh-show-debug-summary", function() {
 			laskuhari_loading();
 			$.ajax({
@@ -156,6 +145,7 @@ function laskuhari_admin_action( action ) {
 
 	window.location.href = urli+
 		'laskuhari='+action+
+		'&_lhnonce='+encodeURIComponent(laskuhariInfo.nonce)+
 		'&laskuhari-laskutustapa='+encodeURIComponent(laskutustapa)+
 		'&laskuhari-maksuehto='+encodeURIComponent(maksuehto)+
 		'&laskuhari-ytunnus='+encodeURIComponent(ytunnus)+
@@ -182,5 +172,21 @@ function laskuhari_no_address_confirm_send( warning_email, warning_einvoice_lett
 	} else {
 		alert( warning_einvoice_letter );
 		return false;
+	}
+}
+
+function handle_laskuhari_action() {
+	const action = jQuery( "#bulk-action-selector-top" ).val();
+
+	if( action.indexOf( "laskuhari_batch_send" ) === 0 && ! confirm( "Haluatko varmasti luoda ja LÄHETTÄÄ laskut valituista tilauksista?" ) ) {
+		return false;
+	}
+
+	if( action.indexOf( "laskuhari_batch_create" ) === 0 && ! confirm( "Haluatko varmasti luoda laskut valituista tilauksista? (laskuja ei lähetetä)" ) ) {
+		return false;
+	}
+
+	if( action.indexOf( "laskuhari" ) === 0 ) {
+		laskuhari_loading();
 	}
 }

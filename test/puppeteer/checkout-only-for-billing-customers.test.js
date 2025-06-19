@@ -40,7 +40,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.sleep( 2000 );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // wait for settings to be saved
     await page.waitForNavigation();
@@ -75,7 +75,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.sleep( 2000 );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // wait for settings to be saved
     await page.waitForNavigation();
@@ -110,7 +110,7 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.sleep( 2000 );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // wait for settings to be saved
     await page.waitForNavigation();

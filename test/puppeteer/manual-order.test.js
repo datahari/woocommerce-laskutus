@@ -39,7 +39,7 @@ test("manual-order", async () => {
     await functions.reset_settings( page );
 
     // save settings
-    await page.click( ".woocommerce-save-button" );
+    await functions.save_settings( page );
 
     // create manual order
     await functions.create_manual_order( page, "manual-create-send-create-and-send" );
