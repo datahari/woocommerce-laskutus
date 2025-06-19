@@ -20,6 +20,7 @@ use Laskuhari\Exception\Finvoice\FinvoiceException;
 use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
+use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\Laskuhari_Uninstall;
@@ -146,31 +147,6 @@ function laskuhari_payment_gateway_load() {
         Laskuhari_API::init( $laskuhari_gateway_object );
     }
 
-}
-
-/**
- * Create a nonce for Laskuhari actions.
- *
- * @return string
- */
-function laskuhari_create_nonce() {
-    return bin2hex( random_bytes( 4 ) );
-}
-
-/**
- * Verifies the nonce for Laskuhari actions.
- *
- * @param ?string $nonce The nonce to verify. If null, it will use the nonce from the request.
- * @return void
- */
-function laskuhari_verify_nonce( $nonce = null ) {
-    $nonce = $nonce ?? $_REQUEST['_lhnonce'] ?? null;
-
-    if( ! $nonce || get_transient( "lhnonce_" . $nonce ) ) {
-        wp_die( __( "Estetty kaksinkertainen toiminto", "laskuhari" ) );
-    }
-
-    set_transient( "lhnonce_" . $nonce, true, 60 * 5 ); // 5 minutes
 }
 
 /**
@@ -1344,7 +1320,7 @@ function laskuhari_add_invoice_status_to_custom_order_list_column( $column, $ord
 }
 
 function laskuhari_add_bulk_action_for_invoicing( $actions ) {
-    $nonce = laskuhari_create_nonce();
+    $nonce = Laskuhari_Nonce::create();
     $actions['laskuhari_batch_send_'.$nonce] = __( 'Luo ja lähetä laskut valituista tilauksista (Laskuhari)', 'laskuhari' );
     $actions['laskuhari_batch_create_'.$nonce] = __( 'Luo laskut valituista tilauksista (älä lähetä) (Laskuhari)', 'laskuhari' );
     return $actions;
@@ -1366,7 +1342,7 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     $nonce = substr( $action, strrpos( $action, '_' ) + 1 );
     $action = substr( $action, 0, strrpos( $action, '_' ) );
 
-    laskuhari_verify_nonce( $nonce );
+    Laskuhari_Nonce::verify( $nonce );
 
     $allowed_actions = [
         "laskuhari_batch_send",
@@ -2076,7 +2052,7 @@ function laskuhari_actions() {
     $order_id   = $_GET['order_id'] ?? $_GET['post'] ?? $_GET['id'] ?? 0;
 
     if( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) {
-        laskuhari_verify_nonce();
+        Laskuhari_Nonce::verify();
 
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Sending invoice of order %s via bulk action',
@@ -2089,7 +2065,7 @@ function laskuhari_actions() {
     }
 
     if( isset( $_GET['laskuhari'] ) ) {
-        laskuhari_verify_nonce();
+        Laskuhari_Nonce::verify();
 
         $send = ($_GET['laskuhari'] == "send");
 
@@ -2363,7 +2339,7 @@ function laskuhari_add_admin_scripts() {
     );
 
     wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
-        'nonce' => laskuhari_create_nonce(),
+        'nonce' => Laskuhari_Nonce::create(),
     ] );
 }
 
