@@ -2,7 +2,7 @@
 
 # copies local files to test environment wordpress installation
 
-cd "$(dirname "$BASH_SOURCE")"
+cd "$(dirname "$0")"
 
 sudo rsync -av --delete ../ ../test/assets/wordpress/wp-content/plugins/woocommerce-laskuhari-payment-gateway/ \
      --exclude="test/" \
