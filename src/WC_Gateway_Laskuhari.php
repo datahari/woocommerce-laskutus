@@ -496,7 +496,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $laskutuslisa = $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
         }
 
-        return apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
+        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
+        $laskutuslisa = is_numeric( $laskutuslisa ) ? $laskutuslisa : 0;
+
+        return floatval( $laskutuslisa );
     }
 
     /**
@@ -517,7 +520,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             $laskutuslisa = $laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
         }
 
-        return apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
+        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
+        $laskutuslisa = is_numeric( $laskutuslisa ) ? $laskutuslisa : 0;
+
+        return floatval( $laskutuslisa );
     }
 
     /**
