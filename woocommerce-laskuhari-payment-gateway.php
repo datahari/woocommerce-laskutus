@@ -1972,8 +1972,12 @@ function laskuhari_metabox_html( $post ) {
     }
 }
 
-// Lisää laskutuslisä tilaukselle
-
+/**
+ * Adds invoice surcharge to the cart
+ *
+ * @param WC_Cart $cart
+ * @return void
+ */
 function laskuhari_add_invoice_surcharge( $cart ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
     $laskuhari = $laskuhari_gateway_object;
@@ -1990,14 +1994,10 @@ function laskuhari_add_invoice_surcharge( $cart ) {
 
     $prices_include_tax = get_option( 'woocommerce_prices_include_tax' ) === 'yes' ? true : false;
 
-    $laskutuslisa = $laskuhari->veroton_laskutuslisa( $prices_include_tax, $send_method );
+    $laskutuslisa = $laskuhari->veroton_laskutuslisa( $prices_include_tax, $send_method, $cart->get_subtotal(), $cart, null );
 
     if( $laskutuslisa == 0 ) {
         return;
-    }
-
-    if( true === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa, $cart ) ) {
-        return false;
     }
 
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskutuslisa, true );
@@ -3469,12 +3469,11 @@ function laskuhari_process_action(
     // laskunlähetyksen asetukset
     $info = $laskuhari_gateway_object;
     $laskuhari_uid           = $info->uid;
-    $laskutuslisa            = $info->laskutuslisa;
     $laskutuslisa_alv        = $info->laskutuslisa_alv;
-    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax, $send_method );
-    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax, $send_method );
+    $laskutuslisa_veroton    = $info->veroton_laskutuslisa( $prices_include_tax, $send_method, $order->get_subtotal(), null, $order );
+    $laskutuslisa_verollinen = $info->verollinen_laskutuslisa( $prices_include_tax, $send_method, $order->get_subtotal(), null, $order );
 
-    $add_surcharge = ($laskutuslisa_veroton && false === apply_filters( "laskuhari_disable_invoice_surcharge", false, $send_method, $laskutuslisa ));
+    $add_surcharge = $laskutuslisa_veroton > 0;
 
     if( ! $laskuhari_uid ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(

@@ -1,6 +1,7 @@
 <?php
 namespace Laskuhari;
 
+use WC_Cart;
 use WC_Log_Handler_File;
 use WC_Order;
 use WC_Order_Item_Product;
@@ -480,37 +481,43 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Get the invoicing fee without tax
      *
-     * @param bool $sis_alv
+     * @param bool $includes_tax
      * @param string $send_method
+     * @param float $order_subtotal
+     * @param ?WC_Cart $cart
+     * @param ?WC_Order $order
+     *
      * @return float
      */
-    public function veroton_laskutuslisa( $sis_alv, $send_method ) {
-        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
-        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
+    public function veroton_laskutuslisa( $includes_tax, $send_method, $order_subtotal, $cart, $order ) {
+        $laskutuslisa = $this->parse_decimal( $this->laskutuslisa );
 
-        if( $sis_alv ) {
-            return $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
+        if( $includes_tax ) {
+            $laskutuslisa = $laskutuslisa / ( 1 + $this->laskutuslisa_alv / 100 );
         }
 
-        return floatval( $laskutuslisa );
+        return apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
     }
 
     /**
      * Get the invoicing fee with tax
      *
-     * @param bool $sis_alv
+     * @param bool $includes_tax
      * @param string $send_method
+     * @param float $order_subtotal
+     * @param ?WC_Cart $cart
+     * @param ?WC_Order $order
+     *
      * @return float
      */
-    public function verollinen_laskutuslisa( $sis_alv, $send_method ) {
-        $laskutuslisa = apply_filters( "laskuhari_invoice_surcharge", $this->laskutuslisa, $send_method, $sis_alv );
-        $laskutuslisa = $this->parse_decimal( $laskutuslisa );
+    public function verollinen_laskutuslisa( $includes_tax, $send_method, $order_subtotal, $cart, $order ) {
+        $laskutuslisa = $this->parse_decimal( $this->laskutuslisa );
 
-        if( $sis_alv ) {
-            return $laskutuslisa;
+        if( ! $includes_tax ) {
+            $laskutuslisa = $laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
         }
 
-        return $laskutuslisa * ( 1 + $this->laskutuslisa_alv / 100 );
+        return apply_filters( "laskuhari_invoice_surcharge", $laskutuslisa, $order_subtotal, $send_method, $cart, $order, $includes_tax );
     }
 
     /**
