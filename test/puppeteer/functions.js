@@ -398,3 +398,19 @@ exports.set_field_value = async function( page, selector, text ) {
         await element.type( text );
     }
 }
+
+// Selects an option of a select box whose value starts with text
+exports.select_starting_with = async function( page, selector, text ) {
+    let element = await page.waitForSelector( selector, {
+        visible: true
+    } );
+    let options = await element.$$('option');
+    for( const option of options ) {
+        let value = await page.evaluate( el => el.value, option );
+        if( value.startsWith( text ) ) {
+            element.select( value );
+            return;
+        }
+    }
+    throw new Error( "No option found starting with: " + text );
+}

@@ -73,7 +73,7 @@ test("bulk-actions", async () => {
     await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
 
     // select bulk action "create"
-    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
+    await functions.select_starting_with( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
 
     // submit
     await page.click( "#doaction" );
@@ -128,7 +128,7 @@ test("bulk-actions", async () => {
     await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
 
     // select bulk action "send"
-    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
+    await functions.select_starting_with( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
 
     // submit
     await page.click( "#doaction" );
@@ -190,7 +190,7 @@ test("bulk-actions", async () => {
     await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
 
     // select bulk action "send"
-    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
+    await functions.select_starting_with( page, "#bulk-action-selector-top", "laskuhari_batch_send" );
 
     // submit
     await page.click( "#doaction" );
@@ -242,7 +242,7 @@ test("bulk-actions", async () => {
     await page.click( '.wp-list-table tbody .check-column [type=checkbox]' );
 
     // select bulk action "create"
-    await functions.set_field_value( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
+    await functions.select_starting_with( page, "#bulk-action-selector-top", "laskuhari_batch_create" );
 
     // submit
     await page.click( "#doaction" );
