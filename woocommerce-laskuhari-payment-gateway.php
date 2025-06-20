@@ -4268,12 +4268,15 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             $email_message = "Liitteenä lasku.";
         }
 
+        $invoicing_address = laskuhari_get_invoicing_address( $order );
+
         $payload = [
             "lahetystapa" => "email",
             "osoite"      => $email,
             "aihe"        => "Lasku",
             "viesti"      => $email_message,
-            "lahettaja"   => $sendername
+            "lahettaja"   => $sendername,
+            "vastaanottaja" => $invoicing_address["yritys"] ?: $invoicing_address["henkilo"],
         ];
     } else if( $send_method == "kirje" ) {
         $can_send = true;
