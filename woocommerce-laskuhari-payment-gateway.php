@@ -2551,7 +2551,7 @@ function laskuhari_add_admin_scripts() {
         filemtime( __FILE__ )
     );
 
-    wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
+    wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
         'nonce' => Laskuhari_Nonce::create(),
     ] );
 }
