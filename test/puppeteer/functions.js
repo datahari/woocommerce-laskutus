@@ -160,7 +160,7 @@ exports.sleep = async function( ms ) {
 }
 
 exports.place_order = async function( page ) {
-    await exports.sleep( 2000 );
+    await exports.wait_for_loading( page );
 
     // send order
     await page.click( "#place_order" );
@@ -295,6 +295,8 @@ exports.add_coupon_to_order = async function( page, coupon_code ) {
 }
 
 exports.add_product_to_order = async function( page, product_name, quantity = 1 ) {
+    await exports.wait_for_loading( page );
+
     // click "Add line item"
     await page.click( ".button.add-line-item" );
     await exports.sleep( 600 );
