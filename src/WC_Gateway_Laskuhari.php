@@ -529,14 +529,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the invoicing method selection form
      *
-     * @param bool $order_id
+     * @param ?int $order_id
      * @return void
      */
-    public function lahetystapa_lomake( $order_id = false ) {
-        $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa', true );
-        $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja', true );
-        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite', true );
-        $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus', true );
+    public function lahetystapa_lomake( $order_id = null ) {
+        $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa' );
+        $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja' );
+        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite' );
+        $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus' );
+
+        /** @var string $verkkolaskuosoite */
+        /** @var string $valittaja */
+        /** @var string $ytunnus */
 
         $email_method_text    = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
         $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ), $order_id );
@@ -548,40 +552,52 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         ?>
             <div id="laskuhari-lahetystapa-lomake">
-            <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
-                <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
-                <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option><?php endif; ?>
-                <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option><?php endif; ?>
-                <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo $letter_method_text; ?></option><?php endif; ?>
-            </select>
-            <?php
-            if( is_admin() ) {
-                $invoicing_email = laskuhari_get_order_billing_email( $order_id );
-                ?>
-                <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
-                    <div class="laskuhari-caption"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</div>
-                    <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $invoicing_email ); ?>" name="laskuhari-email" /><br />
-                </div>
                 <?php
-                }
-            ?>
-            <div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
-                <?php
-                if( ! is_checkout() || ! laskuhari_vat_id_custom_field_exists() ) {
+                if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_laskutustapa" ) ) {
                     ?>
-                    <div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
-                    <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+                    <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
+                        <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
+                        <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option><?php endif; ?>
+                        <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option><?php endif; ?>
+                        <?php if( $this->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($laskutustapa == "kirje" ? ' selected' : ''); ?>><?php echo $letter_method_text; ?></option><?php endif; ?>
+                    </select>
+                    <?php
+                }
+                if( is_admin() ) {
+                    $invoicing_email = laskuhari_get_order_billing_email( $order_id );
+                    ?>
+                    <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
+                        <div class="laskuhari-caption"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</div>
+                        <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $invoicing_email ); ?>" name="laskuhari-email" /><br />
+                    </div>
                     <?php
                 }
                 ?>
-                <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>
-                <input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( $verkkolaskuosoite ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
-                <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
-                <select id="laskuhari-valittaja" name="laskuhari-valittaja">
-                    <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
-                    <?php echo $this->operators_select_options_html( $valittaja ); ?>
-                </select>
-            </div>
+                <div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
+                    <?php
+                    if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ) ) {
+                        ?>
+                        <div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
+                        <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+                        <?php
+                    }
+                    if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_verkkolaskuosoite" ) ) {
+                        ?>
+                        <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>
+                        <input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( $verkkolaskuosoite ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
+                        <?php
+                    }
+                    if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_valittaja" ) ) {
+                        ?>
+                        <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
+                        <select id="laskuhari-valittaja" name="laskuhari-valittaja" class="lh-select2" style="width: 100%;">
+                            <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
+                            <?php echo $this->operators_select_options_html( $valittaja ); ?>
+                        </select><br /><br />
+                        <?php
+                    }
+                    ?>
+                </div>
             </div>
         <?php
     }
@@ -595,11 +611,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      */
     public function operators_select_options_html( $selected_operator ) {
         $operators = laskuhari_operators();
+        $selected_found = false;
 
         $output = '<optgroup label="'.__( 'Operaattorit', 'laskuhari' ).'">';
 
         foreach( $operators['operators'] as $code => $name ) {
-            $selected = $selected_operator === $code ? ' selected' : '';
+            if( $selected_operator === $code ) {
+                $selected = ' selected';
+                $selected_found = true;
+            } else {
+                $selected = '';
+            }
+
             $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
@@ -608,11 +631,23 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $output .= '<optgroup label="'.__( 'Pankit', 'laskuhari' ).'">';
 
         foreach( $operators['banks'] as $code => $name ) {
-            $selected = $selected_operator === $code ? ' selected' : '';
+            if( $selected_operator === $code ) {
+                $selected = ' selected';
+                $selected_found = true;
+            } else {
+                $selected = '';
+            }
+
             $output .= '<option value="'.esc_attr( $code ).'"'.$selected.'>'.esc_html( $name ).'</option>';
         }
 
         $output .= '</optgroup>';
+
+        if( ! $selected_found && ! empty( $selected_operator ) ) {
+            $output .= '<optgroup label="'.__( 'Muut', 'laskuhari' ).'">
+                <option value="'.esc_attr( $selected_operator ).'" selected>'.esc_html( $selected_operator ).'</option>
+            </optgroup>';
+        }
 
         return $output;
     }
@@ -620,15 +655,18 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the reference text field
      *
-     * @param int|bool $order_id
+     * @param ?int $order_id
      * @return void
      */
-    public function viitteenne_lomake( $order_id = false ) {
-        $viitteenne = get_laskuhari_meta( $order_id, '_laskuhari_viitteenne', true );
-        ?>
-        <div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
-        <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
-        <?php
+    public function viitteenne_lomake( $order_id = null ) {
+        if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_viitteenne" ) ) {
+            /** @var string $viitteenne */
+            $viitteenne = get_laskuhari_meta( $order_id, '_laskuhari_viitteenne' );
+            ?>
+            <div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
+            <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
+            <?php
+        }
     }
 
     /**
