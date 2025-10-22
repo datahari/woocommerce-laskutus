@@ -137,7 +137,6 @@ let laskuhari_viime_laskutustapa = "";
             laskuhari_tarkista_laskutustapa();
 
             if( laskuhari_viime_maksutapa !== null && $("#payment_method_laskuhari").prop("checked") != laskuhari_viime_maksutapa ) {
-                console.log("Maksutapa vaihtui", laskuhari_viime_maksutapa, $("#payment_method_laskuhari").prop("checked"));
                 $('body').trigger('update_checkout');
             }
 
