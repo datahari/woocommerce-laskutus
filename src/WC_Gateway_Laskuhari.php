@@ -537,10 +537,24 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja' );
         $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite' );
         $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus' );
+        $email = get_laskuhari_meta( $order_id, '_laskuhari_email' );
+
+        $user_email = "";
+        if( $order_id ) {
+            $order = wc_get_order( $order_id );
+            if( $order ) {
+                $user_email = $order->get_billing_email();
+            }
+        } else {
+            if( ! is_admin() ) {
+                $user_email = get_user_meta( get_current_user_id(), "billing_email", true );
+            }
+        }
 
         /** @var string $verkkolaskuosoite */
         /** @var string $valittaja */
         /** @var string $ytunnus */
+        /** @var string $email */
 
         $email_method_text    = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
         $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ), $order_id );
@@ -563,12 +577,11 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     </select>
                     <?php
                 }
-                if( is_admin() ) {
-                    $invoicing_email = laskuhari_get_order_billing_email( $order_id );
+                if( is_admin() || ( $email && $email !== $user_email ) ) {
                     ?>
                     <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
                         <div class="laskuhari-caption"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</div>
-                        <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $invoicing_email ); ?>" name="laskuhari-email" /><br />
+                        <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $email ?: $user_email ); ?>" name="laskuhari-email" /><br />
                     </div>
                     <?php
                 }

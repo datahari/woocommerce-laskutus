@@ -637,7 +637,7 @@ function laskuhari_operators() {
     ] );
 }
 
-function laskuhari_user_meta() {
+function laskuhari_user_meta( $user_id = null ) {
     $operators = laskuhari_operators();
     $custom_meta_fields = array();
     $custom_meta_fields = array(
@@ -666,7 +666,8 @@ function laskuhari_user_meta() {
         array(
             "name"  => "_laskuhari_billing_email",
             "title" => __( 'Laskutussähköposti', 'laskuhari' ),
-            "type"  => "text"
+            "type"  => "text",
+            "placeholder" => get_user_meta( $user_id, "billing_email", true ),
         ),
         array(
             "name"  => "_laskuhari_ytunnus",
@@ -695,7 +696,7 @@ function laskuhari_user_meta() {
         ),
     );
 
-    $custom_meta_fields = apply_filters( "laskuhari_user_meta_fields", $custom_meta_fields );
+    $custom_meta_fields = apply_filters( "laskuhari_user_meta_fields", $custom_meta_fields, $user_id );
 
     return $custom_meta_fields;
 }
@@ -716,7 +717,7 @@ function laskuhari_user_profile_additional_info( $user ) {
          '<table class="form-table">';
 
     $meta_number = 0;
-    $custom_meta_fields = laskuhari_user_meta();
+    $custom_meta_fields = laskuhari_user_meta( $user->ID );
 
     foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
@@ -752,7 +753,8 @@ function laskuhari_user_profile_additional_info( $user ) {
                 <td>
                     <input type="text" name="' . $meta_field_name . '"
                            id="' . $meta_field_name . '"
-                           value="' . esc_attr( $current_value ) . '" /><br />
+                           value="' . esc_attr( $current_value ) . '"
+                           placeholder="' . esc_attr( $meta_field['placeholder'] ?? "" ) . '" /><br />
                     <span class="description"></span>
                 </td>
             </tr>';
@@ -777,7 +779,7 @@ function laskuhari_update_user_meta( $user_id ) {
     }
 
     $meta_number = 0;
-    $custom_meta_fields = laskuhari_user_meta();
+    $custom_meta_fields = laskuhari_user_meta( $user_id );
 
     foreach ( $custom_meta_fields as $meta_field ) {
         $meta_number++;
@@ -1672,8 +1674,9 @@ function laskuhari_alternative_meta_fields() {
             "laskutussahkoposti",
             "laskutus_email",
             "laskutus_sahkoposti",
-            "laskuhari_billing_email",
             "laskuhari-email",
+            "_laskuhari_billing_email",
+            "email",
         ],
         "_laskuhari_verkkolaskuosoite" => [
             "verkkolaskuosoite",
@@ -1829,8 +1832,6 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_emp
     if( array_key_exists( $meta_key, $alternative_meta ) ) {
         $fields = $fields ?? get_user_meta( $user_id );
 
-        $internal_field = null;
-
         foreach( $alternative_meta[$meta_key] as $alt_meta ) {
             foreach( $fields as $field_name => $field_value ) {
                 if( is_array( $field_value ) ) {
@@ -1843,24 +1844,11 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_emp
                     "billing_".$alt_meta,
                 ] ) ) {
                     if( $allow_empty || ! empty( $field_value ) ) {
-                        $is_internal_key = strpos( $field_name, "_laskuhari" ) !== false;
-                        $is_deprecated_internal_key = strpos( $field_name, "laskuhari-" ) > 0;
-
-                        if( $is_internal_key ) {
-                            // Take internal keys with a lower priority
-                            $internal_field = $field_name;
-                        } elseif( ! $is_deprecated_internal_key ) {
-                            $meta_key = $field_name;
-                            $internal_field = null;
-                            break 2;
-                        }
+                        $meta_key = $field_name;
+                        break 2;
                     }
                 }
             }
-        }
-
-        if( $internal_field ) {
-            $meta_key = $internal_field;
         }
     }
 
@@ -4307,24 +4295,6 @@ function laskuhari_get_order_send_method( $order_id ) {
     return $send_method;
 }
 
-function laskuhari_get_order_billing_email( $order ) {
-    if( ! is_a( $order, "WC_Order" ) ) {
-        $order = wc_get_order( $order );
-    }
-
-    if( ! $order ) {
-        return "";
-    }
-
-    $invoicing_email = get_laskuhari_meta( $order->get_id(), '_laskuhari_email' );
-    $invoicing_email = $invoicing_email ? $invoicing_email : get_the_author_meta( "_laskuhari_billing_email", $order->get_customer_id() );
-    $invoicing_email = $invoicing_email ? $invoicing_email : $order->get_billing_email();
-
-    $invoicing_email = apply_filters( "laskuhari_invoicing_email", $invoicing_email, $order );
-
-    return $invoicing_email;
-}
-
 function laskuhari_send_invoice( $order, $bulk_action = false ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
@@ -4443,7 +4413,6 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ];
     } else if( $send_method == "email" ) {
         $email = get_laskuhari_meta( $order_id, '_laskuhari_email' );
-        $email = $email ? $email : laskuhari_get_order_billing_email( $order );
 
         if( stripos( $email , "@" ) === false ) {
             $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';

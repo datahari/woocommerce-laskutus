@@ -105,6 +105,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
             'email' => [
                 'label' => __( 'Laskutussähköposti', 'laskuhari' ),
                 'meta'  => '_laskuhari_billing_email',
+                'placeholder' => get_user_meta( get_current_user_id(), "billing_email", true ),
         	],
             'ytunnus' => [
                 'label' => __( 'Y-tunnus', 'laskuhari' ),
@@ -163,7 +164,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
 
             <p class="form-row form-row-wide" id="laskuhari-sahkoposti-tiedot">
                 <label for="email"><?php echo esc_html( $fields['email']['label'] ); ?></label>
-                <input type="text" class="input-text" name="email" id="email" value="<?php echo esc_attr( $values['email'] ); ?>" />
+                <input type="text" class="input-text" name="email" id="email" value="<?php echo esc_attr( $values['email'] ); ?>" placeholder="<?php echo esc_attr( $fields['email']['placeholder'] ); ?>" />
             </p>
 
             <div id="laskuhari-verkkolasku-tiedot">
