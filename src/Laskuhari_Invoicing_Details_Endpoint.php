@@ -48,7 +48,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
     }
 
     /**
-     * Add the menu item for tha page in My Account
+     * Add the menu item for the page in My Account
      *
      * @param array<string, string> $items
      * @return array<string, string>
