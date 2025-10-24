@@ -1296,7 +1296,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 foreach ( $this->enable_for_methods as $method_id ) {
                     if( strpos( $method_id, ":" ) === false ) {
                         // fallback for older plugin versions (<= 1.1)
-                        if( strpos( $check_method, $method_id ) === 0 ) {
+                        if( strpos( $check_method, $method_id ) === 0 ) { // @phpstan-ignore-line
                             $found = true;
                             break;
                         }
