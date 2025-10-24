@@ -232,7 +232,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
 
                 <p class="form-row form-row-wide">
                     <label for="laskuhari-valittajatunnus"><?php echo esc_html( $fields['valittaja']['label'] ); ?></label>
-                    <select name="valittaja" id="laskuhari-valittajatunnus" class="lh-select2" style="width: 100%">
+                    <select name="valittaja" id="laskuhari-valittajatunnus" class="<?php echo $this->gw->select2_class(); ?>" style="width: 100%">
                         <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
                         <?php echo $this->gw->operators_select_options_html( $values['valittaja'] ); ?>
                     </select>

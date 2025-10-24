@@ -599,7 +599,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_valittaja" ) ) {
                         ?>
                         <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</div>
-                        <select id="laskuhari-valittaja" name="laskuhari-valittaja" class="lh-select2" style="width: 100%;">
+                        <select id="laskuhari-valittaja" name="laskuhari-valittaja" class="<?php echo $this->select2_class(); ?>" style="width: 100%;">
                             <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
                             <?php echo $this->operators_select_options_html( $valittaja ); ?>
                         </select><br /><br />
@@ -609,6 +609,16 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 </div>
             </div>
         <?php
+    }
+
+    /**
+     * Get the class to use for select2 select boxes.
+     * Allows third parties to change select2 behavior.
+     *
+     * @return string
+     */
+    public function select2_class() {
+        return apply_filters( "laskuhari_select2_class", "lh-select2" ); // @phpstan-ignore-line
     }
 
     /**
