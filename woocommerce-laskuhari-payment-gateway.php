@@ -4398,7 +4398,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             ]
         ];
     } else if( $send_method == "email" ) {
-        $email = get_laskuhari_meta( $order_id, '_laskuhari_email' );
+        $email = get_laskuhari_meta( $order_id, '_laskuhari_email' ) ?: $order->get_billing_email();
 
         if( stripos( $email , "@" ) === false ) {
             $error_notice = 'Virhe sähköpostilaskun lähetyksessä: sähköpostiosoite puuttuu tai on virheellinen';
