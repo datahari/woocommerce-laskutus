@@ -11,7 +11,19 @@ if( ! defined( 'ABSPATH' ) ) exit;
 class Laskuhari_Invoicing_Details_Endpoint {
     const ENDPOINT = 'invoicing-details';
 
-    public function __construct() {
+    protected WC_Gateway_Laskuhari $gw;
+
+    public function __construct( WC_Gateway_Laskuhari $gw ) {
+        $this->gw = $gw;
+
+        // Allow third parties to disable endpoint via filter
+        $endpoint_enabled = apply_filters( "laskuhari_allow_invoicing_details_editing", true );
+
+        if( ! $endpoint_enabled || ! $this->gw->can_use_billing() ) {
+            $this->set_endpoint_registered( false );
+            return;
+        }
+
         // Register endpoint
         add_action( 'init', [$this, 'add_endpoint'] );
         add_filter( 'query_vars', [$this, 'add_query_var'] );
@@ -28,12 +40,43 @@ class Laskuhari_Invoicing_Details_Endpoint {
     }
 
     /**
+     * Checks if the endpoint has already been registered
+     * so that we know to flush the rewrite rules
+     *
+     * @return bool
+     */
+    protected function endpoint_is_registered() {
+        return get_option( 'laskuhari_endpoint_' . self::ENDPOINT ) === "registered";
+    }
+
+    /**
+     * Set an option whether endpoint is registered or not
+     * so that we can flush the rewrite rules if needed
+     *
+     * @param bool $registered
+     * @return void
+     */
+    protected function set_endpoint_registered( $registered ) {
+        if( $registered ) {
+            update_option( 'laskuhari_endpoint_' . self::ENDPOINT, 'registered', false );
+        } else {
+            delete_option( 'laskuhari_endpoint_' . self::ENDPOINT );
+        }
+    }
+
+    /**
      * Add the rewrite endpoint of the page
      *
      * @return void
      */
     public function add_endpoint() {
         add_rewrite_endpoint( self::ENDPOINT, EP_ROOT | EP_PAGES );
+
+        // Flush rewrite rules if needed
+        if( ! $this->endpoint_is_registered() ) {
+            flush_rewrite_rules();
+            $this->set_endpoint_registered( true );
+        }
     }
 
     /**
@@ -71,10 +114,10 @@ class Laskuhari_Invoicing_Details_Endpoint {
      * Set the endpoint title
      *
      * @param string $title
-     * @param int $post_id
+     * @param int $_post_id
      * @return string
      */
-    public function endpoint_title( $title, $post_id ) {
+    public function endpoint_title( $title, $_post_id ) {
         global $wp_query;
         if( isset( $wp_query->query_vars[self::ENDPOINT] ) && is_account_page() && in_the_loop() ) {
             $title = __( 'Laskutustiedot', 'laskuhari' );
@@ -105,7 +148,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
             'email' => [
                 'label' => __( 'Laskutussähköposti', 'laskuhari' ),
                 'meta'  => '_laskuhari_billing_email',
-                'placeholder' => get_user_meta( get_current_user_id(), "billing_email", true ),
+                'placeholder' => (string) get_user_meta( get_current_user_id(), "billing_email", true ), // @phpstan-ignore-line
         	],
             'ytunnus' => [
                 'label' => __( 'Y-tunnus', 'laskuhari' ),
@@ -129,7 +172,10 @@ class Laskuhari_Invoicing_Details_Endpoint {
             return;
         }
 
-        $gw = laskuhari_get_gateway_object();
+        if( ! $this->gw->can_use_billing() ) {
+            echo '<p>' . esc_html__( 'Sinulla ei ole oikeutta tähän sivuun.', 'laskuhari' ) . '</p>';
+            return;
+        }
 
         $fields = $this->get_fields();
         $values = [];
@@ -137,13 +183,14 @@ class Laskuhari_Invoicing_Details_Endpoint {
             $values[$name] = get_laskuhari_meta( null, $cfg['meta'] ) ?? "";
         }
 
-        $email_method_text    = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ) );
-        $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ) );
-        $letter_method_text   = apply_filters( "laskuhari_letter_method_text", __( "Kirje", "laskuhari" ) );
-
         /** @var string $email_method_text */
+        $email_method_text = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ) );
+
         /** @var string $einvoice_method_text */
+        $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ) );
+
         /** @var string $letter_method_text */
+        $letter_method_text = apply_filters( "laskuhari_letter_method_text", __( "Kirje", "laskuhari" ) );
 
         ?>
         <form method="post" class="woocommerce-Form woocommerce-form" id="laskuhari-laskutustiedot-form">
@@ -153,9 +200,19 @@ class Laskuhari_Invoicing_Details_Endpoint {
                 <label for="laskuhari-laskutustapa"><?php echo esc_html( $fields['laskutustapa']['label'] ); ?></label>
 				<select name="laskutustapa" id="laskuhari-laskutustapa">
                     <option value="">-- <?php echo __( 'Valitse laskutustapa', 'laskuhari' ); ?> ---</option>
-                    <?php if( $gw->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($values["laskutustapa"] == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option><?php endif; ?>
-                    <?php if( $gw->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($values["laskutustapa"] == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option><?php endif; ?>
-                    <?php if( $gw->kirjelasku_kaytossa || is_admin() ): ?><option value="kirje"<?php echo ($values["laskutustapa"] == "kirje" ? ' selected' : ''); ?>><?php echo $letter_method_text; ?></option><?php endif; ?>
+
+                    <?php if( $this->gw->email_lasku_kaytossa ): ?>
+                        <option value="email"<?php echo ($values["laskutustapa"] == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option>
+                    <?php endif; ?>
+
+                    <?php if( $this->gw->verkkolasku_kaytossa ): ?>
+                        <option value="verkkolasku"<?php echo ($values["laskutustapa"] == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option>
+                    <?php endif; ?>
+
+                    <?php if( $this->gw->kirjelasku_kaytossa ): ?>
+                        <option value="kirje"<?php echo ($values["laskutustapa"] == "kirje" ? ' selected' : ''); ?>><?php echo $letter_method_text; ?></option>
+                    <?php endif; ?>
+
                 </select>
                 <small id="laskuhari-kirje-tiedot">
                     <?php esc_html_e( 'Kirjelasku lähetetään tilauslomakkeella syötettyyn laskutusosoitteeseen', 'laskuhari' ); ?>
@@ -168,16 +225,16 @@ class Laskuhari_Invoicing_Details_Endpoint {
             </p>
 
             <div id="laskuhari-verkkolasku-tiedot">
-                <p class="form-row form-row-widee-verkkolasku">
+                <p class="form-row form-row-wide">
                     <label for="verkkolaskuosoite"><?php echo esc_html( $fields['verkkolaskuosoite']['label'] ); ?></label>
                     <input type="text" class="input-text" name="verkkolaskuosoite" id="verkkolaskuosoite" value="<?php echo esc_attr( $values['verkkolaskuosoite'] ); ?>" />
                 </p>
 
-                <p class="form-row form-row-widee-verkkolasku">
+                <p class="form-row form-row-wide">
                     <label for="laskuhari-valittajatunnus"><?php echo esc_html( $fields['valittaja']['label'] ); ?></label>
                     <select name="valittaja" id="laskuhari-valittajatunnus" class="lh-select2">
                         <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
-                        <?php echo $gw->operators_select_options_html( $values['valittaja'] ); ?>
+                        <?php echo $this->gw->operators_select_options_html( $values['valittaja'] ); ?>
                     </select>
                 </p>
             </div>

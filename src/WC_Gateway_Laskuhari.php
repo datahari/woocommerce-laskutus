@@ -533,36 +533,32 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return void
      */
     public function lahetystapa_lomake( $order_id = null ) {
-        $laskutustapa = get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa' );
-        $valittaja = get_laskuhari_meta( $order_id, '_laskuhari_valittaja' );
-        $verkkolaskuosoite = get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite' );
-        $ytunnus = get_laskuhari_meta( $order_id, '_laskuhari_ytunnus' );
-        $email = get_laskuhari_meta( $order_id, '_laskuhari_email' );
+        $laskutustapa = (string) get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa' );
+        $valittaja = (string) get_laskuhari_meta( $order_id, '_laskuhari_valittaja' );
+        $verkkolaskuosoite = (string) get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite' );
+        $ytunnus = (string) get_laskuhari_meta( $order_id, '_laskuhari_ytunnus' );
+        $email = (string) get_laskuhari_meta( $order_id, '_laskuhari_email' );
 
         $user_email = "";
         if( $order_id ) {
             $order = wc_get_order( $order_id );
-            if( $order ) {
+            if( $order instanceof WC_Order ) {
                 $user_email = $order->get_billing_email();
             }
         } else {
             if( ! is_admin() ) {
-                $user_email = get_user_meta( get_current_user_id(), "billing_email", true );
+                $user_email = (string) get_user_meta( get_current_user_id(), "billing_email", true ); // @phpstan-ignore-line
             }
         }
 
-        /** @var string $verkkolaskuosoite */
-        /** @var string $valittaja */
-        /** @var string $ytunnus */
-        /** @var string $email */
+        /** @var string $email_method_text */
+        $email_method_text = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
 
-        $email_method_text    = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
+        /** @var string $einvoice_method_text */
         $einvoice_method_text = apply_filters( "laskuhari_einvoice_method_text", __( "Verkkolasku", "laskuhari" ), $order_id );
-        $letter_method_text   = apply_filters( "laskuhari_letter_method_text", __( "Kirje", "laskuhari" ), $order_id );
 
-        if( ! is_string( $email_method_text ) || ! is_string( $einvoice_method_text ) || ! is_string( $letter_method_text ) ) {
-            throw new \Exception( "Invoicing method texts must be strings" );
-        }
+        /** @var string $letter_method_text */
+        $letter_method_text = apply_filters( "laskuhari_letter_method_text", __( "Kirje", "laskuhari" ), $order_id );
 
         ?>
             <div id="laskuhari-lahetystapa-lomake">
@@ -1183,7 +1179,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      *
      * @return bool
      */
-    private function can_use_billing() {
+    public function can_use_billing() {
         $can_use_billing = true;
 
         if( $this->salli_laskutus_erikseen ) {

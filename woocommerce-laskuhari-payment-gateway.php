@@ -153,22 +153,7 @@ function laskuhari_payment_gateway_load() {
     }
 
     if( apply_filters( "laskuhari_allow_invoicing_details_editing", true ) ) {
-        new Laskuhari_Invoicing_Details_Endpoint();
-    }
-
-    $previous_version = get_option( 'laskuhari_endpoints_version' );
-    $current_version = '2';
-
-    if( version_compare( $previous_version, $current_version, "<" ) ) {
-        if( apply_filters( "laskuhari_allow_invoicing_details_editing", true ) ) {
-            $ep = new Laskuhari_Invoicing_Details_Endpoint();
-            $ep->add_endpoint();
-        }
-        flush_rewrite_rules();
-    }
-
-    if( $previous_version !== $current_version ) {
-        update_option( 'laskuhari_endpoints_version', $current_version );
+        new Laskuhari_Invoicing_Details_Endpoint( $laskuhari_gateway_object );
     }
 }
 
