@@ -180,12 +180,12 @@ class Laskuhari_Invoicing_Details_Endpoint {
                         <?php echo $gw->operators_select_options_html( $values['valittaja'] ); ?>
                     </select>
                 </p>
-
-                <p class="form-row form-row-widee-verkkolasku">
-                    <label for="ytunnus"><?php echo esc_html( $fields['ytunnus']['label'] ); ?></label>
-                    <input type="text" class="input-text" name="ytunnus" id="ytunnus" value="<?php echo esc_attr( $values['ytunnus'] ); ?>" />
-                </p>
             </div>
+
+            <p class="form-row form-row-wide">
+                <label for="ytunnus"><?php echo esc_html( $fields['ytunnus']['label'] ); ?></label>
+                <input type="text" class="input-text" name="ytunnus" id="ytunnus" value="<?php echo esc_attr( $values['ytunnus'] ); ?>" />
+            </p>
 
             <p class="form-row form-row-wide">
                 <label for="viitteenne"><?php echo esc_html( $fields['viitteenne']['label'] ); ?></label>
