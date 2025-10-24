@@ -11,7 +11,8 @@ if( ! defined( 'ABSPATH' ) ) exit;
 class Laskuhari_Invoicing_Details_Endpoint {
     const ENDPOINT = 'invoicing-details';
 
-    protected WC_Gateway_Laskuhari $gw;
+    /** @var WC_Gateway_Laskuhari $gw */
+    protected $gw;
 
     public function __construct( WC_Gateway_Laskuhari $gw ) {
         $this->gw = $gw;
