@@ -4105,6 +4105,7 @@ function laskuhari_process_action(
     $payload['laskurivit'] = $laskurivit;
     $payload['wc_api_version'] = 3;
     $payload['wc_plugin_version'] = laskuhari_plugin_version();
+    $payload['php_version'] = phpversion();
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
     $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
