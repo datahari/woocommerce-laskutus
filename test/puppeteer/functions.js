@@ -59,11 +59,12 @@ exports.check_invoice_row_amounts = async function( page, order_id, correct_rows
 }
 
 exports.logout = async function( page ) {
-    await exports.wait_for_loading( page );
-    await page.hover( "#wp-admin-bar-my-account" );
-    await exports.wait_for_loading( page );
-    await page.click( "#wp-admin-bar-logout a" );
-    await exports.wait_for_loading( page );
+    await page.waitForNetworkIdle();
+    await page.waitForSelector("#wp-admin-bar-logout a");
+    await page.evaluate( function() {
+        location.href = jQuery("#wp-admin-bar-logout a").attr("href");
+    } );
+    await page.waitForNavigation();
 }
 
 exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
@@ -160,7 +161,7 @@ exports.sleep = async function( ms ) {
 }
 
 exports.place_order = async function( page ) {
-    await exports.sleep( 2000 );
+    await exports.wait_for_loading( page );
 
     // send order
     await page.click( "#place_order" );
@@ -288,6 +289,7 @@ exports.add_coupon_to_order = async function( page, coupon_code ) {
     page.on('dialog', set_coupon_code);
 
     // click "Add coupon"
+    await page.waitForSelector( ".button.add-coupon" );
     await page.click( ".button.add-coupon" );
     await exports.sleep( 600 );
 
@@ -295,6 +297,8 @@ exports.add_coupon_to_order = async function( page, coupon_code ) {
 }
 
 exports.add_product_to_order = async function( page, product_name, quantity = 1 ) {
+    await exports.wait_for_loading( page );
+
     // click "Add line item"
     await page.click( ".button.add-line-item" );
     await exports.sleep( 600 );

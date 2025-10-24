@@ -84,6 +84,8 @@ test("bulk-actions", async () => {
         return element.getAttribute( "data-order-id" );
     }, notice_element );
 
+    await functions.sleep( 2000 );
+
     // go to order page
     let order_view_selector = "#post-"+order_id+" a.order-view"; // old
     let order_view_selector_alt = "#order-"+order_id+" a.order-view"; // hpos

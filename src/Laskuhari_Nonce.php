@@ -7,6 +7,9 @@
 
 namespace Laskuhari;
 
+use Exception;
+use Random\RandomException;
+
 class Laskuhari_Nonce
 {
     /**
@@ -15,7 +18,11 @@ class Laskuhari_Nonce
      * @return string
      */
     public static function create() {
-        return bin2hex( random_bytes( 4 ) );
+        try {
+            return bin2hex( random_bytes( 4 ) );
+        } catch( RandomException $e ) {
+            throw new Exception( $e->getMessage() );
+        }
     }
 
     /**
@@ -35,16 +42,21 @@ class Laskuhari_Nonce
 
         if( ! $nonce ) {
             wp_die( __( "Vahvistuskoodi (nonce) puuttuu", "laskuhari" ) );
+            return;
         }
+
+        /** @var array<string, int> $nonces */
+        $nonces = &$_SESSION['laskuhari_nonces'];
 
         if(
-            isset( $_SESSION['laskuhari_nonces'][$nonce] ) &&
-            ( time() - $_SESSION['laskuhari_nonces'][$nonce] ) < HOUR_IN_SECONDS
+            isset( $nonces[$nonce] ) &&
+            ( time() - $nonces[$nonce] ) < HOUR_IN_SECONDS
         ) {
             wp_die( __( "Estetty kaksinkertainen tai vanhentunut toiminto", "laskuhari" ) );
+            return;
         }
 
-        $_SESSION['laskuhari_nonces'][$nonce] = time();
+        $nonces[$nonce] = time();
     }
 
     /**
@@ -63,9 +75,12 @@ class Laskuhari_Nonce
 
         $now = time();
 
-        foreach( $_SESSION['laskuhari_nonces'] as $nonce => $timestamp ) {
+        /** @var array<string, int> $nonces */
+        $nonces = &$_SESSION['laskuhari_nonces'];
+
+        foreach( $nonces as $nonce => $timestamp ) {
             if( ( $now - $timestamp ) > HOUR_IN_SECONDS ) {
-                unset( $_SESSION['laskuhari_nonces'][$nonce] );
+                unset( $nonces[$nonce] );
             }
         }
     }

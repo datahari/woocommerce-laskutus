@@ -75,6 +75,11 @@ test("rounding-issues", async () => {
     await functions.add_product_to_order( page, "Rounding test 2" );
     await functions.add_product_to_order( page, "Rounding test 3" );
 
+    // Wait for edit buttons to load
+    await page.waitForFunction( function() {
+        return jQuery(".edit-order-item").length === 3;
+    } );
+
     // Go to edit mode for all products
     let product_edit_buttons = await page.$$( ".edit-order-item" );
     await product_edit_buttons[0].click();
