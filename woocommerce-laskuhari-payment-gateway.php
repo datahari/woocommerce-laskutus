@@ -1400,13 +1400,11 @@ function is_laskuhari_allowed_order_status( $status ) {
 
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if( ! is_admin() || ! current_user_can( 'edit_shop_orders' ) ) {
-        return false;
+        return $redirect_to;
     }
 
     $nonce = substr( $action, strrpos( $action, '_' ) + 1 );
     $action = substr( $action, 0, strrpos( $action, '_' ) );
-
-    Laskuhari_Nonce::verify( $nonce );
 
     $allowed_actions = [
         "laskuhari_batch_send",
@@ -1416,6 +1414,8 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if ( ! in_array( $action, $allowed_actions ) ) {
         return $redirect_to;
     }
+
+    Laskuhari_Nonce::verify( $nonce );
 
     $send = $action === "laskuhari_batch_send";
 
