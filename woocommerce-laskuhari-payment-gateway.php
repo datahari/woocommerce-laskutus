@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.15.0
+Version: 1.15.1
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -1400,13 +1400,11 @@ function is_laskuhari_allowed_order_status( $status ) {
 
 function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if( ! is_admin() || ! current_user_can( 'edit_shop_orders' ) ) {
-        return false;
+        return $redirect_to;
     }
 
     $nonce = substr( $action, strrpos( $action, '_' ) + 1 );
     $action = substr( $action, 0, strrpos( $action, '_' ) );
-
-    Laskuhari_Nonce::verify( $nonce );
 
     $allowed_actions = [
         "laskuhari_batch_send",
@@ -1416,6 +1414,8 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     if ( ! in_array( $action, $allowed_actions ) ) {
         return $redirect_to;
     }
+
+    Laskuhari_Nonce::verify( $nonce );
 
     $send = $action === "laskuhari_batch_send";
 
@@ -2114,11 +2114,11 @@ function laskuhari_metabox_html( $post ) {
                 echo '<div class="laskuhari-payment-terms-name">'.esc_html( $maksuehtonimi ).'</div>';
             }
 
-            $download_link = $edit_link . '&laskuhari_download=current&laskuhari_template=';
+            $download_link = $edit_link . '&laskuhari_download=current&_='.time().'&laskuhari_template=';
 
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
-            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current&_='.time().'" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
             <a class="laskuhari-nappi lataa-pdf laskuhari-sidebutton" data-toggle="sidebutton-download-pdf" href="#">&#9662;</a>
             <div class="laskuhari-sidebutton-menu" id="sidebutton-download-pdf">
                 <a href="' . $download_link . 'lasku" target="_blank">' . __( 'Lataa lasku', 'laskuhari' ) . '</a>
@@ -2829,7 +2829,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         return $response;
     }
 
-    // ohjataan PDF-tiedostoon jos ei ollut virheitä
+    header( "Cache-Control: no-store" );
     wp_redirect( $response );
     exit;
 }
