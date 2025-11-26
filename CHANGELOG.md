@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] 2025-11-26
+
+### Fixed
+
+- Laskuhari nonce was checked on every bulk action, not only Laskuhari actions. This broke bulk actions of some other plugins.
+
+## [1.15.0] 2025-10-24
+
+### Added
+
+- The customer can now edit their own invoicing details in the My Account section
+- The default invoicing reference ("Viitteenne") can now be edited through the customer edit page in the admin section
+- eInvoice operator select box now uses `select2` so you can search for an operator
+- All Laskuhari-required invoicing fields, if added to the checkout form, will be used instead of adding custom form fields
+- Send name of email recipient to the Laskuhari API when sending an invoice
+- Send PHP version to the Laskuhari API when creating an invoice
+
 ## [1.14.0] 2025-06-19
 
 ### Changed
