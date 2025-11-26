@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Laskuhari nonce was checked on every bulk action, not only Laskuhari actions. This broke bulk actions of some other plugins.
 
+### Changed
+
+- Discouraged caching of invoice downloads with a dummy timestamp in the query string and a `Cache-Control: no-store` header.
+
 ## [1.15.0] 2025-10-24
 
 ### Added
