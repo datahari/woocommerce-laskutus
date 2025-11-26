@@ -2114,11 +2114,11 @@ function laskuhari_metabox_html( $post ) {
                 echo '<div class="laskuhari-payment-terms-name">'.esc_html( $maksuehtonimi ).'</div>';
             }
 
-            $download_link = $edit_link . '&laskuhari_download=current&laskuhari_template=';
+            $download_link = $edit_link . '&laskuhari_download=current&_='.time().'&laskuhari_template=';
 
             echo '
             <div class="laskuhari-laskunumero">' . __( 'Lasku', 'laskuhari' ) . ' ' . $laskunumero.'</div>
-            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
+            <a class="laskuhari-nappi lataa-lasku laskuhari-with-sidebutton" href="' . $edit_link . '&laskuhari_download=current&_='.time().'" target="_blank">' . __( 'Lataa PDF', 'laskuhari' ) . '</a>
             <a class="laskuhari-nappi lataa-pdf laskuhari-sidebutton" data-toggle="sidebutton-download-pdf" href="#">&#9662;</a>
             <div class="laskuhari-sidebutton-menu" id="sidebutton-download-pdf">
                 <a href="' . $download_link . 'lasku" target="_blank">' . __( 'Lataa lasku', 'laskuhari' ) . '</a>
@@ -2829,7 +2829,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
         return $response;
     }
 
-    // ohjataan PDF-tiedostoon jos ei ollut virheitä
+    header( "Cache-Control: no-store" );
     wp_redirect( $response );
     exit;
 }
