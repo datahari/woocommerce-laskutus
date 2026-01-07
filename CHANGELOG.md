@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for 13.5 % VAT
 
+### Changed
+
+- The filter `laskuhari_customer_can_use_billing` is now applied always to check if billing is enabled, even when billing is not set to be enabled based on customer. This allows disabling billing from specific customers, even if by default billing is enabled for everyone.
+
 ## [1.15.1] 2025-11-26
 
 ### Fixed
