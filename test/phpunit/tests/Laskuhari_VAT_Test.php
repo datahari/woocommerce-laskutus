@@ -24,6 +24,15 @@ class Laskuhari_VAT_Test extends \PHPUnit\Framework\TestCase
             $with_tax = round( $price * 1.255, 2 );
             $this->assertEquals( 25.5, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
 
+            $with_tax = round( $price * 1.135, 3 );
+            $this->assertEquals( 13.5, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+
+            $with_tax = round( $price * 1.14, 3 );
+            $this->assertEquals( 14, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+
+            $with_tax = round( $price, 3 );
+            $this->assertEquals( 0, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+
             // You never know...
             $with_tax = round( $price * 1.2659, 2 );
             $this->assertEquals( 26.59, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
@@ -42,6 +51,17 @@ class Laskuhari_VAT_Test extends \PHPUnit\Framework\TestCase
 
             $with_tax = round( $price * 1.255, 4 );
             $this->assertEquals( 25.5, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+
+            if( $price > 0.01 ) { // 4dp is not enough to differentiate between 13.5% and 14% for 0.01
+                $with_tax = round( $price * 1.135, 4 );
+                $this->assertEquals( 13.5, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+            }
+
+            $with_tax = round( $price * 1.14, 4 );
+            $this->assertEquals( 14, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
+
+            $with_tax = round( $price, 4 );
+            $this->assertEquals( 0, laskuhari_vat_percent( ($with_tax / $price - 1) * 100 ) );
 
             // You never know...
             $with_tax = round( $price * 1.2659, 4 );
