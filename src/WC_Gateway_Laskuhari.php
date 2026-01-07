@@ -1192,16 +1192,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function can_use_billing() {
         $can_use_billing = true;
 
-        if( $this->salli_laskutus_erikseen ) {
-            $current_user = wp_get_current_user();
+        $current_user = wp_get_current_user();
 
+        if( $this->salli_laskutus_erikseen ) {
             if( ! $current_user->ID ) {
                 return false;
             }
 
             $can_use_billing = get_the_author_meta( "laskuhari_laskutusasiakas", $current_user->ID ) === "yes";
-            $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
         }
+
+        $can_use_billing = apply_filters( "laskuhari_customer_can_use_billing", $can_use_billing, $current_user->ID );
 
         return (bool)$can_use_billing;
     }
