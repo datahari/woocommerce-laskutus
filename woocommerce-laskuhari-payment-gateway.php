@@ -3793,7 +3793,7 @@ function laskuhari_process_action(
     $cart_discounts = [];
 
     $products = $order->get_items( ["line_item", "shipping", "fee"] );
-    $loppusumma = $order->get_total();
+    $loppusumma = (float) $order->get_total( "edit" );
     $laskettu_summa = 0;
 
     $laskurivit = [];
@@ -3802,7 +3802,7 @@ function laskuhari_process_action(
         if( is_callable( [$item, "get_total"] ) ) {
             /** @var WC_Order_Item_Product $item */
 
-            $total = $item->get_total();
+            $total = (float) $item->get_total( "edit" );
 
             /** @var WC_Order_Item $item */
         } else {
@@ -3819,7 +3819,7 @@ function laskuhari_process_action(
         if( is_callable( [$item, "get_subtotal"] ) ) {
             /** @var WC_Order_Item_Product $item */
 
-            $subtotal = $item->get_subtotal();
+            $subtotal = (float) $item->get_subtotal( "edit" );
 
             /** @var WC_Order_Item $item */
         } else {
@@ -3836,7 +3836,7 @@ function laskuhari_process_action(
         if( is_callable( [$item, "get_taxes"] ) ) {
             /** @var WC_Order_Item_Product | WC_Order_Item_Fee $item */
 
-            $tax_data = $item->get_taxes();
+            $tax_data = $item->get_taxes( "edit" );
 
             /** @var WC_Order_Item $item */
 
