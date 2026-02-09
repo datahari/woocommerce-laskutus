@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Some invoice sum calculations were based on the `view` context instead of `edit` context causing issues for some customers.
+- Invoicing method form validation was not done when paying for an order with Laskuhari after a failed payment with another payment method.
 
 ## [1.15.2] 2026-01-07
 
