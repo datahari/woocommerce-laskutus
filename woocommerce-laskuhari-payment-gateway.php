@@ -90,7 +90,6 @@ function laskuhari_payment_gateway_load() {
     if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
         laskuhari_maybe_add_vat_id_field();
         add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
-        add_action( 'woocommerce_after_checkout_validation', 'laskuhari_validate_checkout', 10, 2);
         add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
@@ -1462,52 +1461,6 @@ function laskuhari_handle_bulk_actions( $redirect_to, $action, $order_ids ) {
     $back_url = apply_filters( "laskuhari_return_url_after_bulk_action", $back_url, $order_ids );
 
     return $back_url;
-}
-
-/**
- * Show notices of missing or invalid custom fields at checkout
- *
- * @param array<mixed> $fields
- * @param WP_Error $errors
- *
- * @return void
- */
-function laskuhari_validate_checkout( $fields, $errors ) {
-    if( $_POST['payment_method'] !== "laskuhari" ) {
-        return;
-    }
-
-    $laskutustapa = laskuhari_get_meta_from_request( "_laskuhari_laskutustapa" );
-
-    if( empty( $laskutustapa ) ) {
-        $errors->add( 'validation', __( 'Ole hyvä ja valitse laskutustapa' ) );
-    } else {
-        $vat_id = laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
-        $vat_id_required = in_array( $laskutustapa, laskuhari_vat_id_mandatory_for_methods() );
-
-        if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
-            $method_name = laskuhari_method_name_by_slug( $laskutustapa );
-            $errors->add( 'validation', sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ) );
-        }
-
-        if( $laskutustapa === "verkkolasku" ) {
-            try {
-                $verkkolaskuosoite = laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
-                $valittaja = laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
-
-                FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
-            } catch( FinvoiceException $e ) {
-                $errors->add( 'validation', sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ) );
-
-                Logger::enabled( 'info' ) && Logger::log( sprintf(
-                    'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
-                    $e->getMessage(),
-                    $verkkolaskuosoite,
-                    $valittaja
-                ), 'info' );
-            }
-        }
-    }
 }
 
 // Check if a VAT ID is valid
