@@ -95,6 +95,25 @@ let laskuhari_viime_laskutustapa = "";
         return virhe;
     }
 
+    function laskuhari_check_disabled_form() {
+        if( $(".laskuhari-place-order-disabled").length ) {
+            const laskutustapa = laskuhari_invoicing_method_field().val();
+
+            if( laskutustapa == "" ) {
+                alert( "Valitse laskutustapa" );
+            } else if( laskutustapa == "verkkolasku" ) {
+                const laskutustapa_virhe = laskuhari_tarkista_laskutustapa();
+                if( laskutustapa_virhe !== null ) {
+                    alert( laskutustapa_virhe );
+                }
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
     $(document).ready(function() {
         $("body").on("keyup change", function( e ) {
             const target = $(e.target);
@@ -117,17 +136,18 @@ let laskuhari_viime_laskutustapa = "";
         });
 
         $(".woocommerce-checkout").on("checkout_place_order", function() {
-            if( $(".laskuhari-place-order-disabled").length ) {
-                const laskutustapa = laskuhari_invoicing_method_field().val();
+            if( ! laskuhari_check_disabled_form() ) {
+                return false;
+            }
+        });
 
-                if( laskutustapa == "" ) {
-                    alert( "Valitse laskutustapa" );
-                } else if( laskutustapa == "verkkolasku" ) {
-                    const laskutustapa_virhe = laskuhari_tarkista_laskutustapa();
-                    if( laskutustapa_virhe !== null ) {
-                        alert( laskutustapa_virhe );
-                    }
-                }
+        $(".woocommerce-order-pay").on("submit", "form#order_review", function(e) {
+            if( ! laskuhari_check_disabled_form() ) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+
+                $('form#order_review, body').unblock();
 
                 return false;
             }
