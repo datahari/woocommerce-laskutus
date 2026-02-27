@@ -12,6 +12,9 @@ use WC_Shipping_Zone;
 use WC_Shipping_Zones;
 use WP_Error;
 
+use Laskuhari\Exception\Finvoice\FinvoiceException;
+use Laskuhari\Finvoice\FinvoiceValidator;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -1470,5 +1473,51 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             echo wpautop( wptexturize( $this->instructions ) ) . PHP_EOL;
         }
 
+    }
+
+    /**
+     * Show notices of missing or invalid custom fields at checkout / payment
+     *
+     * @return bool
+     */
+    function validate_fields() {
+        $laskutustapa = laskuhari_get_meta_from_request( "_laskuhari_laskutustapa" );
+
+        $success = true;
+
+        if( empty( $laskutustapa ) ) {
+            wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa' ), 'error' );
+            $success = false;
+        } else {
+            $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
+            $vat_id_required = in_array( $laskutustapa, laskuhari_vat_id_mandatory_for_methods() );
+
+            if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
+                $method_name = laskuhari_method_name_by_slug( $laskutustapa );
+                wc_add_notice( sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ), 'error' );
+                $success = false;
+            }
+
+            if( $laskutustapa === "verkkolasku" ) {
+                try {
+                    $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
+                    $valittaja = (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
+
+                    FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
+                } catch( FinvoiceException $e ) {
+                    wc_add_notice( sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ), 'error' );
+                    $success = false;
+
+                    Logger::enabled( 'info' ) && Logger::log( sprintf(
+                        'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
+                        $e->getMessage(),
+                        $verkkolaskuosoite,
+                        $valittaja
+                    ), 'info' );
+                }
+            }
+        }
+
+        return $success;
     }
 }
