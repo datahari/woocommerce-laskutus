@@ -1489,7 +1489,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa' ), 'error' );
             $success = false;
         } else {
-            $vat_id = laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
+            $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
             $vat_id_required = in_array( $laskutustapa, laskuhari_vat_id_mandatory_for_methods() );
 
             if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
@@ -1500,8 +1500,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
             if( $laskutustapa === "verkkolasku" ) {
                 try {
-                    $verkkolaskuosoite = laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
-                    $valittaja = laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
+                    $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
+                    $valittaja = (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
 
                     FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
                 } catch( FinvoiceException $e ) {
