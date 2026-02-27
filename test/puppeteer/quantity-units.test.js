@@ -85,7 +85,7 @@ test("quantity-units", async () => {
     await page.select( "#order_status", "wc-processing" );
 
     // save order
-    await page.click( ".button.save_order.button-primary" );
+    await functions.click_wait_navigation( page, ".button.save_order.button-primary" )
 
     // wait for "create invoice" button to load and click it
     await page.waitForSelector( ".laskuhari-nappi.uusi-lasku" );

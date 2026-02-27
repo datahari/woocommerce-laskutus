@@ -67,6 +67,13 @@ exports.logout = async function( page ) {
     await page.waitForNavigation();
 }
 
+exports.click_wait_navigation = async function( page, selector ) {
+    await Promise.all( [
+        page.waitForNavigation(),
+        page.click( selector ),
+    ] );
+}
+
 exports.add_product_to_cart_and_go_to_checkout = async function( page ) {
     // go to shop page
     await page.goto( config.wordpress_url+"/?post_type=product" );
