@@ -1274,7 +1274,8 @@ function laskuhari_add_webhook( $event, $url ) {
 
     $payload = [
         "event" => $event,
-        "url" => $url
+        "url" => $url,
+        "version" => "1.0"
     ];
 
     $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
@@ -1288,6 +1289,12 @@ function laskuhari_add_webhook( $event, $url ) {
             'Laskuhari: Failed to add webhook'
         ), 'error' );
         return false;
+    }
+
+    $secret = $response["secret"] ?? null;
+
+    if( is_string( $secret ) ) {
+        update_option( "_laskuhari_webhook_secret", $secret, false );
     }
 
     return true;
