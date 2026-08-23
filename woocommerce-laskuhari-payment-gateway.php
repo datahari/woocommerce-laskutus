@@ -169,7 +169,7 @@ function laskuhari_maybe_create_webhook() {
         $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
 
         if( ! $lh->payment_status_webhook_added && laskuhari_add_webhook( "payment_status", $api_url ) ) {
-            $lh->update_option( "payment_status_webhook_added", "yes" );
+            $lh->update_option( "payment_status_webhook_added", "v1" );
             $lh->payment_status_webhook_added = true;
         }
     } elseif( $lh->payment_status_webhook_added ) {

@@ -329,7 +329,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->send_method_fallback     = $this->lh_get_option( 'send_method_fallback' );
         $this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
         $this->create_webhooks          = $this->lh_get_option( 'create_webhooks' ) === 'yes' ? true : false;
-        $this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'yes' ? true : false;
+        $this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'v1' ? true : false;
         $this->email_lasku_kaytossa        = $this->lh_get_option( 'email_lasku_kaytossa' ) === 'yes' ? true : false;
         $this->verkkolasku_kaytossa        = $this->lh_get_option( 'verkkolasku_kaytossa' ) === 'yes' ? true : false;
         $this->kirjelasku_kaytossa         = $this->lh_get_option( 'kirjelasku_kaytossa' ) === 'yes' ? true : false;
