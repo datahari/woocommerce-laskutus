@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.15.4
+Version: 1.16.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -165,16 +165,24 @@ function laskuhari_payment_gateway_load() {
 function laskuhari_maybe_create_webhook() {
     $lh = laskuhari_get_gateway_object();
 
-    if( $lh->create_webhooks && $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
-        $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
+    if( $lh->create_webhooks && ! $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
+        if( ! $lh->payment_status_webhook_added ) {
+            if( false === get_transient( "laskuhari_add_webhook_request" ) ) {
+                set_transient( "laskuhari_add_webhook_request", "yes", 5 * MINUTE_IN_SECONDS );
 
-        if( ! $lh->payment_status_webhook_added && laskuhari_add_webhook( "payment_status", $api_url ) ) {
-            $lh->update_option( "payment_status_webhook_added", "yes" );
-            $lh->payment_status_webhook_added = true;
+                $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
+
+                if( laskuhari_add_webhook( "payment_status", $api_url ) ) {
+                    $lh->update_option( "payment_status_webhook_added", "v1" );
+                    $lh->payment_status_webhook_added = true;
+                }
+            }
         }
     } elseif( $lh->payment_status_webhook_added ) {
         $lh->update_option( "payment_status_webhook_added", "no" );
         $lh->payment_status_webhook_added = false;
+
+        delete_transient( "laskuhari_add_webhook_request" );
     }
 }
 
@@ -1274,7 +1282,8 @@ function laskuhari_add_webhook( $event, $url ) {
 
     $payload = [
         "event" => $event,
-        "url" => $url
+        "url" => $url,
+        "version" => "1.0"
     ];
 
     $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
@@ -1285,10 +1294,22 @@ function laskuhari_add_webhook( $event, $url ) {
 
     if( $response === false ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook'
+            'Laskuhari: Failed to add webhook: Request failed'
         ), 'error' );
         return false;
     }
+
+    $secret = $response["secret"] ?? null;
+
+    if( ! is_string( $secret ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to add webhook: No secret returned'
+        ), 'error' );
+        return false;
+    }
+
+    $lh = laskuhari_get_gateway_object();
+    $lh->update_option( "payment_status_webhook_secret", $secret );
 
     return true;
 }

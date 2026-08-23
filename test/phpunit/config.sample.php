@@ -19,6 +19,7 @@ return [
     "laskuhari_api" => [
         "url" => "",
         "apikey" => "",
+        "webhook_secret" => "",
         "uid" => 123,
         "wc_order_id" => 123, // WC order ID that has an invoice
         "invoice_id" => 123, // Laskuhari invoice ID that is associated with the WC order

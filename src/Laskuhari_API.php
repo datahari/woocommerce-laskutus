@@ -91,6 +91,8 @@ class Laskuhari_API
      * @param string $apikey
      * @param string $request
      * @return string
+     *
+     * @deprecated New webhooks use an HMAC signature with per-webhook secret
      */
     public static function generate_auth_key( $uid, $apikey, $request ) {
         return hash( "sha256", implode( "+", [
@@ -216,21 +218,40 @@ class Laskuhari_API
      *
      * @return void
      */
-    protected function check_auth_key() {
-        $hash = static::generate_auth_key( $this->gateway_object->uid, $this->gateway_object->apikey, $this->request );
-        $auth_key = (string)$this->get_header( 'x-auth-key' );
+    protected function verify_signature() {
+        // Legacy signature verification
+        $auth_key = (string) $this->get_header( "x-auth-key" );
 
-        if( ! hash_equals( $hash, $auth_key ) ) {
-            do_action( "laskuhari_unauthorized_api_request" );
+        if( $auth_key !== "" && strlen( $this->gateway_object->apikey ) >= 64 ) {
+            $hash = static::generate_auth_key( $this->gateway_object->uid, $this->gateway_object->apikey, $this->request );
 
-            http_response_code( 401 );
-
-            echo json_encode([
-                "status"  => "ERROR",
-                "message" => "Unauthorized"
-            ]);
-            exit;
+            if( hash_equals( $hash, $auth_key ) ) {
+                return; // Request accepted
+            }
         }
+
+        // New signature verification
+        $signature = (string) $this->get_header( "x-webhook-signature" );
+        $webhook_secret = (string) $this->gateway_object->get_option( "payment_status_webhook_secret" );
+
+        if( $signature !== "" && strlen( $webhook_secret ) >= 64 ) {
+            $hmac = hash_hmac( "sha256", $this->request, $webhook_secret );
+
+            if( hash_equals( $hmac, $signature ) ) {
+                return; // Request accepted
+            }
+        }
+
+        // Fall through to error
+        do_action( "laskuhari_unauthorized_api_request" );
+
+        http_response_code( 401 );
+
+        echo json_encode([
+            "status"  => "ERROR",
+            "message" => "Unauthorized"
+        ]);
+        exit;
     }
 
     /**
@@ -239,9 +260,15 @@ class Laskuhari_API
      * @return void
      */
     protected function check_timestamp() {
-        // check that timestamps are in sync at least 60 seconds
-        $timestamp = intval( $this->get_header( 'x-timestamp' ) );
+        // New timestamp
+        $timestamp = intval( $this->get_header( 'x-webhook-timestamp' ) );
 
+        if( ! $timestamp ) {
+            // Legacy timestamp
+            $timestamp = intval( $this->get_header( 'x-timestamp' ) );
+        }
+
+        // check that timestamps are in sync at least 60 seconds
         if( abs( $timestamp - time() ) > 60 ) {
             do_action( "laskuhari_api_request_invalid_timestamp" );
 
@@ -259,7 +286,7 @@ class Laskuhari_API
         $this->check_content_max_length();
         $this->read_request();
         $this->check_api_key_length();
-        $this->check_auth_key();
+        $this->verify_signature();
         $this->check_timestamp();
     }
 
@@ -318,7 +345,7 @@ class Laskuhari_API
      * Respond with a 200 OK
      *
      * @param string $message
-     * @return void
+     * @phpstan-return never
      */
     protected function response_ok( $message ) {
         http_response_code( 200 );
@@ -335,7 +362,7 @@ class Laskuhari_API
      *
      * @param string $message
      * @param integer $code
-     * @return void
+     * @phpstan-return never
      */
     protected function response_error( $message, $code = 400 ) {
         http_response_code( $code );
@@ -353,6 +380,48 @@ class Laskuhari_API
      * @return void
      */
     protected function handle_payment_status_request() {
+        $version = $this->request_json['version'] ?? "0.1";
+
+        if( $version !== "0.1" ) {
+            // New webhooks
+            $invoice = $this->request_json['data']['invoice'] ?? [];
+            $status = $invoice['status'] ?? null;
+
+            if( ! is_array( $status ) ) {
+                $this->error( 400, "Invalid status result" );
+                exit;
+            }
+
+            $wc_order_id = $invoice['external']['order_id'] ?? null;
+            $webhook_invoice_number = $invoice['number'] ?? null;
+
+            if( isset( $wc_order_id ) && $wc_order_id > 0 ) {
+                if( ! is_numeric( $wc_order_id ) ) {
+                    $this->error( 400, "Invalid order ID" );
+                    exit;
+                }
+
+                $invoice_number = laskuhari_invoice_number_by_order( (int) $wc_order_id );
+
+                // if invoice number doesn't match, dont update status
+                if( (string) $webhook_invoice_number !== (string) $invoice_number ) {
+                    $this->response_ok( "Invoice number not found here" );
+                }
+
+                laskuhari_update_payment_status(
+                    intval( $wc_order_id ),
+                    ( $invoice['is_paid'] ?? false ) ? 1 : 0,
+                    strval( $status['name'] ?? "" ),
+                    strval( $status['id'] ?? "" )
+                );
+
+                $this->response_ok( "Payment status updated" );
+            }
+
+            $this->response_ok( "Message received" );
+        }
+
+        // Legacy webhooks
         $status = $this->request_json['status'];
 
         if( ! is_array( $status ) ) {
