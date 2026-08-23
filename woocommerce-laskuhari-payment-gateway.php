@@ -1294,17 +1294,22 @@ function laskuhari_add_webhook( $event, $url ) {
 
     if( $response === false ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook'
+            'Laskuhari: Failed to add webhook: Request failed'
         ), 'error' );
         return false;
     }
 
     $secret = $response["secret"] ?? null;
 
-    if( is_string( $secret ) ) {
-        $lh = laskuhari_get_gateway_object();
-        $lh->update_option( "payment_status_webhook_secret", $secret );
+    if( ! is_string( $secret ) ) {
+        Logger::enabled( 'error' ) && Logger::log( sprintf(
+            'Laskuhari: Failed to add webhook: No secret returned'
+        ), 'error' );
+        return false;
     }
+
+    $lh = laskuhari_get_gateway_object();
+    $lh->update_option( "payment_status_webhook_secret", $secret );
 
     return true;
 }
