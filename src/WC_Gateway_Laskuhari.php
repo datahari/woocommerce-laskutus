@@ -382,10 +382,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         }
 
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+        add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'clear_webhook_request_transient' ), 20 );
         add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
         add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 
         static::$actions_added = true;
+    }
+
+    /**
+     * Clear webhook request lock transient when plugin settings are updated.
+     *
+     * @return void
+     */
+    public function clear_webhook_request_transient() {
+        delete_transient( 'laskuhari_add_webhook_request' );
     }
 
     /**
