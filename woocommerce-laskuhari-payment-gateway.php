@@ -1294,7 +1294,8 @@ function laskuhari_add_webhook( $event, $url ) {
     $secret = $response["secret"] ?? null;
 
     if( is_string( $secret ) ) {
-        update_option( "_laskuhari_webhook_secret", $secret, false );
+        $lh = laskuhari_get_gateway_object();
+        $lh->update_option( "payment_status_webhook_secret", $secret );
     }
 
     return true;

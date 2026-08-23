@@ -232,7 +232,7 @@ class Laskuhari_API
 
         // New signature verification
         $signature = (string) $this->get_header( "x-webhook-signature" );
-        $webhook_secret = (string) get_option( "_laskuhari_webhook_secret" );
+        $webhook_secret = (string) $this->gateway_object->get_option( "payment_status_webhook_secret" );
 
         if( $signature !== "" && strlen( $webhook_secret ) >= 64 ) {
             $hmac = hash_hmac( "sha256", $this->request, $webhook_secret );
