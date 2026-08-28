@@ -820,11 +820,35 @@ function laskuhari_get_customer_payment_terms_default( $customerID ) {
     return get_user_meta( $customerID, "laskuhari_payment_terms_default", true );
 }
 
+/**
+ * Get common VAT rates
+ *
+ * @param ?WC_Product $product
+ * @return array<float>
+ */
 function laskuhari_common_vat_rates( $product = null ) {
     $common_vat_rates = [25.5, 24, 14, 13.5, 10, 0];
     $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
 
     return $common_vat_rates;
+}
+
+/**
+ * Checks if a VAT rate is among the commonly used ones
+ *
+ * @param float $rate
+ * @return bool
+ */
+function laskuhari_is_common_vat_rate( $rate ) {
+    $vat_rates = laskuhari_common_vat_rates();
+
+    foreach( $vat_rates as $vat_rate ) {
+        if( abs( $vat_rate - $rate ) <= 0.05 ) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -2965,7 +2989,6 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
  * @param WC_Order_Item|null $item
  * @param int $order_id
  * @param array<string, mixed> $data
- * @return void
  */
 function laskuhari_invoice_row( $type, $item, $order_id, $data ) {
     $row_payload = [
@@ -3899,6 +3922,10 @@ function laskuhari_process_action(
             $yks_veroton = 0;
         }
 
+        $product_id = 0;
+        $variation_id = 0;
+        $product_sku = "";
+
         if( is_a( $item, WC_Order_Item_Product::class ) ) {
             $variation_id = $item->get_variation_id();
             $product_id = $variation_id ? $variation_id : $item->get_product_id();
@@ -3918,10 +3945,6 @@ function laskuhari_process_action(
                     $order_id
                 );
             }
-        } else {
-            $product_id = 0;
-            $variation_id = 0;
-            $product_sku = "";
         }
 
         $ale = 0;
@@ -3965,11 +3988,13 @@ function laskuhari_process_action(
             $quantity_unit = "";
         }
 
+        $product_name = apply_filters( "laskuhari_sanitize_product_name", $item->get_name(), $item->get_data() );
+
         $laskurivit[] = laskuhari_invoice_row( "item", $item, $order_id, [
             "product_sku"   => $product_sku,
             "product_id"    => $product_id,
             "variation_id"  => $variation_id,
-            "nimike"        => apply_filters( "laskuhari_sanitize_product_name", $item->get_name(), $item->get_data() ),
+            "nimike"        => $product_name,
             "maara"         => $quantity,
             "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
@@ -3979,6 +4004,21 @@ function laskuhari_process_action(
             "yhtveroton"    => $yht_veroton,
             "yhtverollinen" => $yht_verollinen
         ] );
+
+        if( ! laskuhari_is_common_vat_rate( $alv ) ) {
+            $incorrect_vat = number_format( NumberUtil::round( $alv, 2 ), 2, "," );
+            $row_name = trim( $product_sku . " " . $product_name );
+
+            if( mb_strlen( $row_name ) > 52 ) {
+                $row_name = mb_substr( $row_name, 0, 49 ) . "...";
+            }
+
+            $row_number = count( $laskurivit );
+
+            return array(
+                "notice" => urlencode( sprintf( __( "Rivin %d (%s) ALV on virheellinen (%s %%). Unohditko klikata &quot;Laske uudelleen&quot; hintojen muuttamisen jälkeen?" ), $row_number, esc_html( $row_name ), $incorrect_vat ) )
+            );
+        }
 
         $laskettu_summa += $yht_verollinen;
     }
@@ -4013,6 +4053,14 @@ function laskuhari_process_action(
             $laskurivit[] = laskuhari_invoice_row( "discount", null, $order_id, $discount_row );
 
             $laskettu_summa += $amount_with_vat * -1;
+
+            if( ! laskuhari_is_common_vat_rate( $vat_rate ) ) {
+                $incorrect_vat = number_format( NumberUtil::round( $vat_rate, 2 ), 2, "," );
+
+                return array(
+                    "notice" => urlencode( sprintf( __( "Alennuksen ALV on virheellinen (%s %%)" ), $incorrect_vat ) )
+                );
+            }
         }
     }
 
@@ -4029,6 +4077,14 @@ function laskuhari_process_action(
             "yhtveroton"    => $laskutuslisa_veroton,
             "yhtverollinen" => $laskutuslisa_verollinen
         ] );
+
+        if( ! laskuhari_is_common_vat_rate( $laskutuslisa_alv ) ) {
+            $incorrect_vat = number_format( NumberUtil::round( $laskutuslisa_alv, 2 ), 2, "," );
+
+            return array(
+                "notice" => urlencode( sprintf( __( "Laskutuslisän ALV on virheellinen (%s %%)" ), $incorrect_vat ) )
+            );
+        }
     }
 
     if( abs( $loppusumma-$laskettu_summa ) > 0.05 ) {
