@@ -84,6 +84,72 @@
 			link.download = "laskuhari-vianselvitys.txt";
 			link.click();
 		} );
+		$("body").on( "click", "#laskuhari-add-webhook-button", async function() {
+			if( ! await laskuhari_confirm( "Haluatko varmasti lisätä webhookin?", "Lisää webhook" ) ) {
+				return false;
+			}
+
+			laskuhari_loading();
+			$.ajax({
+				url: ajaxurl,
+				type: 'post',
+				dataType: 'json',
+				data: {
+					action: 'laskuhari_add_webhooks',
+					nonce: laskuhariInfo.wpnonce
+				},
+				success: function( response ) {
+					laskuhari_loading_stop();
+					if( response.success ) {
+						$( "#laskuhari-delete-webhook-button" ).removeClass( "laskuhari-hidden" );
+						$( "#laskuhari-add-webhook-button" ).addClass( "laskuhari-hidden" );
+						laskuhari_flash_card( "Webhook lisätty onnistuneesti.", "success" );
+					} else {
+						laskuhari_error( "Virhe: " + response.data );
+					}
+				},
+				error: function() {
+					laskuhari_error( "Virhe lisättäessä webhookia" );
+				},
+			}).always( function() {
+				laskuhari_loading_stop();
+			} );
+
+			return false;
+		});
+		$("body").on( "click", "#laskuhari-delete-webhook-button", async function() {
+			if( ! await laskuhari_confirm( "Haluatko varmasti poistaa webhookin?", "Poista webhook" ) ) {
+				return false;
+			}
+
+			laskuhari_loading();
+			$.ajax({
+				url: ajaxurl,
+				type: 'post',
+				dataType: 'json',
+				data: {
+					action: 'laskuhari_delete_webhooks',
+					nonce: laskuhariInfo.wpnonce
+				},
+				success: function( response ) {
+					laskuhari_loading_stop();
+					if( response.success ) {
+						$( "#laskuhari-delete-webhook-button" ).addClass( "laskuhari-hidden" );
+						$( "#laskuhari-add-webhook-button" ).removeClass( "laskuhari-hidden" );
+						laskuhari_flash_card( "Webhook poistettu onnistuneesti.", "success" );
+					} else {
+						laskuhari_error( "Virhe: " + response.data );
+					}
+				},
+				error: function() {
+					laskuhari_error( "Virhe webhookin poistossa" );
+				},
+			}).always( function() {
+				laskuhari_loading_stop();
+			} );
+
+			return false;
+		});
 	});
 
 	function lh_hide_debug_summary() {
@@ -101,6 +167,101 @@ function laskuhari_loading_stop() {
 	jQuery("#laskuhari-loading").fadeOut( function() {
 		jQuery(this).remove();
 	} );
+}
+
+async function laskuhari_confirm( message, ok_label = "OK", cancel_label = "Peruuta", type = "confirm" ) {
+	const $ = jQuery;
+
+	return await new Promise( function( resolve ) {
+		$(".lh-confirm-modal").remove();
+		$(".lh-error-modal").remove();
+
+		const is_error = type === "error";
+		const show_cancel = cancel_label !== null;
+		const role = is_error ? "alertdialog" : "dialog";
+		const notice_html = is_error
+			? '<div class="notice notice-error inline" style="margin:0 0 12px; padding:8px 12px;"><p style="margin:0;">' + $("<div>").text( message ).html() + '</p></div>'
+			: '<p class="lh-confirm-message">' + $("<div>").text( message ).html() + '</p>';
+		const cancel_button_html = show_cancel
+			? '<button type="button" class="button button-secondary lh-confirm-cancel">' + $("<div>").text( cancel_label ).html() + '</button>'
+			: '';
+		const ok_button_class = is_error ? ' lh-confirm-ok-error' : '';
+
+		const modal = $(
+			'<div class="lh-confirm-modal' + ( is_error ? ' lh-error-modal' : '' ) + '">' +
+				'<div role="' + role + '" aria-modal="true" class="lh-confirm-dialog">' +
+					notice_html +
+					'<p class="lh-confirm-actions">' +
+						cancel_button_html +
+						'<button type="button" class="button button-primary lh-confirm-ok' + ok_button_class + '">' + $("<div>").text( ok_label ).html() + '</button>' +
+					'</p>' +
+				'</div>' +
+			'</div>'
+		);
+
+		function close_modal( value ) {
+			$(document).off( "keydown.lhConfirmModal" );
+			modal.remove();
+			resolve( value );
+		}
+
+		modal.on( "click", ".lh-confirm-cancel", function() {
+			close_modal( false );
+		} );
+
+		modal.on( "click", ".lh-confirm-ok", function() {
+			close_modal( true );
+		} );
+
+		modal.on( "click", function( event ) {
+			if( event.target === this ) {
+				close_modal( show_cancel ? false : true );
+			}
+		} );
+
+		$(document).on( "keydown.lhConfirmModal", function( event ) {
+			if( event.key === "Escape" ) {
+				close_modal( show_cancel ? false : true );
+			}
+
+			if( event.key === "Enter" && ! show_cancel ) {
+				close_modal( true );
+			}
+		} );
+
+		$("body").append( modal );
+		modal.find( ".lh-confirm-ok" ).trigger( "focus" );
+	} );
+}
+
+async function laskuhari_error( message, ok_label = "OK" ) {
+	return await laskuhari_confirm( message, ok_label, null, "error" );
+}
+
+function laskuhari_flash_card( message, type = "info", duration = 4000 ) {
+	const $ = jQuery;
+	const safe_message = $("<div>").text( message ).html();
+
+	let container = $(".lh-flash-card-container");
+	if( container.length === 0 ) {
+		$("body").append( '<div class="lh-flash-card-container" aria-live="polite" aria-atomic="true"></div>' );
+		container = $(".lh-flash-card-container");
+	}
+
+	const flash_card = $(
+		'<div class="lh-flash-card lh-flash-card-' + type + '">' +
+			'<span class="lh-flash-card-message">' + safe_message + '</span>' +
+		'</div>'
+	);
+
+	container.append( flash_card );
+
+	window.setTimeout( function() {
+		flash_card.addClass( "lh-flash-card-hide" );
+		window.setTimeout( function() {
+			flash_card.remove();
+		}, 260 );
+	}, duration );
 }
 
 function laskuhari_admin_action( action ) {

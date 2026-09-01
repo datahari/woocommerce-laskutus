@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added VAT rate validation when creating invoice in order to avoid invalid VAT rates being sent when the user forgets to click "Recalculate totals" after modifying order row totals manually.
 
+### Changed
+
+- Replaced the previous automatic webhook creation checkbox setting with explicit create/delete webhook actions.
+
 ## [1.16.0] 2026-08-23
 
 ### Added

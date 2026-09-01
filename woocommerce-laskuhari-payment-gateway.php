@@ -25,6 +25,7 @@ use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\Laskuhari_Uninstall;
+use Laskuhari\Laskuhari_Webhooks;
 use Laskuhari\Logger;
 use Laskuhari\WC_Gateway_Laskuhari;
 
@@ -57,10 +58,11 @@ function laskuhari_payment_gateway_load() {
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
+    $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
+    $webhooks->register_endpoints();
+
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
     add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
-
-    laskuhari_maybe_create_webhook();
 
     // Add actions for handling invoice creation from other payment methods
     if( count( $laskuhari_gateway_object->send_invoice_from_payment_methods ) ) {
@@ -153,36 +155,6 @@ function laskuhari_payment_gateway_load() {
 
     if( apply_filters( "laskuhari_allow_invoicing_details_editing", true ) ) {
         new Laskuhari_Invoicing_Details_Endpoint( $laskuhari_gateway_object );
-    }
-}
-
-/**
- * Add webhook to Laskuhari for payment status updates if it hasn't
- * been added yet and the create_webhooks option is enabled.
- *
- * @return void
- */
-function laskuhari_maybe_create_webhook() {
-    $lh = laskuhari_get_gateway_object();
-
-    if( $lh->create_webhooks && ! $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
-        if( ! $lh->payment_status_webhook_added ) {
-            if( false === get_transient( "laskuhari_add_webhook_request" ) ) {
-                set_transient( "laskuhari_add_webhook_request", "yes", 5 * MINUTE_IN_SECONDS );
-
-                $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
-
-                if( laskuhari_add_webhook( "payment_status", $api_url ) ) {
-                    $lh->update_option( "payment_status_webhook_added", "v1" );
-                    $lh->payment_status_webhook_added = true;
-                }
-            }
-        }
-    } elseif( $lh->payment_status_webhook_added ) {
-        $lh->update_option( "payment_status_webhook_added", "no" );
-        $lh->payment_status_webhook_added = false;
-
-        delete_transient( "laskuhari_add_webhook_request" );
     }
 }
 
@@ -1295,45 +1267,6 @@ function laskuhari_update_stock( $product ) {
         'Laskuhari: Stock update for product %s complete',
         $product_id
     ), 'debug' );
-
-    return true;
-}
-
-function laskuhari_add_webhook( $event, $url ) {
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/webhooks/";
-
-    $api_url = apply_filters( "laskuhari_webhooks_api_url", $api_url, $event, $url );
-
-    $payload = [
-        "event" => $event,
-        "url" => $url,
-        "version" => "1.0"
-    ];
-
-    $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
-
-    $payload = json_encode( $payload, laskuhari_json_flag() );
-
-    $response = laskuhari_api_request( $payload, $api_url, "Add webhook" );
-
-    if( $response === false ) {
-        Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook: Request failed'
-        ), 'error' );
-        return false;
-    }
-
-    $secret = $response["secret"] ?? null;
-
-    if( ! is_string( $secret ) ) {
-        Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook: No secret returned'
-        ), 'error' );
-        return false;
-    }
-
-    $lh = laskuhari_get_gateway_object();
-    $lh->update_option( "payment_status_webhook_secret", $secret );
 
     return true;
 }
@@ -2524,6 +2457,7 @@ function laskuhari_add_admin_scripts() {
 
     wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
         'nonce' => Laskuhari_Nonce::create(),
+        'wpnonce' => wp_create_nonce( "laskuhari_admin_ajax" ),
     ] );
 }
 
@@ -2839,6 +2773,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
  * @param string $api_url API URL
  * @param string $action_name Action name for logging
  * @param string $format Response format ("json" | "url")
+ * @param string $method Request method (default "POST")
  *
  * @return array|false|string Response data (associative array for "json" type
  *                            and string for "url" type) or false on failure.
@@ -2846,7 +2781,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
  *                            Response data may also contain a list of error
  *                            messages under the key "virheet".
  */
-function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json" ) {
+function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json", $method = "POST" ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2894,8 +2829,11 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         'Authorization: Bearer ' . $laskuhari_gateway_object->apikey,
         'X-Timestamp:'.time()
     ]);
-    curl_setopt($ch, CURLOPT_POST, TRUE);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    if( $method !== "GET" ) {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    }
 
     $ch = apply_filters( "laskuhari_curl_settings", $ch );
 
