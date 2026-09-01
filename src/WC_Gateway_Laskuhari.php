@@ -70,13 +70,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public $demotila;
 
     /**
-     * Whether to create webhooks to Laskuhari for invoice payment status updates
-     *
-     * @var bool
-     */
-    public $create_webhooks;
-
-    /**
      * Whether the payment status webhook has been added to Laskuhari
      *
      * @var bool
@@ -328,7 +321,6 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $this->title                    = $this->lh_get_option( 'title' );
         $this->send_method_fallback     = $this->lh_get_option( 'send_method_fallback' );
         $this->demotila                 = $this->lh_get_option( 'demotila' ) === 'yes' ? true : false;
-        $this->create_webhooks          = $this->lh_get_option( 'create_webhooks' ) === 'yes' ? true : false;
         $this->payment_status_webhook_added = $this->lh_get_option( 'payment_status_webhook_added' ) === 'v1' ? true : false;
         $this->email_lasku_kaytossa        = $this->lh_get_option( 'email_lasku_kaytossa' ) === 'yes' ? true : false;
         $this->verkkolasku_kaytossa        = $this->lh_get_option( 'verkkolasku_kaytossa' ) === 'yes' ? true : false;
@@ -382,20 +374,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         }
 
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-        add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'clear_webhook_request_transient' ), 20 );
         add_action( 'woocommerce_thankyou_laskuhari', array( $this, 'thankyou_page' ) );
         add_action( 'woocommerce_email_before_order_table', array( $this, 'email_instructions' ), 10, 3 );
 
         static::$actions_added = true;
-    }
-
-    /**
-     * Clear webhook request lock transient when plugin settings are updated.
-     *
-     * @return void
-     */
-    public function clear_webhook_request_transient() {
-        delete_transient( 'laskuhari_add_webhook_request' );
     }
 
     /**
@@ -414,6 +396,53 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         }
 
         return parent::generate_multiselect_html( $key, $data );
+    }
+
+    /**
+     * Render custom HTML field for creating webhooks in a single settings row.
+     *
+     * @param string $key
+     * @param array<string, array<int|string, mixed>> $data
+     *
+     * @return string
+     */
+    public function generate_create_webhooks_html( $key, $data ) {
+        $field_key = $this->get_field_key( $key );
+
+        $data = wp_parse_args( $data, array(
+            "title"       => "",
+            "description" => "",
+            "desc_tip"    => false,
+        ) );
+
+        $description = $this->get_description_html( $data );
+
+        $delete_hide = ( $this->payment_status_webhook_added ? "" : "laskuhari-hidden " );
+        $add_hide = ( $this->payment_status_webhook_added ? "laskuhari-hidden " : "" );
+
+        ob_start();
+        ?>
+        <tr valign="top">
+            <th scope="row" class="titledesc">
+                <label for="<?php echo esc_attr( $field_key ); ?>"><?php echo wp_kses_post( $data["title"] ); ?></label>
+            </th>
+            <td class="forminp">
+                <fieldset>
+                    <?php echo wp_kses_post( $description ); ?>
+                    <p>
+                        <button type="button" class="<?php echo $delete_hide; ?>button button-secondary laskuhari-button-red" id="laskuhari-delete-webhook-button">
+                            <?php echo esc_html__( "Poista webhook", "laskuhari" ); ?>
+                        </button>
+                        <button type="button" class="<?php echo $add_hide; ?>button button-secondary" id="laskuhari-add-webhook-button">
+                            <?php echo esc_html__( "Luo webhook", "laskuhari" ); ?>
+                        </button>
+                    </p>
+                </fieldset>
+            </td>
+        </tr>
+        <?php
+
+        return ob_get_clean();
     }
 
     /**
@@ -894,11 +923,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 'default'     => 'no'
             ),
             'create_webhooks' => array(
-                'title'       => __( 'Luo webhook', 'laskuhari' ),
-                'label'       => __( 'Luo webhook Laskuhariin, jotta laskujen maksustatus päivittyy WooCommerceen automaattisesti', 'laskuhari' ),
-                'type'        => 'checkbox',
-                'description' => '',
-                'default'     => 'no'
+                'title'       => __( 'Webhook', 'laskuhari' ),
+                'type'        => 'create_webhooks',
+                'description' => __( 'Luo webhook Laskuhariin, jotta laskujen maksustatus päivittyy WooCommerceen automaattisesti.', 'laskuhari' ),
             ),
             'heading_api_settings' => array(
                 'title'       => __( 'Rajapintatiedot', 'laskuhari' ),
@@ -1496,7 +1523,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $success = true;
 
         if( empty( $laskutustapa ) ) {
-            wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa' ), 'error' );
+            wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa', 'laskuhari' ), 'error' );
             $success = false;
         } else {
             $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );

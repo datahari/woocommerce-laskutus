@@ -226,3 +226,139 @@ a.button.tips.laskuhari-invoice img {
 .laskuhari-caption {
     margin-top: 5px;
 }
+
+.button.laskuhari-button-red {
+    border-color: rgb(204, 0, 0);
+    color: rgb(204, 0, 0);
+}
+
+.button.laskuhari-button-red:hover {
+    background: rgba(255, 0, 0, .04);
+    border-color: rgb(204, 0, 0);
+    color: rgb(204, 0, 0);
+}
+
+.button.laskuhari-button-green {
+    border-color: rgb(13 129 0);
+    color: rgb(13 129 0);
+}
+
+.button.laskuhari-button-green:hover {
+    background: rgba(30, 255, 0, 0.04);
+    border-color: rgb(13 129 0);
+    color: rgb(13 129 0);
+}
+
+.laskuhari-hidden {
+    display: none !important;
+}
+
+.lh-confirm-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+    z-index: 100001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.lh-confirm-dialog {
+    background: #fff;
+    padding: 20px;
+    max-width: 520px;
+    width: 100%;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+}
+
+.lh-confirm-message {
+    margin: 0 0 16px;
+}
+
+.lh-confirm-actions {
+    margin: 0;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.button.button-primary.lh-confirm-ok-error {
+    background: #b32d2e;
+    border-color: #8f2424;
+    color: #ffffff;
+}
+
+.button.button-primary.lh-confirm-ok-error:hover,
+.button.button-primary.lh-confirm-ok-error:focus {
+    background: #8f2424;
+    border-color: #6b1b1b;
+    color: #ffffff;
+}
+
+.lh-flash-card-container {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    z-index: 100002;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+    pointer-events: none;
+}
+
+.lh-flash-card {
+    background: #ffffff;
+    color: #1d2327;
+    border-left: 4px solid #2271b1;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+    padding: 12px 14px;
+    pointer-events: auto;
+    animation: lh-flash-card-in .25s ease-out;
+}
+
+.lh-flash-card-success {
+    background: #1f7f00;
+    color: #ffffff;
+    border-left-color: #145a00;
+}
+
+.lh-flash-card-error {
+    background: #b30000;
+    color: #ffffff;
+    border-left-color: #7f0000;
+}
+
+.lh-flash-card-hide {
+    animation: lh-flash-card-out .25s ease-in forwards;
+}
+
+.lh-flash-card-message {
+    display: block;
+    line-height: 1.4;
+}
+
+@keyframes lh-flash-card-in {
+    from {
+        opacity: 0;
+        transform: translateX(-14px) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+@keyframes lh-flash-card-out {
+    from {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-14px) translateY(8px);
+    }
+}

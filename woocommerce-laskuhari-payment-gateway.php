@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.16.0
+Version: 1.17.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -25,6 +25,7 @@ use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\Laskuhari_Uninstall;
+use Laskuhari\Laskuhari_Webhooks;
 use Laskuhari\Logger;
 use Laskuhari\WC_Gateway_Laskuhari;
 
@@ -57,10 +58,11 @@ function laskuhari_payment_gateway_load() {
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
+    $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
+    $webhooks->register_endpoints();
+
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
     add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
-
-    laskuhari_maybe_create_webhook();
 
     // Add actions for handling invoice creation from other payment methods
     if( count( $laskuhari_gateway_object->send_invoice_from_payment_methods ) ) {
@@ -153,36 +155,6 @@ function laskuhari_payment_gateway_load() {
 
     if( apply_filters( "laskuhari_allow_invoicing_details_editing", true ) ) {
         new Laskuhari_Invoicing_Details_Endpoint( $laskuhari_gateway_object );
-    }
-}
-
-/**
- * Add webhook to Laskuhari for payment status updates if it hasn't
- * been added yet and the create_webhooks option is enabled.
- *
- * @return void
- */
-function laskuhari_maybe_create_webhook() {
-    $lh = laskuhari_get_gateway_object();
-
-    if( $lh->create_webhooks && ! $lh->demotila && strlen( $lh->apikey ) > 64 && $lh->uid ) {
-        if( ! $lh->payment_status_webhook_added ) {
-            if( false === get_transient( "laskuhari_add_webhook_request" ) ) {
-                set_transient( "laskuhari_add_webhook_request", "yes", 5 * MINUTE_IN_SECONDS );
-
-                $api_url = site_url( "/index.php" ) . "?__laskuhari_api=true";
-
-                if( laskuhari_add_webhook( "payment_status", $api_url ) ) {
-                    $lh->update_option( "payment_status_webhook_added", "v1" );
-                    $lh->payment_status_webhook_added = true;
-                }
-            }
-        }
-    } elseif( $lh->payment_status_webhook_added ) {
-        $lh->update_option( "payment_status_webhook_added", "no" );
-        $lh->payment_status_webhook_added = false;
-
-        delete_transient( "laskuhari_add_webhook_request" );
     }
 }
 
@@ -820,11 +792,35 @@ function laskuhari_get_customer_payment_terms_default( $customerID ) {
     return get_user_meta( $customerID, "laskuhari_payment_terms_default", true );
 }
 
+/**
+ * Get common VAT rates
+ *
+ * @param ?WC_Product $product
+ * @return array<float>
+ */
 function laskuhari_common_vat_rates( $product = null ) {
     $common_vat_rates = [25.5, 24, 14, 13.5, 10, 0];
     $common_vat_rates = apply_filters( "laskuhari_common_vat_rates", $common_vat_rates, $product );
 
     return $common_vat_rates;
+}
+
+/**
+ * Checks if a VAT rate is among the commonly used ones
+ *
+ * @param float $rate
+ * @return bool
+ */
+function laskuhari_is_common_vat_rate( $rate ) {
+    $vat_rates = laskuhari_common_vat_rates();
+
+    foreach( $vat_rates as $vat_rate ) {
+        if( abs( $vat_rate - $rate ) <= 0.05 ) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -1271,45 +1267,6 @@ function laskuhari_update_stock( $product ) {
         'Laskuhari: Stock update for product %s complete',
         $product_id
     ), 'debug' );
-
-    return true;
-}
-
-function laskuhari_add_webhook( $event, $url ) {
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/webhooks/";
-
-    $api_url = apply_filters( "laskuhari_webhooks_api_url", $api_url, $event, $url );
-
-    $payload = [
-        "event" => $event,
-        "url" => $url,
-        "version" => "1.0"
-    ];
-
-    $payload = apply_filters( "laskuhari_add_webhook_payload", $payload, $event, $url );
-
-    $payload = json_encode( $payload, laskuhari_json_flag() );
-
-    $response = laskuhari_api_request( $payload, $api_url, "Add webhook" );
-
-    if( $response === false ) {
-        Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook: Request failed'
-        ), 'error' );
-        return false;
-    }
-
-    $secret = $response["secret"] ?? null;
-
-    if( ! is_string( $secret ) ) {
-        Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Failed to add webhook: No secret returned'
-        ), 'error' );
-        return false;
-    }
-
-    $lh = laskuhari_get_gateway_object();
-    $lh->update_option( "payment_status_webhook_secret", $secret );
 
     return true;
 }
@@ -2500,6 +2457,7 @@ function laskuhari_add_admin_scripts() {
 
     wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
         'nonce' => Laskuhari_Nonce::create(),
+        'wpnonce' => wp_create_nonce( "laskuhari_admin_ajax" ),
     ] );
 }
 
@@ -2815,6 +2773,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
  * @param string $api_url API URL
  * @param string $action_name Action name for logging
  * @param string $format Response format ("json" | "url")
+ * @param string $method Request method (default "POST")
  *
  * @return array|false|string Response data (associative array for "json" type
  *                            and string for "url" type) or false on failure.
@@ -2822,7 +2781,7 @@ function laskuhari_download( $order_id, $redirect = true, $args = [] ) {
  *                            Response data may also contain a list of error
  *                            messages under the key "virheet".
  */
-function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json" ) {
+function laskuhari_api_request( $payload, $api_url, $action_name = "API request", $format = "json", $method = "POST" ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     Logger::enabled( 'debug' ) && Logger::log( sprintf(
@@ -2870,8 +2829,11 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
         'Authorization: Bearer ' . $laskuhari_gateway_object->apikey,
         'X-Timestamp:'.time()
     ]);
-    curl_setopt($ch, CURLOPT_POST, TRUE);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    if( $method !== "GET" ) {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    }
 
     $ch = apply_filters( "laskuhari_curl_settings", $ch );
 
@@ -2965,7 +2927,6 @@ function laskuhari_api_request( $payload, $api_url, $action_name = "API request"
  * @param WC_Order_Item|null $item
  * @param int $order_id
  * @param array<string, mixed> $data
- * @return void
  */
 function laskuhari_invoice_row( $type, $item, $order_id, $data ) {
     $row_payload = [
@@ -3899,6 +3860,10 @@ function laskuhari_process_action(
             $yks_veroton = 0;
         }
 
+        $product_id = 0;
+        $variation_id = 0;
+        $product_sku = "";
+
         if( is_a( $item, WC_Order_Item_Product::class ) ) {
             $variation_id = $item->get_variation_id();
             $product_id = $variation_id ? $variation_id : $item->get_product_id();
@@ -3918,10 +3883,6 @@ function laskuhari_process_action(
                     $order_id
                 );
             }
-        } else {
-            $product_id = 0;
-            $variation_id = 0;
-            $product_sku = "";
         }
 
         $ale = 0;
@@ -3965,11 +3926,13 @@ function laskuhari_process_action(
             $quantity_unit = "";
         }
 
+        $product_name = apply_filters( "laskuhari_sanitize_product_name", $item->get_name(), $item->get_data() );
+
         $laskurivit[] = laskuhari_invoice_row( "item", $item, $order_id, [
             "product_sku"   => $product_sku,
             "product_id"    => $product_id,
             "variation_id"  => $variation_id,
-            "nimike"        => apply_filters( "laskuhari_sanitize_product_name", $item->get_name(), $item->get_data() ),
+            "nimike"        => $product_name,
             "maara"         => $quantity,
             "yks"           => $quantity_unit,
             "veroton"       => $yks_veroton,
@@ -3979,6 +3942,21 @@ function laskuhari_process_action(
             "yhtveroton"    => $yht_veroton,
             "yhtverollinen" => $yht_verollinen
         ] );
+
+        if( ! laskuhari_is_common_vat_rate( $alv ) ) {
+            $incorrect_vat = number_format( NumberUtil::round( $alv, 2 ), 2, "," );
+            $row_name = trim( $product_sku . " " . $product_name );
+
+            if( mb_strlen( $row_name ) > 52 ) {
+                $row_name = mb_substr( $row_name, 0, 49 ) . "...";
+            }
+
+            $row_number = count( $laskurivit );
+
+            return array(
+                "notice" => urlencode( sprintf( __( "Rivin %d (%s) ALV on virheellinen (%s %%). Unohditko klikata &quot;Laske uudelleen&quot; hintojen muuttamisen jälkeen?", "laskuhari" ), $row_number, esc_html( $row_name ), $incorrect_vat ) )
+            );
+        }
 
         $laskettu_summa += $yht_verollinen;
     }
@@ -4013,6 +3991,14 @@ function laskuhari_process_action(
             $laskurivit[] = laskuhari_invoice_row( "discount", null, $order_id, $discount_row );
 
             $laskettu_summa += $amount_with_vat * -1;
+
+            if( ! laskuhari_is_common_vat_rate( $vat_rate ) ) {
+                $incorrect_vat = number_format( NumberUtil::round( $vat_rate, 2 ), 2, "," );
+
+                return array(
+                    "notice" => urlencode( sprintf( __( "Alennuksen ALV on virheellinen (%s %%)", "laskuhari" ), $incorrect_vat ) )
+                );
+            }
         }
     }
 
@@ -4029,6 +4015,14 @@ function laskuhari_process_action(
             "yhtveroton"    => $laskutuslisa_veroton,
             "yhtverollinen" => $laskutuslisa_verollinen
         ] );
+
+        if( ! laskuhari_is_common_vat_rate( $laskutuslisa_alv ) ) {
+            $incorrect_vat = number_format( NumberUtil::round( $laskutuslisa_alv, 2 ), 2, "," );
+
+            return array(
+                "notice" => urlencode( sprintf( __( "Laskutuslisän ALV on virheellinen (%s %%)", "laskuhari" ), $incorrect_vat ) )
+            );
+        }
     }
 
     if( abs( $loppusumma-$laskettu_summa ) > 0.05 ) {
@@ -4180,7 +4174,7 @@ function laskuhari_process_action(
         // don't send separate email invoice if it is attached to confirmation email
         if( $laskuhari_gateway_object->attach_invoice_to_wc_email && $from_gateway ) {
             if( $send_method === "email" ) {
-                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen", "laskuhari") );
                 $send = false;
             }
         }
@@ -4259,7 +4253,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ), 'warning' );
 
         return array(
-            "notice" => urlencode( __( "Laskun lähetys estetty" ) )
+            "notice" => urlencode( __( "Laskun lähetys estetty", "laskuhari" ) )
         );
     }
 

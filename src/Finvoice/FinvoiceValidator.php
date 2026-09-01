@@ -31,18 +31,18 @@ class FinvoiceValidator
         $finvoice_min_len = is_numeric( $finvoice_min_len ) ? (int) $finvoice_min_len : 5;
 
         if( strlen( $verkkolaskuosoite ) < $finvoice_min_len ) {
-            throw new EInvoiceAddressTooShortException( __( "Verkkolaskuosoite on liian lyhyt" ) );
+            throw new EInvoiceAddressTooShortException( __( "Verkkolaskuosoite on liian lyhyt", "laskuhari" ) );
         }
 
         if( preg_match( '/\s/', $verkkolaskuosoite ) === 1 ) {
-            throw new EInvoiceAddressHasSpacesException( __( "Verkkolaskuosoite ei saa sisältää välilyöntejä" ) );
+            throw new EInvoiceAddressHasSpacesException( __( "Verkkolaskuosoite ei saa sisältää välilyöntejä", "laskuhari" ) );
         }
 
         $fail_patterns = [
-            "/[A-Z]{6}/" => __( "Osoitteessa on liikaa kirjaimia" ),
-            "/^[A-Z]+$/" => __( "Osoite koostuu pelkästään kirjaimista" ),
-            "/^37[0-9]{8}$/" => __( "Etunollat OVT-tunnuksesta puuttuvat (0037XXX)" ),
-            "/[^A-Z0-9]/" => __( "Verkkolaskuosoite voi sisältää vain merkkejä A-Z ja 0-9" ),
+            "/[A-Z]{6}/" => __( "Osoitteessa on liikaa kirjaimia", "laskuhari" ),
+            "/^[A-Z]+$/" => __( "Osoite koostuu pelkästään kirjaimista", "laskuhari" ),
+            "/^37[0-9]{8}$/" => __( "Etunollat OVT-tunnuksesta puuttuvat (0037XXX)", "laskuhari" ),
+            "/[^A-Z0-9]/" => __( "Verkkolaskuosoite voi sisältää vain merkkejä A-Z ja 0-9", "laskuhari" ),
         ];
 
         $fail_patterns = apply_filters( "laskuhari_einvoiceaddress_fail_patterns", $fail_patterns );
@@ -98,11 +98,11 @@ class FinvoiceValidator
         }
 
         if( empty( $valittaja ) ) {
-            throw new OperatorCodeMissingException( __( "Välittäjätunnus puuttuu" ) );
+            throw new OperatorCodeMissingException( __( "Välittäjätunnus puuttuu", "laskuhari" ) );
         }
 
         if( empty( $ytunnus ) ) {
-            throw new BusinessIdMissingException( __( "Y-tunnus puuttuu" ) );
+            throw new BusinessIdMissingException( __( "Y-tunnus puuttuu", "laskuhari" ) );
         }
 
         $verkkolaskuosoite = trim( $verkkolaskuosoite );
@@ -116,15 +116,15 @@ class FinvoiceValidator
         );
 
         if( in_array( $verkkolaskuosoite, $operator_codes ) && $valittaja != $verkkolaskuosoite ) {
-            throw new OperatorCodeMismatchException( __( "Verkkolaskuosoitteeksi on virheellisesti syötetty välittäjätunnus" ) );
+            throw new OperatorCodeMismatchException( __( "Verkkolaskuosoitteeksi on virheellisesti syötetty välittäjätunnus", "laskuhari" ) );
         }
 
         if( preg_match( '/\s/', $valittaja ) === 1 ) {
-            throw new OperatorCodeHasSpacesException( __( "Välittäjätunnus ei saa sisältää välilyöntejä" ) );
+            throw new OperatorCodeHasSpacesException( __( "Välittäjätunnus ei saa sisältää välilyöntejä", "laskuhari" ) );
         }
 
         if( preg_match( '/[^A-Z0-9]/', $valittaja ) === 1 ) {
-            throw new OperatorCodeHasSpecialCharactersException( __( "Välittäjätunnus voi sisältää vain merkkejä A-Z ja 0-9" ) );
+            throw new OperatorCodeHasSpecialCharactersException( __( "Välittäjätunnus voi sisältää vain merkkejä A-Z ja 0-9", "laskuhari" ) );
         }
 
         self::validate_einvoice_address( $verkkolaskuosoite );

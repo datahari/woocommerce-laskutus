@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] 2026-09-01
+
+### Added
+
+- Added VAT rate validation when creating invoice in order to avoid invalid VAT rates being sent when the user forgets to click "Recalculate totals" after modifying order row totals manually.
+
+### Changed
+
+- Replaced the previous automatic webhook creation checkbox setting with explicit create/delete webhook actions.
+
 ## [1.16.0] 2026-08-23
 
 ### Added
