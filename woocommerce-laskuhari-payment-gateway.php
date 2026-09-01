@@ -3954,7 +3954,7 @@ function laskuhari_process_action(
             $row_number = count( $laskurivit );
 
             return array(
-                "notice" => urlencode( sprintf( __( "Rivin %d (%s) ALV on virheellinen (%s %%). Unohditko klikata &quot;Laske uudelleen&quot; hintojen muuttamisen jälkeen?" ), $row_number, esc_html( $row_name ), $incorrect_vat ) )
+                "notice" => urlencode( sprintf( __( "Rivin %d (%s) ALV on virheellinen (%s %%). Unohditko klikata &quot;Laske uudelleen&quot; hintojen muuttamisen jälkeen?", "laskuhari" ), $row_number, esc_html( $row_name ), $incorrect_vat ) )
             );
         }
 
@@ -3996,7 +3996,7 @@ function laskuhari_process_action(
                 $incorrect_vat = number_format( NumberUtil::round( $vat_rate, 2 ), 2, "," );
 
                 return array(
-                    "notice" => urlencode( sprintf( __( "Alennuksen ALV on virheellinen (%s %%)" ), $incorrect_vat ) )
+                    "notice" => urlencode( sprintf( __( "Alennuksen ALV on virheellinen (%s %%)", "laskuhari" ), $incorrect_vat ) )
                 );
             }
         }
@@ -4020,7 +4020,7 @@ function laskuhari_process_action(
             $incorrect_vat = number_format( NumberUtil::round( $laskutuslisa_alv, 2 ), 2, "," );
 
             return array(
-                "notice" => urlencode( sprintf( __( "Laskutuslisän ALV on virheellinen (%s %%)" ), $incorrect_vat ) )
+                "notice" => urlencode( sprintf( __( "Laskutuslisän ALV on virheellinen (%s %%)", "laskuhari" ), $incorrect_vat ) )
             );
         }
     }
@@ -4174,7 +4174,7 @@ function laskuhari_process_action(
         // don't send separate email invoice if it is attached to confirmation email
         if( $laskuhari_gateway_object->attach_invoice_to_wc_email && $from_gateway ) {
             if( $send_method === "email" ) {
-                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen") );
+                $order->add_order_note( __("Ei lähetetä erillistä sähköpostilaskua, koska lasku liitettiin jo tilausvahvistukseen", "laskuhari") );
                 $send = false;
             }
         }
@@ -4253,7 +4253,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         ), 'warning' );
 
         return array(
-            "notice" => urlencode( __( "Laskun lähetys estetty" ) )
+            "notice" => urlencode( __( "Laskun lähetys estetty", "laskuhari" ) )
         );
     }
 

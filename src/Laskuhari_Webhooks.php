@@ -61,7 +61,7 @@ class Laskuhari_Webhooks
         }
 
         if( $this->gateway->demotila ) {
-            wp_send_json_error( __( "Demotunnuksilla ei voi lisätä webhookeja" ) );
+            wp_send_json_error( __( "Demotunnuksilla ei voi lisätä webhookeja", "laskuhari" ) );
         }
 
         $callback_url = $this->get_callback_url();
@@ -119,7 +119,7 @@ class Laskuhari_Webhooks
         }
 
         if( $this->gateway->demotila ) {
-            wp_send_json_error( __( "Demotunnuksilla ei voi poistaa webhookeja" ) );
+            wp_send_json_error( __( "Demotunnuksilla ei voi poistaa webhookeja", "laskuhari" ) );
         }
 
         $api_url = "https://" . laskuhari_domain() . "/rest-api/webhooks/";

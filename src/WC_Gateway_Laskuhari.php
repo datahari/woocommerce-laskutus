@@ -1523,7 +1523,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $success = true;
 
         if( empty( $laskutustapa ) ) {
-            wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa' ), 'error' );
+            wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa', 'laskuhari' ), 'error' );
             $success = false;
         } else {
             $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
