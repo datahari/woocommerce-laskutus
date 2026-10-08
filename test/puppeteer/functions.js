@@ -314,11 +314,8 @@ exports.add_product_to_order = async function( page, product_name, quantity = 1 
     await page.click( ".button.add-order-item" );
     await exports.sleep( 400 );
 
-    // click "Search for a product"
-    await page.hover( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 200 );
-    await page.click( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 700 );
+    // wait for product search to open
+    await page.waitForSelector( ".select2-container .select2-search__field[aria-expanded=true]" );
 
     // input search keyword
     await page.click( ".select2-container .select2-search__field[aria-expanded=true]" );
