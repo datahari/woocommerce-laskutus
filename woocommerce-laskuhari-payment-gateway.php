@@ -250,6 +250,13 @@ function laskuhari_json_flag() {
     return JSON_INVALID_UTF8_SUBSTITUTE;
 }
 
+/**
+ * Add payment terms of Laskuhari invoice to payment method title in order listing
+ *
+ * @param string $title
+ * @param WC_Order $order
+ * @return void
+ */
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
     $is_laskuhari_order = $order->get_payment_method() === "laskuhari";
     if( is_admin() && $is_laskuhari_order && $payment_terms_name = $order->get_meta( '_laskuhari_payment_terms_name', true ) ) {
