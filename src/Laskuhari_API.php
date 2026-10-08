@@ -11,8 +11,6 @@
 
 namespace Laskuhari;
 
-use WC_Order;
-
 defined( 'ABSPATH' ) || exit;
 
 class Laskuhari_API
