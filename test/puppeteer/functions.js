@@ -59,7 +59,6 @@ exports.check_invoice_row_amounts = async function( page, order_id, correct_rows
 }
 
 exports.logout = async function( page ) {
-    await page.waitForNetworkIdle();
     await page.waitForSelector("#wp-admin-bar-logout a");
     await page.evaluate( function() {
         location.href = jQuery("#wp-admin-bar-logout a").attr("href");
