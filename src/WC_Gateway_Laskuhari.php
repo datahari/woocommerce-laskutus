@@ -590,7 +590,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
         }
 
-        $order_id = $order?->get_id();
+        $order_id = $order ? $order->get_id() : null;
 
         /** @var string $email_method_text */
         $email_method_text = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );

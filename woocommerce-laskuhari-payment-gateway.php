@@ -1949,20 +1949,27 @@ function laskuhari_order_payment_status( $order ) {
 }
 
 
-// Luo metaboxin HTML
-
+/**
+ * Render Laskuhari order metabox
+ *
+ * @param WP_Post|WC_Order $post
+ *
+ * @return void
+ */
 function laskuhari_metabox_html( $post ) {
     if( ! is_admin() ) {
-        return false;
+        return;
+    }
+
+    $order = is_a( $post, WC_Order::class )
+         ? $post
+         : laskuhari_get_wc_order( $post->ID ?? 0, __FUNCTION__ );
+
+    if( ! $order ) {
+        return;
     }
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
-
-    $order = laskuhari_get_wc_order( $post->get_id(), __FUNCTION__ );
-
-    if( ! $order ) {
-        return false;
-    }
 
     $tiladata    = laskuhari_invoice_status( $order );
     $tila        = $tiladata['tila'];
