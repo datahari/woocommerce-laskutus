@@ -1378,7 +1378,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function process_payment( $order_id ) {
         $transient_name = "laskuhari_processing_payment_" . $order_id;
 
-        if( laskuhari_get_transient( $transient_name ) === "yes" ) {
+        if( get_transient( $transient_name ) === "yes" ) {
             Logger::enabled( 'warning' ) && Logger::log( sprintf(
                 'Laskuhari: Not processing Laskuhari payment again while transient active, order %d',
                 $order_id
