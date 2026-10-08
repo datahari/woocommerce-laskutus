@@ -33,6 +33,8 @@ defined( 'ABSPATH' ) || exit;
 
 require_once dirname( __FILE__ ) . '/autoload.php';
 
+laskuhari_maybe_enable_query_limit();
+
 Laskuhari_Plugin_Updater::init();
 Laskuhari_Troubleshooter::register_endpoint();
 Laskuhari_Uninstall::register_uninstall_hook( __FILE__ );
@@ -160,6 +162,37 @@ function laskuhari_payment_gateway_load() {
 
 function laskuhari_get_gateway_object() {
     return WC_Gateway_Laskuhari::get_instance();
+}
+
+/**
+ * Enable SQL query limit for testing excess SQL queries if
+ * `LASKUHARI_QUERY_LIMIT` environment variable is set
+ *
+ * @return void
+ */
+function laskuhari_maybe_enable_query_limit() {
+    $limit = intval( getenv( 'LASKUHARI_QUERY_LIMIT' ) ?: 0 );
+
+    if( $limit <= 0 ) {
+        return;
+    }
+
+    add_filter( 'query', function( $query ) use( $limit ) {
+        static $query_count = 0;
+
+        $query_count++;
+
+        if( $query_count > $limit ) {
+            echo '
+                <div style="background: red; position: fixed; top: 0; left: 0; width: 100%; height: 100%; text-align: center; font-size: 30px; color: #fff; z-index: 999999; padding-top: 200px;">
+                    Query limit exceeded: ' . $query_count . ' / ' . $limit . '
+                </div>
+            ';
+            exit;
+        }
+
+        return $query;
+    }, PHP_INT_MAX );
 }
 
 /**
