@@ -1930,6 +1930,9 @@ function laskuhari_invoice_status( $order_id ) {
     $lahetetty   = $order->get_meta( '_laskuhari_sent', true ) === "yes";
     $queued      = $order->get_meta( '_laskuhari_queued', true ) === "yes";
 
+    $data["laskunumero"] = $laskunumero;
+    $data["lahetetty"]   = $lahetetty;
+
     if( $laskunumero > "0" ) {
         $data["lasku_luotu"] = true;
         $data["tila"]        = "LASKU LUOTU";
