@@ -1174,7 +1174,8 @@ function laskuhari_product_synced( $product, $set = null ) {
     }
 
     if( $set !== null ) {
-        update_post_meta( $product->get_id(), '_laskuhari_synced', $set );
+        $product->update_meta_data( '_laskuhari_synced', $set );
+        $product->save_meta_data();
         return $set;
     }
 
