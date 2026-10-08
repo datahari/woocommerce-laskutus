@@ -2659,7 +2659,7 @@ function laskuhari_update_payment_status( $order_id, $status_code, $status_name,
             $order_id
         ), 'error' );
 
-        return false;
+        return;
     }
 
     $old_status = $order->get_meta( '_laskuhari_payment_status', true );
