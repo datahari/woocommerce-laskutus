@@ -1,5 +1,7 @@
 const config = require( "./config.js" );
 
+let wc_orders_url = "/wp-admin/admin.php?page=wc-orders&action=edit&id=";
+
 exports.accept_dialog = dialog => {
     dialog.accept("1.43");
 };
@@ -29,7 +31,7 @@ exports.open_settings = async function( page ) {
 }
 
 exports.check_invoice_amounts = async function( page, order_id, excl_tax, tax, incl_tax ) {
-    await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-orders&action=edit&id="+order_id+"&laskuhari_action=get_amount_data" );
+    await page.goto( config.wordpress_url+wc_orders_url+order_id+"&laskuhari_action=get_amount_data" );
     await page.waitForSelector( "pre" );
 
     const data = await page.evaluate(() => {
@@ -42,7 +44,7 @@ exports.check_invoice_amounts = async function( page, order_id, excl_tax, tax, i
 }
 
 exports.check_invoice_row_amounts = async function( page, order_id, correct_rows ) {
-    await page.goto( config.wordpress_url+"/wp-admin/admin.php?page=wc-orders&action=edit&id="+order_id+"&laskuhari_action=get_invoice_data" );
+    await page.goto( config.wordpress_url+wc_orders_url+order_id+"&laskuhari_action=get_invoice_data" );
     await page.waitForSelector( "pre" );
 
     const data = await page.evaluate(() => {
@@ -216,8 +218,13 @@ exports.grab_order_id = async function( page ) {
  */
 exports.get_order_id = async function( page ) {
     const url = page.url();
-    const order_id = url.match( /id=([0-9]+)/ )[1];
-    return order_id;
+    const parts = url.match( /(id|post)=([0-9]+)/ );
+
+    if( parts[0] === "post" ) {
+        wc_orders_url = "/wp-admin/post.php?action=edit&post=";
+    }
+
+    return parts[2];
 }
 
 exports.open_order_page = async function( page ) {
