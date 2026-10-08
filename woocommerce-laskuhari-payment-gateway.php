@@ -183,11 +183,17 @@ function laskuhari_maybe_enable_query_limit() {
         $query_count++;
 
         if( $query_count > $limit ) {
+            $query_error = 'Query limit exceeded: ' . $query_count . ' / ' . $limit;
+
+            error_log( $query_error );
+
             echo '
                 <div style="background: red; position: fixed; top: 0; left: 0; width: 100%; height: 100%; text-align: center; font-size: 30px; color: #fff; z-index: 999999; padding-top: 200px;">
-                    Query limit exceeded: ' . $query_count . ' / ' . $limit . '
+                    ' . $query_error . '
                 </div>
             ';
+
+            http_response_code( 500 );
             exit;
         }
 
