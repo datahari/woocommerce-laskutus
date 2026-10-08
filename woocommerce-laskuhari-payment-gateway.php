@@ -1618,7 +1618,7 @@ function laskuhari_reset_order_metadata( $order ) {
  * @param string $meta_key
  * @param mixed $meta_value
  * @param bool $update_user_meta
- * @return bool
+ * @return void
  */
 function laskuhari_set_order_meta( $order, $meta_key, $meta_value, $update_user_meta = false ) {
     // update order meta
