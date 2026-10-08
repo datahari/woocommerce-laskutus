@@ -173,7 +173,7 @@ function laskuhari_get_gateway_object() {
 function laskuhari_maybe_enable_query_limit() {
     $limit = intval( getenv( 'LASKUHARI_QUERY_LIMIT' ) ?: 0 );
 
-    if( $limit <= 0 ) {
+    if( $limit <= 0 || $_SERVER['REQUEST_METHOD'] !== 'GET' ) {
         return;
     }
 
