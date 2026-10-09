@@ -88,7 +88,7 @@ class Laskuhari_API_Test extends \PHPUnit\Framework\TestCase
                     "reference_number" => "12303216",
                     "external" => [
                         "system" => "woocommerce",
-                        "order_id" => 3421,
+                        "order_id" => $this->get_config()['laskuhari_api']['wc_order_id'],
                     ],
                 ],
             ],

@@ -571,27 +571,26 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the invoicing method selection form
      *
-     * @param ?int $order_id
+     * @param ?WC_Order $order
      * @return void
      */
-    public function lahetystapa_lomake( $order_id = null ) {
-        $laskutustapa = (string) get_laskuhari_meta( $order_id, '_laskuhari_laskutustapa' );
-        $valittaja = (string) get_laskuhari_meta( $order_id, '_laskuhari_valittaja' );
-        $verkkolaskuosoite = (string) get_laskuhari_meta( $order_id, '_laskuhari_verkkolaskuosoite' );
-        $ytunnus = (string) get_laskuhari_meta( $order_id, '_laskuhari_ytunnus' );
-        $email = (string) get_laskuhari_meta( $order_id, '_laskuhari_email' );
+    public function lahetystapa_lomake( $order = null ) {
+        $laskutustapa = (string) get_laskuhari_meta( $order, '_laskuhari_laskutustapa' );
+        $valittaja = (string) get_laskuhari_meta( $order, '_laskuhari_valittaja' );
+        $verkkolaskuosoite = (string) get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' );
+        $ytunnus = (string) get_laskuhari_meta( $order, '_laskuhari_ytunnus' );
+        $email = (string) get_laskuhari_meta( $order, '_laskuhari_email' );
 
         $user_email = "";
-        if( $order_id ) {
-            $order = wc_get_order( $order_id );
-            if( $order instanceof WC_Order ) {
-                $user_email = $order->get_billing_email();
-            }
+        if( $order ) {
+            $user_email = $order->get_billing_email();
         } else {
             if( ! is_admin() ) {
                 $user_email = (string) get_user_meta( get_current_user_id(), "billing_email", true ); // @phpstan-ignore-line
             }
         }
+
+        $order_id = $order ? $order->get_id() : null;
 
         /** @var string $email_method_text */
         $email_method_text = apply_filters( "laskuhari_email_method_text", __( "Sähköposti", "laskuhari" ), $order_id );
@@ -716,13 +715,13 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     /**
      * Print the reference text field
      *
-     * @param ?int $order_id
+     * @param ?WC_Order $order
      * @return void
      */
-    public function viitteenne_lomake( $order_id = null ) {
+    public function viitteenne_lomake( $order = null ) {
         if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_viitteenne" ) ) {
             /** @var string $viitteenne */
-            $viitteenne = get_laskuhari_meta( $order_id, '_laskuhari_viitteenne' );
+            $viitteenne = get_laskuhari_meta( $order, '_laskuhari_viitteenne' );
             ?>
             <div class="laskuhari-caption"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</div>
             <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
@@ -802,7 +801,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                             if( ! isset( $location->code ) ) {
                                 continue;
                             }
-                            $method_title .= $p.$location->code;
+                            $method_title .= $p.($location->code ?? "");
 
                             // list only 5 locations max
                             if( $n >= 5 ) {
@@ -1378,7 +1377,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     public function process_payment( $order_id ) {
         $transient_name = "laskuhari_processing_payment_" . $order_id;
 
-        if( laskuhari_get_transient( $transient_name ) === "yes" ) {
+        if( get_transient( $transient_name ) === "yes" ) {
             Logger::enabled( 'warning' ) && Logger::log( sprintf(
                 'Laskuhari: Not processing Laskuhari payment again while transient active, order %d',
                 $order_id
@@ -1536,10 +1535,10 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
             }
 
             if( $laskutustapa === "verkkolasku" ) {
-                try {
-                    $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
-                    $valittaja = (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
+                $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
+                $valittaja = (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
 
+                try {
                     FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
                 } catch( FinvoiceException $e ) {
                     wc_add_notice( sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ), 'error' );

@@ -59,7 +59,6 @@ exports.check_invoice_row_amounts = async function( page, order_id, correct_rows
 }
 
 exports.logout = async function( page ) {
-    await page.waitForNetworkIdle();
     await page.waitForSelector("#wp-admin-bar-logout a");
     await page.evaluate( function() {
         location.href = jQuery("#wp-admin-bar-logout a").attr("href");
@@ -159,7 +158,6 @@ exports.wait_for_loading = async function( page ) {
     await page.waitForFunction( function() {
         return !jQuery( ".blockOverlay" ).is( ":visible" ) && !jQuery(":animated").length;
     } );
-    await page.waitForNetworkIdle({timeout: 60000});
     await exports.sleep( 500 );
 }
 
@@ -216,8 +214,7 @@ exports.grab_order_id = async function( page ) {
  */
 exports.get_order_id = async function( page ) {
     const url = page.url();
-    const order_id = url.match( /id=([0-9]+)/ )[1];
-    return order_id;
+    return url.match( /(id|post)=([0-9]+)/ )[2];
 }
 
 exports.open_order_page = async function( page ) {
@@ -314,11 +311,8 @@ exports.add_product_to_order = async function( page, product_name, quantity = 1 
     await page.click( ".button.add-order-item" );
     await exports.sleep( 400 );
 
-    // click "Search for a product"
-    await page.hover( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 200 );
-    await page.click( ".wc-backbone-modal-content .select2-selection--single" );
-    await exports.sleep( 700 );
+    // wait for product search to open
+    await page.waitForSelector( ".select2-container .select2-search__field[aria-expanded=true]" );
 
     // input search keyword
     await page.click( ".select2-container .select2-search__field[aria-expanded=true]" );

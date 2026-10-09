@@ -401,7 +401,14 @@ class Laskuhari_API
                     exit;
                 }
 
-                $invoice_number = laskuhari_invoice_number_by_order( (int) $wc_order_id );
+                $order = laskuhari_get_wc_order( intval( $wc_order_id ), __FUNCTION__ );
+
+                if( ! $order ) {
+                    $this->response_ok( "Order not found" );
+                    exit;
+                }
+
+                $invoice_number = laskuhari_invoice_number_by_order( $order );
 
                 // if invoice number doesn't match, dont update status
                 if( (string) $webhook_invoice_number !== (string) $invoice_number ) {
@@ -409,7 +416,7 @@ class Laskuhari_API
                 }
 
                 laskuhari_update_payment_status(
-                    intval( $wc_order_id ),
+                    $order,
                     ( $invoice['is_paid'] ?? false ) ? 1 : 0,
                     strval( $status['name'] ?? "" ),
                     strval( $status['id'] ?? "" )
@@ -435,8 +442,17 @@ class Laskuhari_API
                 exit;
             }
 
-            $invoice_number = laskuhari_invoice_number_by_order( (int) $this->request_json['wc_order_id'] );
-            $invoice_id     = laskuhari_invoice_id_by_order( (int) $this->request_json['wc_order_id'] );
+            $wc_order_id = intval( $this->request_json['wc_order_id'] );
+
+            $order = laskuhari_get_wc_order( $wc_order_id, __FUNCTION__ );
+
+            if( ! $order ) {
+                $this->response_ok( "Order not found" );
+                exit;
+            }
+
+            $invoice_number = laskuhari_invoice_number_by_order( $order );
+            $invoice_id     = laskuhari_invoice_id_by_order( $order );
 
             // if invoice id or number doesn't match, dont update status
             if( $this->request_json['invoice_id'] != $invoice_id || $this->request_json['invoice_number'] != $invoice_number ) {
@@ -444,7 +460,7 @@ class Laskuhari_API
             }
 
             laskuhari_update_payment_status(
-                $this->request_json['wc_order_id'],
+                $order,
                 $status['code'],
                 $status['name'],
                 $status['id']
