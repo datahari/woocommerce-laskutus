@@ -158,7 +158,6 @@ exports.wait_for_loading = async function( page ) {
     await page.waitForFunction( function() {
         return !jQuery( ".blockOverlay" ).is( ":visible" ) && !jQuery(":animated").length;
     } );
-    await page.waitForNetworkIdle({timeout: 60000});
     await exports.sleep( 500 );
 }
 
