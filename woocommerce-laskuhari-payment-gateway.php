@@ -592,6 +592,7 @@ function laskuhari_operators() {
             "003723327487"    => "Apix Messaging Oy (003723327487)",
             "APPER"           => "Apper Systems AB (APPER)",
             "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
+            "003703575029_"   => "CGI (003703575029)", // NOTE: Duplicate of Telia for better UX.
             "5909000716438"   => "Comarch (5909000716438)",
             "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
             "ROUTTY"          => "Dynatos (ROUTTY)",
@@ -607,7 +608,7 @@ function laskuhari_operators() {
             "FI28768767"      => "Posti Messaging Oy (FI28768767)",
             "003701150617"    => "PostNord Strålfors Oy (003701150617)",
             "003714377140"    => "Ropo Suomi Oy (003714377140)",
-            "003703575029"    => "Telia / CGI (003703575029)",
+            "003703575029"    => "Telia (003703575029)",
             "003701011385"    => "TietoEvry Oyj (003701011385)",
             "885060259470028" => "Tradeshift (885060259470028)",
             "003722207029"    => "Ålands Post Ab (003722207029)"
@@ -626,6 +627,18 @@ function laskuhari_operators() {
             "AABAFI22"        => "Ålandsbanken (AABAFI22)"
         ]
     ] );
+}
+
+/**
+ * Format toIntermediator (strip off underscore, that is used
+ * for allowing duplicate operator codes with different name)
+ *
+ * @param string $valittaja
+ *
+ * @return string
+ */
+function laskuhari_valittaja_format( $valittaja ) {
+    return trim( trim( $valittaja ), "_" );
 }
 
 function laskuhari_user_meta( $user_id = null ) {
@@ -3738,7 +3751,7 @@ function laskuhari_process_action(
     $viitteenne        = get_laskuhari_meta( $order, '_laskuhari_viitteenne' );
     $ytunnus           = get_laskuhari_meta( $order, '_laskuhari_ytunnus' );
     $verkkolaskuosoite = get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' );
-    $valittaja         = get_laskuhari_meta( $order, '_laskuhari_valittaja' );
+    $valittaja         = laskuhari_valittaja_format( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
 
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
         $maksuehto = intval( $_REQUEST['laskuhari-maksuehto'] );
@@ -4425,7 +4438,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     if( $send_method == "verkkolasku" ) {
         $verkkolaskuosoite = trim( get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' ) );
-        $valittaja         = trim( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
+        $valittaja         = laskuhari_valittaja_format( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
         $ytunnus           = trim( get_laskuhari_meta( $order, '_laskuhari_ytunnus' ) );
 
         try {
