@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed improper order meta handling that caused slowness in the order list view due to an excess number of SQL queries
+- Fixed detection of Laskuhari invoicing meta fields from checkout form fields
 
 ## [1.17.0] 2026-09-01
 
