@@ -1746,10 +1746,9 @@ function get_laskuhari_meta( $order, $meta_key ) {
  * @param ?int $user_id
  * @param string $meta_key
  * @param ?array $fields Fields to use for searching meta (null = use current user meta)
- * @param bool $allow_empty Return alternative meta key even if its value in $fields is empty
  * @return string
  */
-function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_empty = true ) {
+function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null ) {
     /**
      * For compatibility with WooCommerce Address Book plugin
      * (https://wordpress.org/plugins/woo-address-book/)
@@ -1779,6 +1778,27 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_emp
         return $address_book_prefix.$meta_key;
     }
 
+    $fields = $fields ?? get_user_meta( $user_id );
+
+    $meta_key = laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) ?? $meta_key;
+
+    $meta_key = apply_filters( "laskuhari_get_meta_key", $meta_key, $user_id );
+
+    /**
+     * If no alternative fields were found, return the original key
+     */
+    return $meta_key;
+}
+
+/**
+ * Resolve a custom meta key from an array of fields
+ *
+ * @param string $meta_key
+ * @param array<string, mixed> $fields
+ *
+ * @return ?string
+ */
+function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
     /**
      * Support for getting invoicing details meta from the order form
      *
@@ -1791,8 +1811,6 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_emp
     $alternative_meta = laskuhari_alternative_meta_fields();
 
     if( array_key_exists( $meta_key, $alternative_meta ) ) {
-        $fields = $fields ?? get_user_meta( $user_id );
-
         foreach( $alternative_meta[$meta_key] as $alt_meta ) {
             foreach( $fields as $field_name => $field_value ) {
                 if( is_array( $field_value ) ) {
@@ -1804,21 +1822,13 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null, $allow_emp
                     $alt_meta,
                     "billing_".$alt_meta,
                 ] ) ) {
-                    if( $allow_empty || ! empty( $field_value ) ) {
-                        $meta_key = $field_name;
-                        break 2;
-                    }
+                    return $field_name;
                 }
             }
         }
     }
 
-    $meta_key = apply_filters( "laskuhari_get_meta_key", $meta_key, $user_id );
-
-    /**
-     * If no alternative fields were found, return the original key
-     */
-    return $meta_key;
+    return null;
 }
 
 /**
@@ -1852,17 +1862,13 @@ function laskuhari_order_form_has_meta( $meta_key, $field_data = null ) {
 
     $checkout_fields = [];
 
-    foreach( $field_data as $type => $fields ) {
+    foreach( $field_data as $_type => $fields ) {
         foreach( $fields as $field_name => $field_settings ) {
             $checkout_fields[$field_name] = $field_settings["default"] ?? "";
         }
     }
 
-    $user_id = get_current_user_id();
-
-    $field_key = get_laskuhari_meta_key( $user_id, $meta_key, $checkout_fields );
-
-    return $field_key !== $meta_key;
+    return (bool) laskuhari_resolve_alternative_meta_key( $meta_key, $checkout_fields );
 }
 
 // Luo meta-laatikko Laskuharin toiminnoille tilauksen sivulle
