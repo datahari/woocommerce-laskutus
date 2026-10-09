@@ -216,7 +216,7 @@ function laskuhari_json_flag() {
  *
  * @param string $title
  * @param WC_Order $order
- * @return void
+ * @return string
  */
 function laskuhari_add_payment_terms_to_payment_method_title( $title, $order ) {
     $is_laskuhari_order = $order->get_payment_method() === "laskuhari";
@@ -2542,7 +2542,7 @@ function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
  *
  * @param WC_Order $order
  * @param ?int $invoice_id
- * @return void
+ * @return array|false
  */
 function laskuhari_get_invoice_payment_status( $order, $invoice_id = null ) {
     if ( null === $invoice_id ) {
@@ -2559,7 +2559,7 @@ function laskuhari_get_invoice_payment_status( $order, $invoice_id = null ) {
             $order->get_id()
         ), 'error' );
 
-        return;
+        return false;
     }
 
     if( $response['status'] === "OK" ) {
