@@ -1357,18 +1357,18 @@ function laskuhari_add_column_to_order_list( $columns ) {
  * @return void
  */
 function laskuhari_add_invoice_status_to_custom_order_list_column( $column, $order = null ) {
-    if( ! is_a( $order, WC_Order::class ) ) {
-        // Legacy: Before HPOS, $order was not set
-        global $post;
-        $order_id = $post->ID ?? 0;
-        $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
-
-        if( ! $order ) {
-            return;
-        }
-    }
-
     if( 'laskuhari' === $column ) {
+        if( ! is_a( $order, WC_Order::class ) ) {
+            // Legacy: Before HPOS, $order was not set
+            global $post;
+            $order_id = $post->ID ?? 0;
+            $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
+
+            if( ! $order ) {
+                return;
+            }
+        }
+
         $data = laskuhari_invoice_status( $order );
         if( $data['tila'] == "LASKUTETTU" ) {
             $status = "processing";
