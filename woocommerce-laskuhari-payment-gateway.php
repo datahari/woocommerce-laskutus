@@ -1106,13 +1106,19 @@ function laskuhari_create_product( $product, $update = false ) {
     $vat = $price["vat"];
     $prices_include_tax = $price["prices_include_tax"];
 
+    if( method_exists( $product, "get_global_unique_id" ) ) {
+        $barcode = $product->get_global_unique_id();
+    } else {
+        $barcode = "";
+    }
+
     $payload = [
         "koodi" => $product->get_sku(),
         "nimike" => $product->get_name(),
         "ylatuote" => 0,
         "viivakoodi" => [
-            "tyyppi" => "",
-            "koodi" => ""
+            "tyyppi" => "AUTO",
+            "koodi" => $barcode
         ],
         "kommentti" => "",
         "ostohinta" => [
