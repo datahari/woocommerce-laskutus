@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Telia and CGI are now listed as separate einvoice operators even though they have the same operator code
+- Product sync and product export REST API sends variation SKU only if specifically set on variation to avoid overwriting existing products
 
 ### Added
 
