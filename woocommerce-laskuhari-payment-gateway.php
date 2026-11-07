@@ -2546,23 +2546,6 @@ function laskuhari_invoice_number_by_order( $order ) {
 }
 
 /**
- * Gets invoice ID by invoice number via API
- *
- * @param string $invoice_number
- * @return int|false Invoice ID or false on failure
- */
-function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_number . "/get-id-by-number";
-    $response = laskuhari_api_request( array(), $api_url, "Get ID by number" );
-
-    if( false === $response ) {
-        return false;
-    }
-
-    return intval( $response['invoice_id'] );
-}
-
-/**
  * Fetch and update invoice payment status from Laskuhari
  *
  * @param WC_Order $order
@@ -2761,20 +2744,7 @@ function laskuhari_get_payment_terms( $force = false ) {
  * @return int|false Invoice ID or false on failure
  */
 function laskuhari_invoice_id_by_order( $order ) {
-    $invoice_id = $order->get_meta( '_laskuhari_invoice_id', true );
-
-    if( ! $invoice_id ) {
-        $invoice_number = laskuhari_invoice_number_by_order( $order );
-        $invoice_id = laskuhari_invoice_id_by_invoice_number( $invoice_number );
-
-        if( false === $invoice_id ) {
-            return false;
-        }
-
-        laskuhari_set_order_meta( $order, '_laskuhari_invoice_id', $invoice_id );
-    }
-
-    return $invoice_id;
+    return $order->get_meta( '_laskuhari_invoice_id', true );
 }
 
 /**
