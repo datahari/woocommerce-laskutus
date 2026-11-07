@@ -40,7 +40,17 @@ class Laskuhari_My_Account_Orders
             "order_id" => $order->get_id(),
         ], admin_url( "admin-post.php" ) );
 
-        return wp_nonce_url( $url, "laskuhari_download_order_invoice_" . $order->get_id() );
+        $url = wp_nonce_url( $url, "laskuhari_download_order_invoice_" . $order->get_id() );
+
+        /**
+         * A filter to customize the invoice download URL
+         *
+         * @param string $url The invoice download URL
+         * @param WC_Order $order The WC_Order object in question
+         */
+        $url = apply_filters( "laskuhari_download_order_invoice_url", $url, $order );
+
+        return $url;
     }
 
     /**
@@ -48,15 +58,37 @@ class Laskuhari_My_Account_Orders
      */
     protected function add_invoice_download_action_button(): void {
         add_filter( "woocommerce_my_account_my_orders_actions", function( array $actions, WC_Order $order ) {
+            /**
+             * Filters whether the download invoice action button is shown for an order.
+             *
+             * @param bool $show_button Whether to show the button.
+             * @param WC_Order $order The current order.
+             * @param array<string, array<string, string>> $actions Existing actions.
+             */
+            $show_button = (bool) apply_filters( "laskuhari_show_download_order_invoice_button", true, $order, $actions );
+
+            if( ! $show_button ) {
+                return $actions;
+            }
+
             $invoice_id = laskuhari_invoice_id_by_order( $order );
 
             if( ! $invoice_id ) {
                 return $actions;
             }
 
+            /**
+             * Filters the button label for the My Account invoice download action.
+             *
+             * @param string $label The button label.
+             * @param WC_Order $order The current order.
+             * @param array<string, array<string, string>> $actions Existing actions.
+             */
+            $label = (string) apply_filters( "laskuhari_download_order_invoice_button_label", __( "Lataa lasku", "laskuhari" ), $order, $actions );
+
             $actions["laskuhari-download-order-invoice"] = [
                 "url" => $this->get_invoice_download_url( $order ),
-                "name" => __( "Lataa lasku", "laskuhari" ),
+                "name" => $label,
             ];
 
             return $actions;
@@ -73,6 +105,17 @@ class Laskuhari_My_Account_Orders
             check_admin_referer( "laskuhari_download_order_invoice_" . $order_id );
 
             $order = laskuhari_get_wc_order( $order_id, "downloading account order invoice" );
+
+            /**
+             * Fires before handling My Account invoice download action.
+             *
+             * Callbacks may stop execution (e.g. wp_die / wp_redirect + exit)
+             * to fully override the default behavior.
+             *
+             * @param int $order_id The order ID from the request.
+             * @param ?WC_Order $order The resolved order object, or null if not found.
+             */
+            do_action( "laskuhari_before_download_order_invoice", $order_id, $order );
 
             if( ! $order || (int) $order->get_customer_id() !== get_current_user_id() ) {
                 wp_die( __( "Sinulla ei ole oikeutta tähän toimintoon", "laskuhari" ), "", [ "response" => 403 ] );
