@@ -158,6 +158,12 @@ class Laskuhari_Export_Products_REST_API
                 continue;
             }
 
+            if( method_exists( $product, "get_global_unique_id" ) ) {
+                $barcode = $product->get_global_unique_id();
+            } else {
+                $barcode = "";
+            }
+
             $product_data = [
                 'id'                 => $product->get_id(),
                 'name'               => $product->get_name(),
@@ -167,6 +173,7 @@ class Laskuhari_Export_Products_REST_API
                 'downloadable'       => $product->is_downloadable(),
                 'virtual'            => $product->is_virtual(),
                 'sku'                => $product->get_sku(),
+                'global_unique_id'   => $barcode,
                 'price'              => $product->get_price(),
                 'regular_price'      => $product->get_regular_price(),
                 'sale_price'         => $product->get_sale_price() ? $product->get_sale_price() : null,
