@@ -1536,7 +1536,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
             if( $laskutustapa === "verkkolasku" ) {
                 $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
-                $valittaja = (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" );
+                $valittaja = laskuhari_valittaja_format( (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" ) );
 
                 try {
                     FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );

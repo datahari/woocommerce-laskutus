@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.17.1
+Version: 1.18.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -21,6 +21,7 @@ use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Invoicing_Details_Endpoint;
+use Laskuhari\Laskuhari_My_Account_Orders;
 use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
@@ -60,6 +61,9 @@ function laskuhari_payment_gateway_load() {
 
     $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
     $webhooks->register_endpoints();
+
+    $my_account_orders = new Laskuhari_My_Account_Orders();
+    $my_account_orders->register_hooks();
 
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
     add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
@@ -592,6 +596,7 @@ function laskuhari_operators() {
             "003723327487"    => "Apix Messaging Oy (003723327487)",
             "APPER"           => "Apper Systems AB (APPER)",
             "BAWCFI22"        => "Basware Oyj (BAWCFI22)",
+            "003703575029_"   => "CGI (003703575029)", // NOTE: Duplicate of Telia for better UX.
             "5909000716438"   => "Comarch (5909000716438)",
             "CREDIFLOW"       => "Crediflow AB (CREDIFLOW)",
             "ROUTTY"          => "Dynatos (ROUTTY)",
@@ -607,7 +612,7 @@ function laskuhari_operators() {
             "FI28768767"      => "Posti Messaging Oy (FI28768767)",
             "003701150617"    => "PostNord Strålfors Oy (003701150617)",
             "003714377140"    => "Ropo Suomi Oy (003714377140)",
-            "003703575029"    => "Telia / CGI (003703575029)",
+            "003703575029"    => "Telia (003703575029)",
             "003701011385"    => "TietoEvry Oyj (003701011385)",
             "885060259470028" => "Tradeshift (885060259470028)",
             "003722207029"    => "Ålands Post Ab (003722207029)"
@@ -626,6 +631,18 @@ function laskuhari_operators() {
             "AABAFI22"        => "Ålandsbanken (AABAFI22)"
         ]
     ] );
+}
+
+/**
+ * Format toIntermediator (strip off underscore, that is used
+ * for allowing duplicate operator codes with different name)
+ *
+ * @param string $valittaja
+ *
+ * @return string
+ */
+function laskuhari_valittaja_format( $valittaja ) {
+    return trim( trim( $valittaja ), "_" );
 }
 
 function laskuhari_user_meta( $user_id = null ) {
@@ -1093,13 +1110,25 @@ function laskuhari_create_product( $product, $update = false ) {
     $vat = $price["vat"];
     $prices_include_tax = $price["prices_include_tax"];
 
+    if( method_exists( $product, "get_global_unique_id" ) ) {
+        $barcode = $product->get_global_unique_id();
+    } else {
+        $barcode = "";
+    }
+
+    // Laskuhari does not allow duplicate product codes. WooCommerce
+    // uses the parent product SKU for variations if a specific
+    // SKU is not set on the variation. We get only the SKU
+    // specifically set for the product to avoid duplicates.
+    $sku = $product->get_sku( "edit" );
+
     $payload = [
-        "koodi" => $product->get_sku(),
+        "koodi" => $sku,
         "nimike" => $product->get_name(),
         "ylatuote" => 0,
         "viivakoodi" => [
-            "tyyppi" => "",
-            "koodi" => ""
+            "tyyppi" => "AUTO",
+            "koodi" => $barcode
         ],
         "kommentti" => "",
         "ostohinta" => [
@@ -2527,23 +2556,6 @@ function laskuhari_invoice_number_by_order( $order ) {
 }
 
 /**
- * Gets invoice ID by invoice number via API
- *
- * @param string $invoice_number
- * @return int|false Invoice ID or false on failure
- */
-function laskuhari_invoice_id_by_invoice_number( $invoice_number ) {
-    $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_number . "/get-id-by-number";
-    $response = laskuhari_api_request( array(), $api_url, "Get ID by number" );
-
-    if( false === $response ) {
-        return false;
-    }
-
-    return intval( $response['invoice_id'] );
-}
-
-/**
  * Fetch and update invoice payment status from Laskuhari
  *
  * @param WC_Order $order
@@ -2742,20 +2754,7 @@ function laskuhari_get_payment_terms( $force = false ) {
  * @return int|false Invoice ID or false on failure
  */
 function laskuhari_invoice_id_by_order( $order ) {
-    $invoice_id = $order->get_meta( '_laskuhari_invoice_id', true );
-
-    if( ! $invoice_id ) {
-        $invoice_number = laskuhari_invoice_number_by_order( $order );
-        $invoice_id = laskuhari_invoice_id_by_invoice_number( $invoice_number );
-
-        if( false === $invoice_id ) {
-            return false;
-        }
-
-        laskuhari_set_order_meta( $order, '_laskuhari_invoice_id', $invoice_id );
-    }
-
-    return $invoice_id;
+    return $order->get_meta( '_laskuhari_invoice_id', true );
 }
 
 /**
@@ -3738,7 +3737,7 @@ function laskuhari_process_action(
     $viitteenne        = get_laskuhari_meta( $order, '_laskuhari_viitteenne' );
     $ytunnus           = get_laskuhari_meta( $order, '_laskuhari_ytunnus' );
     $verkkolaskuosoite = get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' );
-    $valittaja         = get_laskuhari_meta( $order, '_laskuhari_valittaja' );
+    $valittaja         = laskuhari_valittaja_format( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
 
     if( isset( $_REQUEST['laskuhari-maksuehto'] ) && is_admin() ) {
         $maksuehto = intval( $_REQUEST['laskuhari-maksuehto'] );
@@ -4425,7 +4424,7 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
 
     if( $send_method == "verkkolasku" ) {
         $verkkolaskuosoite = trim( get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' ) );
-        $valittaja         = trim( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
+        $valittaja         = laskuhari_valittaja_format( get_laskuhari_meta( $order, '_laskuhari_valittaja' ) );
         $ytunnus           = trim( get_laskuhari_meta( $order, '_laskuhari_ytunnus' ) );
 
         try {
