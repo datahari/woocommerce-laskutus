@@ -167,6 +167,12 @@ let laskuhari_viime_laskutustapa = "";
             laskuhari_changed_send_method();
         }
 
+        // Make My Account > Orders invoice download link open in new window
+        document.querySelectorAll( "a.laskuhari-download-order-invoice" ).forEach( link => {
+            link.setAttribute( "target", "_blank" );
+            link.setAttribute( "rel", "noopener noreferrer" );
+        } );
+
         init_select2();
     });
 })(jQuery);

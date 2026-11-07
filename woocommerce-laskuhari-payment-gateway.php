@@ -21,6 +21,7 @@ use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_API;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Invoicing_Details_Endpoint;
+use Laskuhari\Laskuhari_My_Account_Orders;
 use Laskuhari\Laskuhari_Nonce;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
@@ -60,6 +61,9 @@ function laskuhari_payment_gateway_load() {
 
     $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
     $webhooks->register_endpoints();
+
+    $my_account_orders = new Laskuhari_My_Account_Orders();
+    $my_account_orders->register_hooks();
 
     add_filter( 'plugin_action_links', 'laskuhari_plugin_action_links', 10, 2 );
     add_filter( 'laskuhari_sanitize_product_name', 'laskuhari_sanitize_product_name', 10, 2 );
