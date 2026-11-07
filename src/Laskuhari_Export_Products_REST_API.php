@@ -164,6 +164,12 @@ class Laskuhari_Export_Products_REST_API
                 $barcode = "";
             }
 
+            // Laskuhari does not allow duplicate product codes. WooCommerce
+            // uses the parent product SKU for variations if a specific
+            // SKU is not set on the variation. We get only the SKU
+            // specifically set for the product to avoid duplicates.
+            $sku = $product->get_sku( "edit" );
+
             $product_data = [
                 'id'                 => $product->get_id(),
                 'name'               => $product->get_name(),
@@ -172,7 +178,7 @@ class Laskuhari_Export_Products_REST_API
                 'status'             => $product->get_status(),
                 'downloadable'       => $product->is_downloadable(),
                 'virtual'            => $product->is_virtual(),
-                'sku'                => $product->get_sku(),
+                'sku'                => $sku,
                 'global_unique_id'   => $barcode,
                 'price'              => $product->get_price(),
                 'regular_price'      => $product->get_regular_price(),

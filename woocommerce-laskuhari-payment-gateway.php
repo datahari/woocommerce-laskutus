@@ -1116,8 +1116,14 @@ function laskuhari_create_product( $product, $update = false ) {
         $barcode = "";
     }
 
+    // Laskuhari does not allow duplicate product codes. WooCommerce
+    // uses the parent product SKU for variations if a specific
+    // SKU is not set on the variation. We get only the SKU
+    // specifically set for the product to avoid duplicates.
+    $sku = $product->get_sku( "edit" );
+
     $payload = [
-        "koodi" => $product->get_sku(),
+        "koodi" => $sku,
         "nimike" => $product->get_name(),
         "ylatuote" => 0,
         "viivakoodi" => [
