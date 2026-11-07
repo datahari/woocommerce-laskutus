@@ -58,6 +58,8 @@ class Laskuhari_My_Account_Orders
      */
     protected function add_invoice_download_action_button(): void {
         add_filter( "woocommerce_my_account_my_orders_actions", function( array $actions, WC_Order $order ) {
+            $show_button = $order->get_payment_method() === "laskuhari";
+
             /**
              * Filters whether the download invoice action button is shown for an order.
              *
@@ -65,7 +67,7 @@ class Laskuhari_My_Account_Orders
              * @param WC_Order $order The current order.
              * @param array<string, array<string, string>> $actions Existing actions.
              */
-            $show_button = (bool) apply_filters( "laskuhari_show_download_order_invoice_button", true, $order, $actions );
+            $show_button = (bool) apply_filters( "laskuhari_show_download_order_invoice_button", $show_button, $order, $actions );
 
             if( ! $show_button ) {
                 return $actions;
