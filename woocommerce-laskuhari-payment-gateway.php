@@ -2547,7 +2547,7 @@ function laskuhari_add_public_scripts() {
     wp_enqueue_script(
         "laskuhari-js-public",
         plugins_url( "js/public.js" , __FILE__ ),
-        array(),
+        array( "jquery" ),
         LASKUHARI_VERSION
     );
 
