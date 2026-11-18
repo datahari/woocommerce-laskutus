@@ -72,6 +72,9 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
             "user_email" => get_laskuhari_meta( null, "billing_email" ),
             "email" => get_laskuhari_meta( null, "_laskuhari_email" ),
             "operators" => laskuhari_operators(),
+            "emailEnabled" => $this->lh_gateway->email_lasku_kaytossa,
+            "eInvoiceEnabled" => $this->lh_gateway->verkkolasku_kaytossa,
+            "letterEnabled" => $this->lh_gateway->kirjelasku_kaytossa,
             "texts" => [
                 "title" => $this->lh_gateway->title,
                 "description" => $this->lh_gateway->description,

@@ -73,11 +73,21 @@
                 id: "laskuhari-laskutustapa",
                 class: "laskuhari-pakollinen",
                 onChange: e => setInvoicingMethod( e.target.value ),
-            },
-                h( "option", { value: "" }, "-- " + info.texts.selectInvoicingMethod + " --" ),
-                h( "option", { value: "email", selected: invoicingMethod === "email" }, info.texts.invoicingMethod_email ),
-                h( "option", { value: "verkkolasku", selected: invoicingMethod === "verkkolasku" }, info.texts.invoicingMethod_eInvoice ),
-                h( "option", { value: "kirje", selected: invoicingMethod === "kirje" }, info.texts.invoicingMethod_letter )
+            }, [
+                    h( "option", { value: "" }, "-- " + info.texts.selectInvoicingMethod + " --" ),
+
+                    ...( info.emailEnabled ? [
+                        h( "option", { value: "email", selected: invoicingMethod === "email" }, info.texts.invoicingMethod_email )
+                    ] : [] ),
+
+                    ...( info.eInvoiceEnabled ? [
+                        h( "option", { value: "verkkolasku", selected: invoicingMethod === "verkkolasku" }, info.texts.invoicingMethod_eInvoice ),
+                    ] : [] ),
+
+                    ...( info.letterEnabled ? [
+                        h( "option", { value: "kirje", selected: invoicingMethod === "kirje" }, info.texts.invoicingMethod_letter ),
+                    ] : [] ),
+                ]
             ),
 
             ...( info.email !== info.user_email && invoicingMethod === "email" ? [
