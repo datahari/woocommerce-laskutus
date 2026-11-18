@@ -7,7 +7,7 @@
         const [eInvoiceOperator, setEInvoiceOperator] = useState( info.eInvoiceOperator || "" );
         const [invoicingMethod, setInvoicingMethod] = useState( info.invoicingMethod || "" );
         const [eInvoiceAddress, setEInvoiceAddress] = useState( info.eInvoiceAddress || "" );
-        const [ourReference, setYourReference] = useState( info.ourReference || "" );
+        const [yourReference, setYourReference] = useState( info.yourReference || "" );
         const [businessId, setBusinessId] = useState( info.businessId || "" );
         const [email, setEmail] = useState( info.email || "" );
 
@@ -19,7 +19,7 @@
                         "laskuhari-verkkolaskuosoite": eInvoiceAddress,
                         "laskuhari-laskutustapa": invoicingMethod,
                         "laskuhari-valittaja": eInvoiceOperator,
-                        "laskuhari-viitteenne": ourReference,
+                        "laskuhari-viitteenne": yourReference,
                         "laskuhari-ytunnus": businessId,
                         "laskuhari-email": email,
                     },
@@ -30,7 +30,7 @@
             eInvoiceOperator,
             eInvoiceAddress,
             invoicingMethod,
-            ourReference,
+            yourReference,
             businessId,
             email,
         ] );
@@ -131,7 +131,7 @@
             h( "input", {
                 type: "text",
                 id: "laskuhari-viitteenne",
-                value: ourReference,
+                value: yourReference,
                 onChange: e => setYourReference( e.target.value ),
             } ),
         );
