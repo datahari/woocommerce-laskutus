@@ -15,22 +15,25 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-use Automattic\WooCommerce\Utilities\NumberUtil;
-use Laskuhari\Exception\Finvoice\FinvoiceException;
-use Laskuhari\Finvoice\FinvoiceValidator;
-use Laskuhari\Laskuhari_API;
-use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Invoicing_Details_Endpoint;
+use Laskuhari\Exception\Finvoice\FinvoiceException;
+use Laskuhari\Laskuhari_Export_Products_REST_API;
+use Automattic\WooCommerce\Utilities\NumberUtil;
 use Laskuhari\Laskuhari_My_Account_Orders;
-use Laskuhari\Laskuhari_Nonce;
+use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_Plugin_Updater;
+use Laskuhari\Laskuhari_Block_Checkout;
 use Laskuhari\Laskuhari_Troubleshooter;
+use Laskuhari\WC_Gateway_Laskuhari;
 use Laskuhari\Laskuhari_Uninstall;
 use Laskuhari\Laskuhari_Webhooks;
+use Laskuhari\Laskuhari_Nonce;
+use Laskuhari\Laskuhari_API;
 use Laskuhari\Logger;
-use Laskuhari\WC_Gateway_Laskuhari;
 
 defined( 'ABSPATH' ) || exit;
+
+define( "LASKUHARI_VERSION", "1.18.1" );
 
 require_once dirname( __FILE__ ) . '/autoload.php';
 
@@ -58,6 +61,9 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
+
+    $block_checkout = new Laskuhari_Block_Checkout( $laskuhari_gateway_object );
+    $block_checkout->register();
 
     $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
     $webhooks->register_endpoints();
@@ -93,10 +99,11 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_wp_cron_disabled_notice' );
     }
 
+    add_action( 'wp_enqueue_scripts', 'laskuhari_add_public_scripts' );
+
     if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
         laskuhari_maybe_add_vat_id_field();
         add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
-        add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
         add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
@@ -1712,7 +1719,9 @@ function laskuhari_alternative_meta_fields() {
  * @return ?string
  */
 function laskuhari_get_meta_from_request( $meta_key, $request = null ) {
-    $request = $request ?? $_REQUEST;
+    // Merge $_GET and $_POST to support WooCommerce manipulating
+    // $_POST when sending the Block Checkout request
+    $request = $request ?? array_merge( $_GET, $_POST );
 
     $request_key = get_laskuhari_meta_key( null, $meta_key, $request );
 
@@ -2466,7 +2475,7 @@ function laskuhari_add_styles() {
         'laskuhari-css',
         plugins_url( 'css/staili.css' , __FILE__ ),
         array(),
-        filemtime( __FILE__ )
+        LASKUHARI_VERSION
     );
 }
 
@@ -2475,7 +2484,7 @@ function laskuhari_add_admin_styles() {
         'laskuhari-css-admin',
         plugins_url( 'css/admin.css' , __FILE__ ),
         array(),
-        filemtime( __FILE__ )
+        LASKUHARI_VERSION
     );
 }
 
@@ -2511,23 +2520,42 @@ function laskuhari_cron_needs_to_run() {
 }
 
 function laskuhari_add_public_scripts() {
+    $gw = laskuhari_get_gateway_object();
+
+    $gw_enabled = $gw->lh_get_option( "gateway_enabled" ) === "yes";
+
+    // Checkout scripts need to be run on frontend when Laskuhari payment method is
+    // enabled, and always in admin area. These control the invoicing method form.
+    if( $gw_enabled || is_admin() ) {
+        wp_enqueue_script(
+            "laskuhari-js-checkout",
+            plugins_url( "js/checkout.js" , __FILE__ ),
+            array( "jquery" ),
+            LASKUHARI_VERSION
+        );
+
+        $alt_fields = laskuhari_alternative_meta_fields();
+
+        wp_localize_script( "laskuhari-js-checkout", "laskuhariCheckout", [
+            "vat_number_fields" => $alt_fields["_laskuhari_ytunnus"],
+            "einvoice_address_fields" => $alt_fields["_laskuhari_verkkolaskuosoite"],
+            "einvoice_operator_fields" => $alt_fields["_laskuhari_valittaja"],
+        ] );
+    }
+
+    // These scripts will always be run
     wp_enqueue_script(
-        'laskuhari-js-public',
-        plugins_url( 'js/public.js' , __FILE__ ),
-        array( 'jquery' ),
-        filemtime( __FILE__ )
+        "laskuhari-js-public",
+        plugins_url( "js/public.js" , __FILE__ ),
+        array(),
+        LASKUHARI_VERSION
     );
 
     $cron_needs_to_run = laskuhari_cron_needs_to_run();
 
-    $alt_fields = laskuhari_alternative_meta_fields();
-
-    wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
-        'cron_url' => site_url( '/wp-cron.php?doing_wp_cron&laskuhari_cron' ),
-        'cron_needs_to_run' => $cron_needs_to_run ? "yes" : "no",
-        'vat_number_fields' => $alt_fields["_laskuhari_ytunnus"],
-        'einvoice_address_fields' => $alt_fields["_laskuhari_verkkolaskuosoite"],
-        'einvoice_operator_fields' => $alt_fields["_laskuhari_valittaja"],
+    wp_localize_script( "laskuhari-js-public", "laskuhariInfo", [
+        "cron_url" => site_url( "/wp-cron.php?doing_wp_cron&laskuhari_cron" ),
+        "cron_needs_to_run" => $cron_needs_to_run ? "yes" : "no",
     ] );
 }
 
@@ -2536,7 +2564,7 @@ function laskuhari_add_admin_scripts() {
         'laskuhari-js-admin',
         plugins_url( 'js/admin.js' , __FILE__ ),
         array( 'jquery' ),
-        filemtime( __FILE__ )
+        LASKUHARI_VERSION
     );
 
     wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
