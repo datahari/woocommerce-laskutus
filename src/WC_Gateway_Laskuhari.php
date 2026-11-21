@@ -1441,6 +1441,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         $order->update_status( $status_after_payment );
 
+        laskuhari_update_order_meta( $order );
+
         do_action( "laskuhari_action_after_payment_completed_before_reduce_stock_levels" );
 
         // Reduce stock levels

@@ -51,8 +51,6 @@ class Laskuhari_Block_Checkout {
             return;
         }
 
-        $user = $order->get_user();
-
         $fields = $request->get_param( "billing_address" );
 
         if( ! is_array( $fields ) ) {
@@ -95,27 +93,6 @@ class Laskuhari_Block_Checkout {
 
                 // Forward data to $_POST for legacy `validate_fields` support
                 Laskuhari_Block_Checkout::$extra_post_fields[(string)reset( $alt_keys )] = $fields[$key];
-
-                // Update user meta if missing
-                $user_meta_to_update_at_checkout = apply_filters(
-                    "laskuhari_user_meta_to_update_at_checkout",
-                    [
-                        "_laskuhari_laskutustapa",
-                        "_laskuhari_verkkolaskuosoite",
-                        "_laskuhari_valittaja",
-                        "_laskuhari_ytunnus",
-                    ]
-                );
-
-                if( ! is_array( $user_meta_to_update_at_checkout ) ) {
-                    $user_meta_to_update_at_checkout = [];
-                }
-
-                if( in_array( $alt_field, $user_meta_to_update_at_checkout ) ) {
-                    if( $user && ! get_user_meta( $user->ID, $alt_field, true ) ) {
-                        update_user_meta( $user->ID, $alt_field, $fields[$key] );
-                    }
-                }
             }
         }
     }
