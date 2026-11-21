@@ -33,8 +33,6 @@ use Laskuhari\Logger;
 
 defined( 'ABSPATH' ) || exit;
 
-define( "LASKUHARI_VERSION", "1.19.0" );
-
 require_once dirname( __FILE__ ) . '/autoload.php';
 
 Laskuhari_Plugin_Updater::init();
@@ -203,12 +201,16 @@ function laskuhari_domain() {
 
 /**
  * Gets the current Laskuhari plugin version
- *
- * @return string
  */
 function laskuhari_plugin_version(): string {
-    $plugin_data = get_file_data( __FILE__, ['Version' => 'Version'] );
-    return $plugin_data['Version'];
+    static $plugin_version;
+
+    if( ! isset( $plugin_version ) ) {
+        $plugin_data = get_file_data( __FILE__, [ "Version" => "Version" ] );
+        $plugin_version = $plugin_data["Version"];
+    }
+
+    return $plugin_version;
 }
 
 function laskuhari_json_flag() {
@@ -2433,7 +2435,7 @@ function laskuhari_add_styles() {
         'laskuhari-css',
         plugins_url( 'css/staili.css' , __FILE__ ),
         array(),
-        LASKUHARI_VERSION
+        laskuhari_plugin_version()
     );
 }
 
@@ -2442,7 +2444,7 @@ function laskuhari_add_admin_styles() {
         'laskuhari-css-admin',
         plugins_url( 'css/admin.css' , __FILE__ ),
         array(),
-        LASKUHARI_VERSION
+        laskuhari_plugin_version()
     );
 }
 
@@ -2489,7 +2491,7 @@ function laskuhari_add_public_scripts() {
             "laskuhari-js-checkout",
             plugins_url( "js/checkout.js" , __FILE__ ),
             array( "jquery" ),
-            LASKUHARI_VERSION
+            laskuhari_plugin_version()
         );
 
         $alt_fields = laskuhari_alternative_meta_fields();
@@ -2508,7 +2510,7 @@ function laskuhari_add_public_scripts() {
         "laskuhari-js-public",
         plugins_url( "js/public.js" , __FILE__ ),
         array( "jquery" ),
-        LASKUHARI_VERSION
+        laskuhari_plugin_version()
     );
 
     $cron_needs_to_run = laskuhari_cron_needs_to_run();
@@ -2524,7 +2526,7 @@ function laskuhari_add_admin_scripts() {
         'laskuhari-js-admin',
         plugins_url( 'js/admin.js' , __FILE__ ),
         array( 'jquery' ),
-        LASKUHARI_VERSION
+        laskuhari_plugin_version()
     );
 
     wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
