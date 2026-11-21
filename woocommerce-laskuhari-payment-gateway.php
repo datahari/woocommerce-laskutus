@@ -1807,12 +1807,26 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
  * @return void
  */
 function laskuhari_update_order_meta( $order )  {
-    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_verkkolaskuosoite', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_valittaja', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_ytunnus', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', false );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', false );
+    $user_meta_to_update_at_checkout = apply_filters(
+        "laskuhari_user_meta_to_update_at_checkout",
+        [
+            "_laskuhari_laskutustapa",
+            "_laskuhari_verkkolaskuosoite",
+            "_laskuhari_valittaja",
+            "_laskuhari_ytunnus",
+        ]
+    );
+
+    if( ! is_array( $user_meta_to_update_at_checkout ) ) {
+        $user_meta_to_update_at_checkout = [];
+    }
+
+    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", in_array( "_laskuhari_laskutustapa", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_verkkolaskuosoite', in_array( "_laskuhari_verkkolaskuosoite", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_valittaja', in_array( "_laskuhari_valittaja", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_ytunnus', in_array( "_laskuhari_ytunnus", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', in_array( "_laskuhari_email", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', in_array( "_laskuhari_viitteenne", $user_meta_to_update_at_checkout ) );
 }
 
 /**

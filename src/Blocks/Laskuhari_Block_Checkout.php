@@ -20,6 +20,7 @@ class Laskuhari_Block_Checkout {
      * Register the Laskuhari Block Checkout payment method
      */
     public function register(): void {
+        // Register the Block Checkout payment method
         add_action(
             "woocommerce_blocks_payment_method_type_registration",
             function( $registry ) {
@@ -27,34 +28,89 @@ class Laskuhari_Block_Checkout {
             }
         );
 
-        add_action(
-            "woocommerce_blocks_validate_location_address_fields",
-            [$this, "intercept_block_checkout_fields"],
-            10,
-            3
-        );
-
+        // Register callback for updating Laskuhari payment method details
         woocommerce_store_api_register_update_callback( [
             "namespace" => "laskuhari",
             "callback"  => "laskuhari_checkout_update_order_review",
         ] );
+
+        // Register hook for updating Laskuhari meta in order at checkout
+        add_action(
+            "woocommerce_store_api_checkout_update_order_from_request",
+            [$this, "update_order_meta_at_checkout"],
+            10,
+            2
+        );
     }
 
     /**
-     * Intercept Block Checkout fields used by Laskuhari
-     * as alternative fields for metadata
-     *
-     * @param array<string, string> $fields
-     * @param string $_group
+     * Update the Laskuhari metadata for an order when the checkout form is submitted
      */
-    public function intercept_block_checkout_fields( \WP_Error $_errors, $fields, $_group ): void {
+    public function update_order_meta_at_checkout( \WC_Order $order, \WP_REST_Request $request ): void {
+        if( $order->get_payment_method() !== "laskuhari" ) {
+            return;
+        }
+
+        $user = $order->get_user();
+
+        $fields = $request->get_param( "billing_address" );
+
+        if( ! is_array( $fields ) ) {
+            $fields = [];
+        }
+
+        $payment_data = $request->get_param( "payment_data" );
+
+        if( is_array( $payment_data ) ) {
+            foreach( $payment_data as $item ) {
+                $key = $item["key"] ?? null;
+
+                if( ! is_string( $key ) ) {
+                    continue;
+                }
+
+                $value = $item["value"] ?? null;
+
+                if( ! is_scalar( $value ) ) {
+                    continue;
+                }
+
+                $fields[$key] = $value;
+            }
+        }
+
         $alt_fields = laskuhari_alternative_meta_fields();
 
         foreach( $alt_fields as $alt_field => $alt_keys ) {
             $key = laskuhari_resolve_alternative_meta_key( $alt_field, $fields );
 
             if( $key !== null ) {
+                // Persist meta in order
+                $order->update_meta_data( $alt_field, $fields[$key] );
+
+                // Forward data to $_POST for legacy `validate_fields` support
                 Laskuhari_Block_Checkout::$extra_post_fields[(string)reset( $alt_keys )] = $fields[$key];
+
+                // Update user meta if missing
+                $user_meta_to_update_at_checkout = apply_filters(
+                    "laskuhari_user_meta_to_update_at_checkout",
+                    [
+                        "_laskuhari_laskutustapa",
+                        "_laskuhari_verkkolaskuosoite",
+                        "_laskuhari_valittaja",
+                        "_laskuhari_ytunnus",
+                    ]
+                );
+
+                if( ! is_array( $user_meta_to_update_at_checkout ) ) {
+                    $user_meta_to_update_at_checkout = [];
+                }
+
+                if( in_array( $alt_field, $user_meta_to_update_at_checkout ) ) {
+                    if( $user && ! get_user_meta( $user->ID, $alt_field, true ) ) {
+                        update_user_meta( $user->ID, $alt_field, $fields[$key] );
+                    }
+                }
             }
         }
     }
