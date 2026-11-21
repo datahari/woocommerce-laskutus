@@ -64,9 +64,14 @@ class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType 
 
     /**
      * Check if the payment method is active
+     *
+     * NOTE: This checks whether the payment method is enabled,
+     *       not whether it should be allowed with the current
+     *       state of the checkout form / cart. That is done in
+     *       the `WC_Gateway_Laskuhari` class.
      */
     public function is_active(): bool {
-        return $this->lh_gateway->is_available();
+        return $this->lh_gateway->lh_get_option( "gateway_enabled" ) === "yes";
     }
 
     /**
