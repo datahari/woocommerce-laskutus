@@ -98,7 +98,7 @@
         return h( "div", null,
             h( "p", null, info.texts.description ),
 
-            h( "div", { class: "laskuhari-caption" }, info.texts.invoicingMethod + ":"),
+            h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-laskutustapa" }, info.texts.invoicingMethod + ":"),
 
             ...( info.showInvoicingMethod ? [
                 h( "select", {
@@ -125,7 +125,7 @@
 
             ...( showEmail && invoicingMethod === "email" ? [
                 h( "div", { id: "laskuhari-sahkoposti-tiedot" },
-                    h( "div", { class: "laskuhari-caption" }, info.texts.email + ":" ),
+                    h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-email" }, info.texts.email + ":" ),
                     h( "input", {
                         type: "text",
                         id: "laskuhari-email",
@@ -136,7 +136,7 @@
             ] : [] ),
 
             ...( info.showBusinessId && info.vatIdRequiredMethods.includes( invoicingMethod ) ? [
-                h( "div", { class: "laskuhari-caption" }, info.texts.businessId + ":"),
+                h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-ytunnus" }, info.texts.businessId + ":"),
                 h( "input", {
                     type: "text",
                     id: "laskuhari-ytunnus",
@@ -148,7 +148,7 @@
             h( "div", { id: "laskuhari-verkkolasku-tiedot", style: ( invoicingMethod === "verkkolasku" ? {} : { display: "none" } ) },
 
                 ...( info.showEInvoiceAddress ? [
-                    h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceAddress + ":" ),
+                    h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-verkkolaskuosoite" }, info.texts.eInvoiceAddress + ":" ),
                     h( "input", {
                         type: "text",
                         id: "laskuhari-verkkolaskuosoite",
@@ -158,7 +158,7 @@
                 ] : [] ),
 
                 ...( info.showEInvoiceOperator ? [
-                    h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceOperator + ":" ),
+                    h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-valittaja" }, info.texts.eInvoiceOperator + ":" ),
                     h( "select", {
                         type: "text",
                         id: "laskuhari-valittaja",
@@ -178,7 +178,7 @@
             ),
 
             ...( info.showYourReference ? [
-                h( "div", { class: "laskuhari-caption" }, info.texts.yourReference + ":" ),
+                h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-viitteenne" }, info.texts.yourReference + ":" ),
                 h( "input", {
                     type: "text",
                     id: "laskuhari-viitteenne",
