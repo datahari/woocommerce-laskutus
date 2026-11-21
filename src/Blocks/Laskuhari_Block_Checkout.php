@@ -59,6 +59,11 @@ class Laskuhari_Block_Checkout {
             $fields = [];
         }
 
+        $additional_fields = $request->get_param( "additional_fields" );
+        if( is_array( $additional_fields ) ) {
+            $fields = array_merge( $fields, $additional_fields );
+        }
+
         $payment_data = $request->get_param( "payment_data" );
 
         if( is_array( $payment_data ) ) {
