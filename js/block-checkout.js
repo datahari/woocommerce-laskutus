@@ -11,7 +11,7 @@
         const [businessId, setBusinessId] = useState( info.businessId || "" );
         const [email, setEmail] = useState( info.email || "" );
 
-        const showEmail = info.email !== info.user_email;
+        const showEmail = info.email && info.email !== info.user_email;
 
         useEffect( () => {
             const paymentMethodData = {};
