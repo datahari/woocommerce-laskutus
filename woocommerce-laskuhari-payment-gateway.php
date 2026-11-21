@@ -2500,7 +2500,7 @@ function laskuhari_add_public_scripts() {
             "einvoice_address_fields" => $alt_fields["_laskuhari_verkkolaskuosoite"],
             "einvoice_operator_fields" => $alt_fields["_laskuhari_valittaja"],
             "vat_id_mandatory_for_methods" => laskuhari_vat_id_mandatory_for_methods(),
-            "show_vat_id" => ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ),
+            "show_vat_id" => ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ),
         ] );
     }
 
