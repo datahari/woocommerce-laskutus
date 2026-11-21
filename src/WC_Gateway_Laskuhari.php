@@ -348,6 +348,29 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     /**
+     * Get the available (enabled) invoicing methods
+     *
+     * @return array<string>
+     */
+    public function get_available_invoicing_methods(): array {
+        $methods = [];
+
+        if( $this->email_lasku_kaytossa ) {
+            $methods[] = "email";
+        }
+
+        if( $this->verkkolasku_kaytossa ) {
+            $methods[] = "verkkolasku";
+        }
+
+        if( $this->kirjelasku_kaytossa ) {
+            $methods[] = "kirje";
+        }
+
+        return $methods;
+    }
+
+    /**
      * Set API credentials to demo credentials if demo mode is enabled,
      * otherwise set them to the credentials entered in the settings
      *
@@ -1526,6 +1549,9 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         if( empty( $laskutustapa ) ) {
             wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa', 'laskuhari' ), 'error' );
+            $success = false;
+        } elseif( ! in_array( $laskutustapa, $this->get_available_invoicing_methods() ) ) {
+            wc_add_notice( sprintf( __( 'Valitsemasi laskutustapa ei ole sallittu', 'laskuhari' ) ), 'error' );
             $success = false;
         } else {
             $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );

@@ -87,8 +87,14 @@ class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType 
             laskuhari_plugin_version()
         );
 
+        $invoicing_method = get_laskuhari_meta( null, "_laskuhari_laskutustapa" );
+
+        if( ! in_array( $invoicing_method, $this->lh_gateway->get_available_invoicing_methods() ) ) {
+            $invoicing_method = "";
+        }
+
         wp_localize_script( "laskuhari-js-block-checkout", "laskuhariBlockCheckout", [
-            "invoicingMethod" => get_laskuhari_meta( null, "_laskuhari_laskutustapa" ),
+            "invoicingMethod" => $invoicing_method,
             "eInvoiceOperator" => get_laskuhari_meta( null, "_laskuhari_valittaja" ),
             "eInvoiceAddress" => get_laskuhari_meta( null, "_laskuhari_verkkolaskuosoite" ),
             "yourReference" => get_laskuhari_meta( null, "_laskuhari_viitteenne" ),
