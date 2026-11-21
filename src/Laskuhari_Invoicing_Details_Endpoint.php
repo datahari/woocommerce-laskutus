@@ -178,10 +178,16 @@ class Laskuhari_Invoicing_Details_Endpoint {
             return;
         }
 
+        $user_id = get_current_user_id();
+
         $fields = $this->get_fields();
         $values = [];
         foreach( $fields as $name => $cfg ) {
-            $values[$name] = get_laskuhari_meta( null, $cfg['meta'] ) ?? "";
+            $value = get_user_meta( $user_id, $cfg['meta'], true );
+
+            if( is_scalar( $value ) ) {
+                $values[$name] = (string) $value;
+            }
         }
 
         /** @var string $email_method_text */
@@ -281,7 +287,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
         foreach( $fields as $name => $cfg ) {
             // @phpstan-ignore-next-line
             $val = isset( $_POST[$name] ) ? sanitize_text_field( wp_unslash( $_POST[$name] ) ) : '';
-            laskuhari_set_user_meta( $user_id, $cfg['meta'], $val );
+            update_user_meta( $user_id, $cfg['meta'], $val );
         }
 
         wc_add_notice( __( 'Laskutustiedot tallennettu.', 'laskuhari' ) );

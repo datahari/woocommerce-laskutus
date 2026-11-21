@@ -799,42 +799,7 @@ function laskuhari_update_user_meta( $user_id ) {
         $meta_number++;
         $meta_field_name = $meta_field['name'];
 
-        laskuhari_set_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
-    }
-}
-
-/**
- * Set metadata for user based on custom meta key rules
- *
- * @param ?int $user_id
- * @param string $meta_key
- * @param string $meta_value
- * @return void
- */
-function laskuhari_set_user_meta( $user_id, $meta_key, $meta_value ) {
-    $meta_value = sanitize_meta( $meta_key, $meta_value, "user" );
-
-    // Update the actual key
-    update_user_meta( $user_id, $meta_key, $meta_value );
-
-    // Update alternative meta too (user meta from checkout form)
-    // so that it will be shown as default in checkout form
-    $alt_key = get_laskuhari_meta_key( $user_id, $meta_key );
-    if( $alt_key !== $meta_key ) {
-        update_user_meta( $user_id, $alt_key, $meta_value );
-    }
-
-    // Update Laskuhari key if alternative meta is updated
-    foreach( laskuhari_alternative_meta_fields() as $alt_key => $keywords ) {
-        foreach( $keywords as $keyword ) {
-            if( in_array( $meta_key, [
-                $keyword,
-                "billing_".$keyword,
-            ] ) ) {
-                update_user_meta( $user_id, $alt_key, $meta_value );
-                continue 2;
-            }
-        }
+        update_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
     }
 }
 
@@ -1590,7 +1555,7 @@ function laskuhari_set_order_meta( $order, $meta_key, $meta_value, $update_user_
 
         // update user meta if it's not set already
         if( $user && ! $user->get( $meta_key ) ) {
-            laskuhari_set_user_meta( $user->ID, $meta_key, $meta_value );
+            update_user_meta( $user->ID, $meta_key, $meta_value );
         }
     }
 }
@@ -1766,7 +1731,9 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null ) {
         return $address_book_prefix.$meta_key;
     }
 
-    $fields = $fields ?? get_user_meta( $user_id );
+    if( $fields === null ) {
+        return $meta_key;
+    }
 
     $meta_key = laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) ?? $meta_key;
 
