@@ -3,7 +3,7 @@
 Plugin Name: Laskuhari for WooCommerce
 Plugin URI: https://www.laskuhari.fi/woocommerce-laskutus
 Description: Lisää automaattilaskutuksen maksutavaksi WooCommerce-verkkokauppaan sekä mahdollistaa tilausten manuaalisen laskuttamisen
-Version: 1.18.1
+Version: 1.19.0
 Author: Datahari Solutions
 Author URI: https://www.datahari.fi
 License: GPLv2
@@ -15,20 +15,21 @@ Author: Mehdi Akram
 Author URI: http://shamokaldarpon.com/
 */
 
-use Automattic\WooCommerce\Utilities\NumberUtil;
-use Laskuhari\Exception\Finvoice\FinvoiceException;
-use Laskuhari\Finvoice\FinvoiceValidator;
-use Laskuhari\Laskuhari_API;
-use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Laskuhari\Laskuhari_Invoicing_Details_Endpoint;
+use Laskuhari\Exception\Finvoice\FinvoiceException;
+use Laskuhari\Laskuhari_Export_Products_REST_API;
+use Automattic\WooCommerce\Utilities\NumberUtil;
+use Laskuhari\Blocks\Laskuhari_Block_Checkout;
 use Laskuhari\Laskuhari_My_Account_Orders;
-use Laskuhari\Laskuhari_Nonce;
+use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_Plugin_Updater;
 use Laskuhari\Laskuhari_Troubleshooter;
+use Laskuhari\WC_Gateway_Laskuhari;
 use Laskuhari\Laskuhari_Uninstall;
 use Laskuhari\Laskuhari_Webhooks;
+use Laskuhari\Laskuhari_Nonce;
+use Laskuhari\Laskuhari_API;
 use Laskuhari\Logger;
-use Laskuhari\WC_Gateway_Laskuhari;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -58,6 +59,9 @@ function laskuhari_payment_gateway_load() {
     add_filter( 'woocommerce_payment_gateways', 'laskuhari_add_gateway' );
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
+
+    $block_checkout = new Laskuhari_Block_Checkout();
+    $block_checkout->register();
 
     $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
     $webhooks->register_endpoints();
@@ -93,10 +97,10 @@ function laskuhari_payment_gateway_load() {
         add_action( 'admin_notices', 'laskuhari_wp_cron_disabled_notice' );
     }
 
+    add_action( 'wp_enqueue_scripts', 'laskuhari_add_public_scripts' );
+
     if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
-        laskuhari_maybe_add_vat_id_field();
         add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
-        add_action( 'wp_footer', 'laskuhari_add_public_scripts' );
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
         add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
@@ -197,12 +201,16 @@ function laskuhari_domain() {
 
 /**
  * Gets the current Laskuhari plugin version
- *
- * @return string
  */
 function laskuhari_plugin_version(): string {
-    $plugin_data = get_file_data( __FILE__, ['Version' => 'Version'] );
-    return $plugin_data['Version'];
+    static $plugin_version;
+
+    if( ! isset( $plugin_version ) ) {
+        $plugin_data = get_file_data( __FILE__, [ "Version" => "Version" ] );
+        $plugin_version = $plugin_data["Version"];
+    }
+
+    return $plugin_version;
 }
 
 function laskuhari_json_flag() {
@@ -793,42 +801,7 @@ function laskuhari_update_user_meta( $user_id ) {
         $meta_number++;
         $meta_field_name = $meta_field['name'];
 
-        laskuhari_set_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
-    }
-}
-
-/**
- * Set metadata for user based on custom meta key rules
- *
- * @param ?int $user_id
- * @param string $meta_key
- * @param string $meta_value
- * @return void
- */
-function laskuhari_set_user_meta( $user_id, $meta_key, $meta_value ) {
-    $meta_value = sanitize_meta( $meta_key, $meta_value, "user" );
-
-    // Update the actual key
-    update_user_meta( $user_id, $meta_key, $meta_value );
-
-    // Update alternative meta too (user meta from checkout form)
-    // so that it will be shown as default in checkout form
-    $alt_key = get_laskuhari_meta_key( $user_id, $meta_key );
-    if( $alt_key !== $meta_key ) {
-        update_user_meta( $user_id, $alt_key, $meta_value );
-    }
-
-    // Update Laskuhari key if alternative meta is updated
-    foreach( laskuhari_alternative_meta_fields() as $alt_key => $keywords ) {
-        foreach( $keywords as $keyword ) {
-            if( in_array( $meta_key, [
-                $keyword,
-                "billing_".$keyword,
-            ] ) ) {
-                update_user_meta( $user_id, $alt_key, $meta_value );
-                continue 2;
-            }
-        }
+        update_user_meta( $user_id, $meta_field_name, $_POST[$meta_field_name] );
     }
 }
 
@@ -1530,55 +1503,6 @@ function laskuhari_method_name_by_slug( $slug ) {
     return $names[$slug];
 }
 
-// add a separate vat id field to billing details if vat id
-// is required for other invoicing methods than eInvoice
-
-function laskuhari_maybe_add_vat_id_field() {
-    $priority = apply_filters( "laskuhari_woocommerce_billing_fields_filter_priority", 1100 );
-
-    add_filter( 'woocommerce_billing_fields', function( $fields ) {
-        if( laskuhari_order_form_has_meta( "_laskuhari_ytunnus", ["billing" => $fields] ) ) {
-            return $fields;
-        }
-
-        $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
-
-        // insert vat id field after field with this key
-        $insert_after = apply_filters( "laskuhari_insert_vat_id_after_field", "billing_company", $fields );
-
-        // vat id field details
-        $billing_field = apply_filters( "laskuhari_vat_id_field", [
-            'label' => __('Y-tunnus', 'laskuhari'),
-            'required' => false,
-            'type' => 'text',
-        ] );
-
-        foreach( $mandatory_for_methods as $method ) {
-            // if a method other than eInvoice is found
-            if( $method !== "verkkolasku" ) {
-                $new_fields = [];
-
-                // insert vat id field after specified field
-                foreach( $fields as $name => $data ) {
-                    $new_fields[$name] = $data;
-                    if( $name === $insert_after ) {
-                        $new_fields['billing_ytunnus'] = $billing_field;
-                    }
-                }
-
-                // if specified field was not found, add field to the end
-                if( ! isset( $new_fields['billing_ytunnus'] ) ) {
-                    $new_fields['billing_ytunnus'] = $billing_field;
-                }
-
-                return $new_fields;
-            }
-        }
-
-        return $fields;
-    }, $priority );
-}
-
 // Päivitä Laskuharista tuleva metadata
 
 function laskuhari_checkout_update_order_meta( $order_id ) {
@@ -1633,7 +1557,7 @@ function laskuhari_set_order_meta( $order, $meta_key, $meta_value, $update_user_
 
         // update user meta if it's not set already
         if( $user && ! $user->get( $meta_key ) ) {
-            laskuhari_set_user_meta( $user->ID, $meta_key, $meta_value );
+            update_user_meta( $user->ID, $meta_key, $meta_value );
         }
     }
 }
@@ -1666,7 +1590,6 @@ function laskuhari_alternative_meta_fields() {
             "laskutus_email",
             "laskutus_sahkoposti",
             "laskuhari-email",
-            "_laskuhari_billing_email",
             "email",
         ],
         "_laskuhari_verkkolaskuosoite" => [
@@ -1712,7 +1635,9 @@ function laskuhari_alternative_meta_fields() {
  * @return ?string
  */
 function laskuhari_get_meta_from_request( $meta_key, $request = null ) {
-    $request = $request ?? $_REQUEST;
+    // Merge $_GET and $_POST to support WooCommerce manipulating
+    // $_POST when sending the Block Checkout request
+    $request = $request ?? array_merge( $_GET, $_POST, Laskuhari_Block_Checkout::$extra_post_fields );
 
     $request_key = get_laskuhari_meta_key( null, $meta_key, $request );
 
@@ -1807,7 +1732,9 @@ function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null ) {
         return $address_book_prefix.$meta_key;
     }
 
-    $fields = $fields ?? get_user_meta( $user_id );
+    if( $fields === null ) {
+        return $meta_key;
+    }
 
     $meta_key = laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) ?? $meta_key;
 
@@ -1839,6 +1766,8 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
      */
     $alternative_meta = laskuhari_alternative_meta_fields();
 
+    $found_field = null;
+
     if( array_key_exists( $meta_key, $alternative_meta ) ) {
         foreach( $alternative_meta[$meta_key] as $alt_meta ) {
             foreach( $fields as $field_name => $field_value ) {
@@ -1847,17 +1776,29 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
                     $field_value = current( $field_value );
                 }
 
-                if( in_array( $field_name, [
+                if( ! is_string( $field_value ) ) {
+                    continue;
+                }
+
+                // Strip off namespace from Block Checkout field
+                $normalized = explode( "/", $field_name, 2 );
+                $normalized = $normalized[1] ?? $normalized[0];
+
+                if( in_array( $normalized, [
                     $alt_meta,
                     "billing_".$alt_meta,
                 ] ) ) {
-                    return $field_name;
+                    $found_field = $found_field ?? $field_name;
+
+                    if( trim( $field_value ) !== "" ) {
+                        return $field_name;
+                    }
                 }
             }
         }
     }
 
-    return null;
+    return $found_field;
 }
 
 /**
@@ -1867,16 +1808,30 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
  * @return void
  */
 function laskuhari_update_order_meta( $order )  {
-    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_verkkolaskuosoite', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_valittaja', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_ytunnus', true );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', false );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', false );
+    $user_meta_to_update_at_checkout = apply_filters(
+        "laskuhari_user_meta_to_update_at_checkout",
+        [
+            "_laskuhari_laskutustapa",
+            "_laskuhari_verkkolaskuosoite",
+            "_laskuhari_valittaja",
+            "_laskuhari_ytunnus",
+        ]
+    );
+
+    if( ! is_array( $user_meta_to_update_at_checkout ) ) {
+        $user_meta_to_update_at_checkout = [];
+    }
+
+    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", in_array( "_laskuhari_laskutustapa", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_verkkolaskuosoite', in_array( "_laskuhari_verkkolaskuosoite", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_valittaja', in_array( "_laskuhari_valittaja", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_ytunnus', in_array( "_laskuhari_ytunnus", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', in_array( "_laskuhari_email", $user_meta_to_update_at_checkout ) );
+    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', in_array( "_laskuhari_viitteenne", $user_meta_to_update_at_checkout ) );
 }
 
 /**
- * Checks if the WooCommerce order form has a field
+ * Checks if the WooCommerce (legacy) order form has a field
  * for a specific Laskuhari meta key
  *
  * @param string $meta_key
@@ -2197,9 +2152,23 @@ function laskuhari_add_invoice_surcharge( $cart ) {
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskutuslisa, true );
 }
 
-function laskuhari_checkout_update_order_review( $post_data ) {
-    parse_str( $post_data, $result );
-    WC()->session->set( "laskuhari-laskutustapa", isset( $result['laskuhari-laskutustapa'] ) ? $result['laskuhari-laskutustapa'] : "" );
+/**
+ * Update cart session details when order details are updated
+ *
+ * @param string|array<string, mixed> $post_data
+ */
+function laskuhari_checkout_update_order_review( $post_data ): void {
+    $result = [];
+
+    if( is_string( $post_data ) ) {
+        // Legacy checkout
+        parse_str( $post_data, $result );
+    } else {
+        // Block checkout
+        $result = $post_data;
+    }
+
+    WC()->session->set( "laskuhari-laskutustapa", isset( $result["laskuhari-laskutustapa"] ) ? $result["laskuhari-laskutustapa"] : "" );
 }
 
 function laskuhari_fallback_notice() {
@@ -2466,7 +2435,7 @@ function laskuhari_add_styles() {
         'laskuhari-css',
         plugins_url( 'css/staili.css' , __FILE__ ),
         array(),
-        filemtime( __FILE__ )
+        laskuhari_plugin_version()
     );
 }
 
@@ -2475,7 +2444,7 @@ function laskuhari_add_admin_styles() {
         'laskuhari-css-admin',
         plugins_url( 'css/admin.css' , __FILE__ ),
         array(),
-        filemtime( __FILE__ )
+        laskuhari_plugin_version()
     );
 }
 
@@ -2511,23 +2480,44 @@ function laskuhari_cron_needs_to_run() {
 }
 
 function laskuhari_add_public_scripts() {
+    $gw = laskuhari_get_gateway_object();
+
+    $gw_enabled = $gw->lh_get_option( "gateway_enabled" ) === "yes";
+
+    // Checkout scripts need to be run on frontend when Laskuhari payment method is
+    // enabled, and always in admin area. These control the invoicing method form.
+    if( $gw_enabled || is_admin() ) {
+        wp_enqueue_script(
+            "laskuhari-js-checkout",
+            plugins_url( "js/checkout.js" , __FILE__ ),
+            array( "jquery" ),
+            laskuhari_plugin_version()
+        );
+
+        $alt_fields = laskuhari_alternative_meta_fields();
+
+        wp_localize_script( "laskuhari-js-checkout", "laskuhariCheckout", [
+            "vat_number_fields" => $alt_fields["_laskuhari_ytunnus"],
+            "einvoice_address_fields" => $alt_fields["_laskuhari_verkkolaskuosoite"],
+            "einvoice_operator_fields" => $alt_fields["_laskuhari_valittaja"],
+            "vat_id_mandatory_for_methods" => laskuhari_vat_id_mandatory_for_methods(),
+            "show_vat_id" => ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ),
+        ] );
+    }
+
+    // These scripts will always be run
     wp_enqueue_script(
-        'laskuhari-js-public',
-        plugins_url( 'js/public.js' , __FILE__ ),
-        array( 'jquery' ),
-        filemtime( __FILE__ )
+        "laskuhari-js-public",
+        plugins_url( "js/public.js" , __FILE__ ),
+        array( "jquery" ),
+        laskuhari_plugin_version()
     );
 
     $cron_needs_to_run = laskuhari_cron_needs_to_run();
 
-    $alt_fields = laskuhari_alternative_meta_fields();
-
-    wp_localize_script( 'laskuhari-js-public', 'laskuhariInfo', [
-        'cron_url' => site_url( '/wp-cron.php?doing_wp_cron&laskuhari_cron' ),
-        'cron_needs_to_run' => $cron_needs_to_run ? "yes" : "no",
-        'vat_number_fields' => $alt_fields["_laskuhari_ytunnus"],
-        'einvoice_address_fields' => $alt_fields["_laskuhari_verkkolaskuosoite"],
-        'einvoice_operator_fields' => $alt_fields["_laskuhari_valittaja"],
+    wp_localize_script( "laskuhari-js-public", "laskuhariInfo", [
+        "cron_url" => site_url( "/wp-cron.php?doing_wp_cron&laskuhari_cron" ),
+        "cron_needs_to_run" => $cron_needs_to_run ? "yes" : "no",
     ] );
 }
 
@@ -2536,7 +2526,7 @@ function laskuhari_add_admin_scripts() {
         'laskuhari-js-admin',
         plugins_url( 'js/admin.js' , __FILE__ ),
         array( 'jquery' ),
-        filemtime( __FILE__ )
+        laskuhari_plugin_version()
     );
 
     wp_localize_script( 'laskuhari-js-admin', 'laskuhariInfo', [
