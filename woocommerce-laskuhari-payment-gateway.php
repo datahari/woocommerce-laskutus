@@ -2170,9 +2170,23 @@ function laskuhari_add_invoice_surcharge( $cart ) {
     $cart->add_fee( __( 'Laskutuslisä', 'laskuhari' ), $laskutuslisa, true );
 }
 
-function laskuhari_checkout_update_order_review( $post_data ) {
-    parse_str( $post_data, $result );
-    WC()->session->set( "laskuhari-laskutustapa", isset( $result['laskuhari-laskutustapa'] ) ? $result['laskuhari-laskutustapa'] : "" );
+/**
+ * Update cart session details when order details are updated
+ *
+ * @param string|array<string, mixed> $post_data
+ */
+function laskuhari_checkout_update_order_review( $post_data ): void {
+    $result = [];
+
+    if( is_string( $post_data ) ) {
+        // Legacy checkout
+        parse_str( $post_data, $result );
+    } else {
+        // Block checkout
+        $result = $post_data;
+    }
+
+    WC()->session->set( "laskuhari-laskutustapa", isset( $result["laskuhari-laskutustapa"] ) ? $result["laskuhari-laskutustapa"] : "" );
 }
 
 function laskuhari_fallback_notice() {

@@ -33,6 +33,11 @@ class Laskuhari_Block_Checkout {
             10,
             3
         );
+
+        woocommerce_store_api_register_update_callback( [
+            "namespace" => "laskuhari",
+            "callback"  => "laskuhari_checkout_update_order_review",
+        ] );
     }
 
     /**

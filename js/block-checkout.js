@@ -1,6 +1,7 @@
 ( function () {
     const { createElement: h, useState, useEffect } = window.wp.element;
     const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
+    const { extensionCartUpdate } = window.wc.blocksCheckout;
     const info = window.laskuhariBlockCheckout;
 
     function LaskuhariPaymentForm( { eventRegistration, emitResponse } ) {
@@ -40,7 +41,6 @@
                 paymentMethodData["laskuhari-email"] = email;
             }
 
-
             return eventRegistration.onPaymentSetup( () => ({
                 type: emitResponse.responseTypes.SUCCESS,
                 meta: {
@@ -56,6 +56,15 @@
             businessId,
             email,
         ] );
+
+        useEffect( () => {
+            extensionCartUpdate( {
+                namespace: "laskuhari",
+                data: {
+                    "laskuhari-laskutustapa": invoicingMethod,
+                },
+            } );
+        }, [invoicingMethod] );
 
         let selected_operator_found = false;
 
