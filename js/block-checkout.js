@@ -1,4 +1,4 @@
-( function () {
+( function ( $ ) {
     const { createElement: h, useState, useEffect } = window.wp.element;
     const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
     const { extensionCartUpdate } = window.wc.blocksCheckout;
@@ -9,10 +9,9 @@
         const [invoicingMethod, setInvoicingMethod] = useState( info.invoicingMethod || "" );
         const [eInvoiceAddress, setEInvoiceAddress] = useState( info.eInvoiceAddress || "" );
         const [yourReference, setYourReference] = useState( info.yourReference || "" );
+        const [emailPlaceholder, setEmailPlaceholder] = useState( info.user_email || "" );
         const [businessId, setBusinessId] = useState( info.businessId || "" );
         const [email, setEmail] = useState( info.email || "" );
-
-        const showEmail = info.email && info.email !== info.user_email;
 
         useEffect( () => {
             const paymentMethodData = {};
@@ -37,9 +36,11 @@
                 paymentMethodData["laskuhari-ytunnus"] = businessId;
             }
 
-            if( showEmail ) {
+            if( email ) {
                 paymentMethodData["laskuhari-email"] = email;
             }
+
+            setEmailPlaceholder( $(".wc-block-checkout #email").val() );
 
             return eventRegistration.onPaymentSetup( () => ({
                 type: emitResponse.responseTypes.SUCCESS,
@@ -95,6 +96,12 @@
             ];
         }
 
+        $("body").off( ".lh_payment_form" );
+
+        $("body").on( "input.lh_payment_form", ".wc-block-checkout #email", function( e ) {
+            setEmailPlaceholder( $(e.target).val() );
+        } );
+
         return h( "div", null,
             h( "p", null, info.texts.description ),
 
@@ -123,13 +130,14 @@
                 ),
             ] : [] ),
 
-            ...( showEmail && invoicingMethod === "email" ? [
+            ...( invoicingMethod === "email" ? [
                 h( "div", { id: "laskuhari-sahkoposti-tiedot" },
                     h( "label", { class: "laskuhari-caption", htmlFor: "laskuhari-email" }, info.texts.email + ":" ),
                     h( "input", {
                         type: "text",
                         id: "laskuhari-email",
                         value: email,
+                        placeholder: emailPlaceholder,
                         onChange: e => setEmail( e.target.value ),
                     } ),
                 ),
@@ -205,4 +213,4 @@
             features: [ "products" ],
         },
     } );
-} )();
+} )( jQuery );

@@ -615,14 +615,12 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     </select>
                     <?php
                 }
-                if( is_admin() || ( $email && $email !== $user_email ) ) {
-                    ?>
-                    <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
-                        <label class="laskuhari-caption" for="laskuhari-email"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</label>
-                        <input type="text" id="laskuhari-email" value="<?php echo esc_attr( $email ?: $user_email ); ?>" name="laskuhari-email" /><br />
-                    </div>
-                    <?php
-                }
+                ?>
+                <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
+                    <label class="laskuhari-caption" for="laskuhari-email"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</label>
+                    <input type="text" id="laskuhari-email" placeholder="<?php echo esc_attr( $user_email ); ?>" value="<?php echo esc_attr( $email ); ?>" name="laskuhari-email" /><br />
+                </div>
+                <?php
                 if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ) ) {
                     ?>
                     <div id="laskuhari-ytunnus-field">

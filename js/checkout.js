@@ -147,6 +147,12 @@ let laskuhari_viime_laskutustapa = "";
             }
         });
 
+        $("body").on( "input", ".woocommerce-checkout #billing_email", function( e ) {
+            $("#laskuhari-email").attr( "placeholder", ( $(e.target).val() ) );
+        } );
+
+        $("#laskuhari-email").attr( "placeholder", ( $(".woocommerce-checkout #billing_email").val() ) );
+
         $(".woocommerce-order-pay").on("submit", "form#order_review", function(e) {
             if( ! laskuhari_check_disabled_form() ) {
                 e.preventDefault();

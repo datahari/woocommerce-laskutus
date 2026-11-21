@@ -83,7 +83,7 @@ class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType 
         wp_register_script(
             "laskuhari-js-block-checkout",
             plugins_url( "../../js/block-checkout.js" , __FILE__ ), // @phpstan-ignore-line
-            [ "wp-element", "wc-blocks-registry", "wc-blocks-checkout", "laskuhari-js-checkout" ],
+            [ "jquery", "wp-element", "wc-blocks-registry", "wc-blocks-checkout", "laskuhari-js-checkout" ],
             laskuhari_plugin_version()
         );
 
