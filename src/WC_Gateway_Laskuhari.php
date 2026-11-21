@@ -622,15 +622,17 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     </div>
                     <?php
                 }
+                if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ) ) {
+                    ?>
+                    <div id="laskuhari-ytunnus-field">
+                        <div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
+                        <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+                        </div>
+                    <?php
+                }
                 ?>
                 <div id="laskuhari-verkkolasku-tiedot" style="<?php echo ($laskutustapa == "verkkolasku" ? '' : 'display: none;'); ?>">
                     <?php
-                    if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ) ) {
-                        ?>
-                        <div class="laskuhari-caption"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</div>
-                        <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
-                        <?php
-                    }
                     if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_verkkolaskuosoite" ) ) {
                         ?>
                         <div class="laskuhari-caption"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</div>

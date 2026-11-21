@@ -102,7 +102,6 @@ function laskuhari_payment_gateway_load() {
     add_action( 'wp_enqueue_scripts', 'laskuhari_add_public_scripts' );
 
     if( $laskuhari_gateway_object->lh_get_option( 'gateway_enabled' ) === 'yes' ) {
-        laskuhari_maybe_add_vat_id_field();
         add_action( 'woocommerce_checkout_update_order_meta', 'laskuhari_checkout_update_order_meta' );
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
@@ -1537,55 +1536,6 @@ function laskuhari_method_name_by_slug( $slug ) {
     return $names[$slug];
 }
 
-// add a separate vat id field to billing details if vat id
-// is required for other invoicing methods than eInvoice
-
-function laskuhari_maybe_add_vat_id_field() {
-    $priority = apply_filters( "laskuhari_woocommerce_billing_fields_filter_priority", 1100 );
-
-    add_filter( 'woocommerce_billing_fields', function( $fields ) {
-        if( laskuhari_order_form_has_meta( "_laskuhari_ytunnus", ["billing" => $fields] ) ) {
-            return $fields;
-        }
-
-        $mandatory_for_methods = laskuhari_vat_id_mandatory_for_methods();
-
-        // insert vat id field after field with this key
-        $insert_after = apply_filters( "laskuhari_insert_vat_id_after_field", "billing_company", $fields );
-
-        // vat id field details
-        $billing_field = apply_filters( "laskuhari_vat_id_field", [
-            'label' => __('Y-tunnus', 'laskuhari'),
-            'required' => false,
-            'type' => 'text',
-        ] );
-
-        foreach( $mandatory_for_methods as $method ) {
-            // if a method other than eInvoice is found
-            if( $method !== "verkkolasku" ) {
-                $new_fields = [];
-
-                // insert vat id field after specified field
-                foreach( $fields as $name => $data ) {
-                    $new_fields[$name] = $data;
-                    if( $name === $insert_after ) {
-                        $new_fields['billing_ytunnus'] = $billing_field;
-                    }
-                }
-
-                // if specified field was not found, add field to the end
-                if( ! isset( $new_fields['billing_ytunnus'] ) ) {
-                    $new_fields['billing_ytunnus'] = $billing_field;
-                }
-
-                return $new_fields;
-            }
-        }
-
-        return $fields;
-    }, $priority );
-}
-
 // Päivitä Laskuharista tuleva metadata
 
 function laskuhari_checkout_update_order_meta( $order_id ) {
@@ -2554,6 +2504,8 @@ function laskuhari_add_public_scripts() {
             "vat_number_fields" => $alt_fields["_laskuhari_ytunnus"],
             "einvoice_address_fields" => $alt_fields["_laskuhari_verkkolaskuosoite"],
             "einvoice_operator_fields" => $alt_fields["_laskuhari_valittaja"],
+            "vat_id_mandatory_for_methods" => laskuhari_vat_id_mandatory_for_methods(),
+            "show_vat_id" => ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ),
         ] );
     }
 

@@ -54,6 +54,12 @@ let laskuhari_viime_laskutustapa = "";
             $("#laskuhari-kirje-tiedot").hide();
         }
 
+        if( laskuhariCheckout.show_vat_id && laskuhariCheckout.vat_id_mandatory_for_methods.includes( laskutustapa ) ) {
+            $("#laskuhari-ytunnus-field").show();
+        } else {
+            $("#laskuhari-ytunnus-field").hide();
+        }
+
         if( laskutustapa !== laskuhari_viime_laskutustapa ) {
             $("body").trigger("update_checkout");
         }
