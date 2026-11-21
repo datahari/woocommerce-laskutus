@@ -1721,7 +1721,7 @@ function laskuhari_alternative_meta_fields() {
 function laskuhari_get_meta_from_request( $meta_key, $request = null ) {
     // Merge $_GET and $_POST to support WooCommerce manipulating
     // $_POST when sending the Block Checkout request
-    $request = $request ?? array_merge( $_GET, $_POST );
+    $request = $request ?? array_merge( $_GET, $_POST, Laskuhari_Block_Checkout::$extra_post_fields );
 
     $request_key = get_laskuhari_meta_key( null, $meta_key, $request );
 
@@ -1848,6 +1848,8 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
      */
     $alternative_meta = laskuhari_alternative_meta_fields();
 
+    $found_field = null;
+
     if( array_key_exists( $meta_key, $alternative_meta ) ) {
         foreach( $alternative_meta[$meta_key] as $alt_meta ) {
             foreach( $fields as $field_name => $field_value ) {
@@ -1856,17 +1858,29 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
                     $field_value = current( $field_value );
                 }
 
-                if( in_array( $field_name, [
+                if( ! is_string( $field_value ) ) {
+                    continue;
+                }
+
+                // Strip off namespace from Block Checkout field
+                $normalized = explode( "/", $field_name, 2 );
+                $normalized = $normalized[1] ?? $normalized[0];
+
+                if( in_array( $normalized, [
                     $alt_meta,
                     "billing_".$alt_meta,
                 ] ) ) {
-                    return $field_name;
+                    $found_field = $found_field ?? $field_name;
+
+                    if( trim( $field_value ) !== "" ) {
+                        return $field_name;
+                    }
                 }
             }
         }
     }
 
-    return null;
+    return $found_field;
 }
 
 /**
@@ -1885,7 +1899,7 @@ function laskuhari_update_order_meta( $order )  {
 }
 
 /**
- * Checks if the WooCommerce order form has a field
+ * Checks if the WooCommerce (legacy) order form has a field
  * for a specific Laskuhari meta key
  *
  * @param string $meta_key

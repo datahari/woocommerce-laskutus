@@ -11,18 +11,40 @@
         const [businessId, setBusinessId] = useState( info.businessId || "" );
         const [email, setEmail] = useState( info.email || "" );
 
+        const showEmail = info.email !== info.user_email;
+
         useEffect( () => {
+            const paymentMethodData = {};
+
+            if( info.showEInvoiceAddress ) {
+                paymentMethodData["laskuhari-verkkolaskuosoite"] = eInvoiceAddress;
+            }
+
+            if( info.showInvoicingMethod ) {
+                paymentMethodData["laskuhari-laskutustapa"] = invoicingMethod;
+            }
+
+            if( info.showEInvoiceOperator ) {
+                paymentMethodData["laskuhari-valittaja"] = eInvoiceOperator;
+            }
+
+            if( info.showYourReference ) {
+                paymentMethodData["laskuhari-viitteenne"] = yourReference;
+            }
+
+            if( info.showBusinessId ) {
+                paymentMethodData["laskuhari-ytunnus"] = businessId;
+            }
+
+            if( showEmail ) {
+                paymentMethodData["laskuhari-email"] = email;
+            }
+
+
             return eventRegistration.onPaymentSetup( () => ({
                 type: emitResponse.responseTypes.SUCCESS,
                 meta: {
-                    paymentMethodData: {
-                        "laskuhari-verkkolaskuosoite": eInvoiceAddress,
-                        "laskuhari-laskutustapa": invoicingMethod,
-                        "laskuhari-valittaja": eInvoiceOperator,
-                        "laskuhari-viitteenne": yourReference,
-                        "laskuhari-ytunnus": businessId,
-                        "laskuhari-email": email,
-                    },
+                    paymentMethodData: paymentMethodData,
                 },
             } ) );
         }, [
@@ -69,28 +91,30 @@
 
             h( "div", { class: "laskuhari-caption" }, info.texts.invoicingMethod + ":"),
 
-            h( "select", {
-                id: "laskuhari-laskutustapa",
-                class: "laskuhari-pakollinen",
-                onChange: e => setInvoicingMethod( e.target.value ),
-            }, [
-                    h( "option", { value: "" }, "-- " + info.texts.selectInvoicingMethod + " --" ),
+            ...( info.showInvoicingMethod ? [
+                h( "select", {
+                    id: "laskuhari-laskutustapa",
+                    class: "laskuhari-pakollinen",
+                    onChange: e => setInvoicingMethod( e.target.value ),
+                }, [
+                        h( "option", { value: "" }, "-- " + info.texts.selectInvoicingMethod + " --" ),
 
-                    ...( info.emailEnabled ? [
-                        h( "option", { value: "email", selected: invoicingMethod === "email" }, info.texts.invoicingMethod_email )
-                    ] : [] ),
+                        ...( info.emailEnabled ? [
+                            h( "option", { value: "email", selected: invoicingMethod === "email" }, info.texts.invoicingMethod_email )
+                        ] : [] ),
 
-                    ...( info.eInvoiceEnabled ? [
-                        h( "option", { value: "verkkolasku", selected: invoicingMethod === "verkkolasku" }, info.texts.invoicingMethod_eInvoice ),
-                    ] : [] ),
+                        ...( info.eInvoiceEnabled ? [
+                            h( "option", { value: "verkkolasku", selected: invoicingMethod === "verkkolasku" }, info.texts.invoicingMethod_eInvoice ),
+                        ] : [] ),
 
-                    ...( info.letterEnabled ? [
-                        h( "option", { value: "kirje", selected: invoicingMethod === "kirje" }, info.texts.invoicingMethod_letter ),
-                    ] : [] ),
-                ]
-            ),
+                        ...( info.letterEnabled ? [
+                            h( "option", { value: "kirje", selected: invoicingMethod === "kirje" }, info.texts.invoicingMethod_letter ),
+                        ] : [] ),
+                    ]
+                ),
+            ] : [] ),
 
-            ...( info.email !== info.user_email && invoicingMethod === "email" ? [
+            ...( showEmail && invoicingMethod === "email" ? [
                 h( "div", { id: "laskuhari-sahkoposti-tiedot" },
                     h( "div", { class: "laskuhari-caption" }, info.texts.email + ":" ),
                     h( "input", {
@@ -102,7 +126,7 @@
                 ),
             ] : [] ),
 
-            h( "div", { id: "laskuhari-verkkolasku-tiedot", style: ( invoicingMethod === "verkkolasku" ? {} : { display: "none" } ) },
+            ...( info.showBusinessId && info.vatIdRequiredMethods.includes( invoicingMethod ) ? [
                 h( "div", { class: "laskuhari-caption" }, info.texts.businessId + ":"),
                 h( "input", {
                     type: "text",
@@ -110,40 +134,49 @@
                     value: businessId,
                     onChange: e => setBusinessId( e.target.value ),
                 } ),
+            ] : [] ),
 
-                h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceAddress + ":" ),
-                h( "input", {
-                    type: "text",
-                    id: "laskuhari-verkkolaskuosoite",
-                    value: eInvoiceAddress,
-                    onChange: e => setEInvoiceAddress( e.target.value ),
-                } ),
+            h( "div", { id: "laskuhari-verkkolasku-tiedot", style: ( invoicingMethod === "verkkolasku" ? {} : { display: "none" } ) },
 
-                h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceOperator + ":" ),
-                h( "select", {
-                    type: "text",
-                    id: "laskuhari-valittaja",
-                    value: eInvoiceOperator,
-                    onChange: e => setEInvoiceOperator( e.target.value ),
-                },
-                    h( "option", { value: "" }, "-- " + info.texts.selectEInvoiceOperator + " --" ),
-                    h( "optgroup", { label: info.texts.operators },
-                        operators_list,
+                ...( info.showEInvoiceAddress ? [
+                    h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceAddress + ":" ),
+                    h( "input", {
+                        type: "text",
+                        id: "laskuhari-verkkolaskuosoite",
+                        value: eInvoiceAddress,
+                        onChange: e => setEInvoiceAddress( e.target.value ),
+                    } ),
+                ] : [] ),
+
+                ...( info.showEInvoiceOperator ? [
+                    h( "div", { class: "laskuhari-caption" }, info.texts.eInvoiceOperator + ":" ),
+                    h( "select", {
+                        type: "text",
+                        id: "laskuhari-valittaja",
+                        value: eInvoiceOperator,
+                        onChange: e => setEInvoiceOperator( e.target.value ),
+                    },
+                        h( "option", { value: "" }, "-- " + info.texts.selectEInvoiceOperator + " --" ),
+                        h( "optgroup", { label: info.texts.operators },
+                            operators_list,
+                        ),
+                        h( "optgroup", { label: info.texts.banks },
+                            banks_list,
+                        ),
+                        ...others_list
                     ),
-                    h( "optgroup", { label: info.texts.banks },
-                        banks_list,
-                    ),
-                    ...others_list
-                ),
+                ] : [] ),
             ),
 
-            h( "div", { class: "laskuhari-caption" }, info.texts.yourReference + ":" ),
-            h( "input", {
-                type: "text",
-                id: "laskuhari-viitteenne",
-                value: yourReference,
-                onChange: e => setYourReference( e.target.value ),
-            } ),
+            ...( info.showYourReference ? [
+                h( "div", { class: "laskuhari-caption" }, info.texts.yourReference + ":" ),
+                h( "input", {
+                    type: "text",
+                    id: "laskuhari-viitteenne",
+                    value: yourReference,
+                    onChange: e => setYourReference( e.target.value ),
+                } ),
+            ] : [] ),
         );
     }
 

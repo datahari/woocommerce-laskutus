@@ -7,11 +7,25 @@
 namespace Laskuhari;
 
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
+use Automattic\WooCommerce\Blocks\Domain\Services\CheckoutFields;
+use Automattic\WooCommerce\Blocks\Package;
 
 defined( "ABSPATH" ) || exit;
 
 class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
+    /**
+     * Name of the payment method
+     *
+     * @var string
+     */
     protected $name = "laskuhari";
+
+    /**
+     * Extra fields for $_POST manipulation at checkout
+     *
+     * @var array<string, string>
+     */
+    public static $extra_post_fields;
 
     /**
      * The legacy gateway object that holds all settings
@@ -34,6 +48,60 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
                 $registry->register( $this );
             }
         );
+
+        add_action(
+            "woocommerce_blocks_validate_location_address_fields",
+            [$this, "intercept_block_checkout_fields"],
+            10,
+            3
+        );
+    }
+
+    /**
+     * Intercept Block Checkout fields used by Laskuhari
+     * as alternative fields for metadata
+     *
+     * @param array<string, string> $fields
+     * @param string $_group
+     */
+    protected function intercept_block_checkout_fields( \WP_Error $_errors, $fields, $_group ): void {
+        $alt_fields = laskuhari_alternative_meta_fields();
+
+        foreach( $alt_fields as $alt_field => $alt_keys ) {
+            $key = laskuhari_resolve_alternative_meta_key( $alt_field, $fields );
+
+            if( $key !== null ) {
+                Laskuhari_Block_Checkout::$extra_post_fields[(string)reset( $alt_keys )] = $fields[$key];
+            }
+        }
+    }
+
+    /**
+     * Checks if the WooCommerce Block order form has a field
+     * for a specific Laskuhari meta key
+     *
+     * @param string $meta_key
+     * @param ?array $field_data Field data to use (default = get from WC registry)
+     *
+     * @return bool
+     */
+    protected function block_checkout_form_has_meta( $meta_key, $field_data = null ) {
+        if( null === $field_data ) {
+            $registry = Package::container()->get( CheckoutFields::class );
+
+            $field_data = array_merge(
+                $registry->get_core_fields(),
+                $registry->get_additional_fields(),
+            );
+        }
+
+        $checkout_fields = [];
+
+        foreach( $field_data as $field_name => $field_settings ) {
+            $checkout_fields[$field_name] = $field_settings["default"] ?? "";
+        }
+
+        return (bool) laskuhari_resolve_alternative_meta_key( $meta_key, $checkout_fields );
     }
 
     /**
@@ -75,6 +143,12 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
             "emailEnabled" => $this->lh_gateway->email_lasku_kaytossa,
             "eInvoiceEnabled" => $this->lh_gateway->verkkolasku_kaytossa,
             "letterEnabled" => $this->lh_gateway->kirjelasku_kaytossa,
+            "showInvoicingMethod" => ! $this->block_checkout_form_has_meta( "_laskuhari_laskutustapa" ),
+            "showBusinessId" => ! $this->block_checkout_form_has_meta( "_laskuhari_ytunnus" ),
+            "showEInvoiceOperator" => ! $this->block_checkout_form_has_meta( "_laskuhari_valittaja" ),
+            "showEInvoiceAddress" => ! $this->block_checkout_form_has_meta( "_laskuhari_verkkolaskuosoite" ),
+            "showYourReference" => ! $this->block_checkout_form_has_meta( "_laskuhari_viitteenne" ),
+            "vatIdRequiredMethods" => laskuhari_vat_id_mandatory_for_methods(),
             "texts" => [
                 "title" => $this->lh_gateway->title,
                 "description" => $this->lh_gateway->description,
