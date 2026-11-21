@@ -1,18 +1,18 @@
 <?php
 /**
- * This is a class for registering the Laskuhari payment method
- * in the WooCommerce Block Checkout.
+ * This is the payment method class for Laskuhari Block Checkout
  */
 
-namespace Laskuhari;
+namespace Laskuhari\Blocks;
 
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 use Automattic\WooCommerce\Blocks\Domain\Services\CheckoutFields;
 use Automattic\WooCommerce\Blocks\Package;
+use Laskuhari\WC_Gateway_Laskuhari;
 
 defined( "ABSPATH" ) || exit;
 
-class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
+class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType {
     /**
      * Name of the payment method
      *
@@ -21,60 +21,11 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
     protected $name = "laskuhari";
 
     /**
-     * Extra fields for $_POST manipulation at checkout
-     *
-     * @var array<string, string>
-     */
-    public static $extra_post_fields;
-
-    /**
      * The legacy gateway object that holds all settings
      *
      * @var WC_Gateway_Laskuhari $lh_gateway
      */
     protected $lh_gateway;
-
-    public function __construct( WC_Gateway_Laskuhari $lh_gateway ) {
-        $this->lh_gateway = $lh_gateway;
-    }
-
-    /**
-     * Register the Laskuhari Block Checkout payment method
-     */
-    public function register(): void {
-        add_action(
-            "woocommerce_blocks_payment_method_type_registration",
-            function( $registry ) {
-                $registry->register( $this );
-            }
-        );
-
-        add_action(
-            "woocommerce_blocks_validate_location_address_fields",
-            [$this, "intercept_block_checkout_fields"],
-            10,
-            3
-        );
-    }
-
-    /**
-     * Intercept Block Checkout fields used by Laskuhari
-     * as alternative fields for metadata
-     *
-     * @param array<string, string> $fields
-     * @param string $_group
-     */
-    protected function intercept_block_checkout_fields( \WP_Error $_errors, $fields, $_group ): void {
-        $alt_fields = laskuhari_alternative_meta_fields();
-
-        foreach( $alt_fields as $alt_field => $alt_keys ) {
-            $key = laskuhari_resolve_alternative_meta_key( $alt_field, $fields );
-
-            if( $key !== null ) {
-                Laskuhari_Block_Checkout::$extra_post_fields[(string)reset( $alt_keys )] = $fields[$key];
-            }
-        }
-    }
 
     /**
      * Checks if the WooCommerce Block order form has a field
@@ -108,7 +59,7 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
      * Initialize the payment method
      */
     public function initialize(): void {
-        // Nothing to do here
+        $this->lh_gateway = laskuhari_get_gateway_object();
     }
 
     /**
@@ -126,7 +77,7 @@ class Laskuhari_Block_Checkout extends AbstractPaymentMethodType {
     public function get_payment_method_script_handles(): array {
         wp_register_script(
             "laskuhari-js-block-checkout",
-            plugins_url( "../js/block-checkout.js" , __FILE__ ), // @phpstan-ignore-line
+            plugins_url( "../../js/block-checkout.js" , __FILE__ ), // @phpstan-ignore-line
             [ "wp-element", "wc-blocks-registry", "laskuhari-js-checkout" ],
             LASKUHARI_VERSION
         );

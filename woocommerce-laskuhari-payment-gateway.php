@@ -19,10 +19,10 @@ use Laskuhari\Laskuhari_Invoicing_Details_Endpoint;
 use Laskuhari\Exception\Finvoice\FinvoiceException;
 use Laskuhari\Laskuhari_Export_Products_REST_API;
 use Automattic\WooCommerce\Utilities\NumberUtil;
+use Laskuhari\Blocks\Laskuhari_Block_Checkout;
 use Laskuhari\Laskuhari_My_Account_Orders;
 use Laskuhari\Finvoice\FinvoiceValidator;
 use Laskuhari\Laskuhari_Plugin_Updater;
-use Laskuhari\Laskuhari_Block_Checkout;
 use Laskuhari\Laskuhari_Troubleshooter;
 use Laskuhari\WC_Gateway_Laskuhari;
 use Laskuhari\Laskuhari_Uninstall;
@@ -62,7 +62,7 @@ function laskuhari_payment_gateway_load() {
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
-    $block_checkout = new Laskuhari_Block_Checkout( $laskuhari_gateway_object );
+    $block_checkout = new Laskuhari_Block_Checkout();
     $block_checkout->register();
 
     $webhooks = new Laskuhari_Webhooks( $laskuhari_gateway_object );
