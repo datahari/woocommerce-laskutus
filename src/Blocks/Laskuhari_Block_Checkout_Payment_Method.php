@@ -42,7 +42,7 @@ class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType 
 
             $field_data = array_merge(
                 $registry->get_core_fields(),
-                $registry->get_additional_fields(),
+                $registry->get_additional_fields()
             );
         }
 
