@@ -94,7 +94,7 @@ class Laskuhari_Block_Checkout_Payment_Method extends AbstractPaymentMethodType 
             "yourReference" => get_laskuhari_meta( null, "_laskuhari_viitteenne" ),
             "businessId" => get_laskuhari_meta( null, "_laskuhari_ytunnus" ),
             "user_email" => get_laskuhari_meta( null, "billing_email" ),
-            "email" => get_laskuhari_meta( null, "_laskuhari_email" ),
+            "email" => get_laskuhari_meta( null, "_laskuhari_billing_email" ),
             "operators" => laskuhari_operators(),
             "emailEnabled" => $this->lh_gateway->email_lasku_kaytossa,
             "eInvoiceEnabled" => $this->lh_gateway->verkkolasku_kaytossa,

@@ -579,7 +579,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $valittaja = (string) get_laskuhari_meta( $order, '_laskuhari_valittaja' );
         $verkkolaskuosoite = (string) get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' );
         $ytunnus = (string) get_laskuhari_meta( $order, '_laskuhari_ytunnus' );
-        $email = (string) get_laskuhari_meta( $order, '_laskuhari_email' );
+        $email = (string) get_laskuhari_meta( $order, $order ? '_laskuhari_email' : '_laskuhari_billing_email' );
 
         $user_email = "";
         if( $order ) {

@@ -1588,7 +1588,6 @@ function laskuhari_alternative_meta_fields() {
             "laskutus_email",
             "laskutus_sahkoposti",
             "laskuhari-email",
-            "_laskuhari_billing_email",
             "email",
         ],
         "_laskuhari_verkkolaskuosoite" => [
