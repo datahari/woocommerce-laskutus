@@ -11,21 +11,21 @@ let laskuhari_viime_laskutustapa = "";
     }
 
     function laskuhari_invoicing_method_field() {
-        return $("#laskuhari-laskutustapa, .woocommerce-checkout :input[name*='laskutustapa']").first();
+        return $("[data-id='laskuhari-laskutustapa'], .woocommerce-checkout :input[name*='laskutustapa']").first();
     }
 
     function laskuhari_business_id_field() {
-        const selector = "#laskuhari-ytunnus, .woocommerce-checkout :input[name*='" + laskuhariCheckout.vat_number_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
+        const selector = "[data-id='laskuhari-ytunnus'], .woocommerce-checkout :input[name*='" + laskuhariCheckout.vat_number_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
         return $(selector).first();
     }
 
     function laskuhari_einvoice_address_field() {
-        const selector = "#laskuhari-verkkolaskuosoite, .woocommerce-checkout :input[name*='" + laskuhariCheckout.einvoice_address_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
+        const selector = "[data-id='laskuhari-verkkolaskuosoite'], .woocommerce-checkout :input[name*='" + laskuhariCheckout.einvoice_address_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
         return $(selector).first();
     }
 
     function laskuhari_einvoice_operator_field() {
-        const selector = "#laskuhari-verkkolaskuosoite, .woocommerce-checkout :input[name*='" + laskuhariCheckout.einvoice_operator_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
+        const selector = "[data-id='laskuhari-verkkolaskuosoite'], .woocommerce-checkout :input[name*='" + laskuhariCheckout.einvoice_operator_fields.join("'], .woocommerce-checkout :input[name*='")+"']";
         return $(selector).first();
     }
 
@@ -42,10 +42,10 @@ let laskuhari_viime_laskutustapa = "";
 
         if( laskutustapa == "email" ) {
             $("#laskuhari-sahkoposti-tiedot").show();
-            $("#laskuhari-email").attr("required", true);
+            $("[data-id='laskuhari-email']").attr("required", true);
         } else {
             $("#laskuhari-sahkoposti-tiedot").hide();
-            $("#laskuhari-email").attr("required", false);
+            $("[data-id='laskuhari-email']").attr("required", false);
         }
 
         if( laskutustapa == "kirje" ) {
@@ -137,6 +137,7 @@ let laskuhari_viime_laskutustapa = "";
         });
 
         $("body").bind("updated_checkout payment_method_selected", function(){
+            $("[data-id='laskuhari-email']").attr( "placeholder", ( $(".woocommerce-checkout #billing_email").val() ) );
             laskuhari_tarkista_laskutustapa();
             init_select2();
         });
@@ -148,10 +149,10 @@ let laskuhari_viime_laskutustapa = "";
         });
 
         $("body").on( "input", ".woocommerce-checkout #billing_email", function( e ) {
-            $("#laskuhari-email").attr( "placeholder", ( $(e.target).val() ) );
+            $("[data-id='laskuhari-email']").attr( "placeholder", ( $(e.target).val() ) );
         } );
 
-        $("#laskuhari-email").attr( "placeholder", ( $(".woocommerce-checkout #billing_email").val() ) );
+        $("[data-id='laskuhari-email']").attr( "placeholder", ( $(".woocommerce-checkout #billing_email").val() ) );
 
         $(".woocommerce-order-pay").on("submit", "form#order_review", function(e) {
             if( ! laskuhari_check_disabled_form() ) {

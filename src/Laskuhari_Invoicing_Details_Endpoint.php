@@ -205,7 +205,7 @@ class Laskuhari_Invoicing_Details_Endpoint {
 
             <p class="form-row form-row-wide">
                 <label for="laskuhari-laskutustapa"><?php echo esc_html( $fields['laskutustapa']['label'] ); ?></label>
-				<select name="laskutustapa" id="laskuhari-laskutustapa">
+				<select name="laskutustapa" id="laskuhari-laskutustapa" data-id="laskuhari-laskutustapa">
                     <option value="">-- <?php echo __( 'Valitse laskutustapa', 'laskuhari' ); ?> ---</option>
 
                     <?php if( $this->gw->email_lasku_kaytossa ): ?>

@@ -598,18 +598,20 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return void
      */
     public function lahetystapa_lomake( $order = null ) {
-        $laskutustapa = (string) get_laskuhari_meta( $order, '_laskuhari_laskutustapa' );
-        $valittaja = (string) get_laskuhari_meta( $order, '_laskuhari_valittaja' );
-        $verkkolaskuosoite = (string) get_laskuhari_meta( $order, '_laskuhari_verkkolaskuosoite' );
-        $ytunnus = (string) get_laskuhari_meta( $order, '_laskuhari_ytunnus' );
-        $email = (string) get_laskuhari_meta( $order, $order ? '_laskuhari_email' : '_laskuhari_billing_email' );
+        $prefix = $this->get_address_book_prefix( $order );
+
+        $laskutustapa = (string) get_laskuhari_meta( $order, $prefix . '_laskuhari_laskutustapa' );
+        $valittaja = (string) get_laskuhari_meta( $order, $prefix . '_laskuhari_valittaja' );
+        $verkkolaskuosoite = (string) get_laskuhari_meta( $order, $prefix . '_laskuhari_verkkolaskuosoite' );
+        $ytunnus = (string) get_laskuhari_meta( $order, $prefix . '_laskuhari_ytunnus' );
+        $email = (string) get_laskuhari_meta( $order, $order ? '_laskuhari_email' : $prefix . '_laskuhari_billing_email' );
 
         $user_email = "";
         if( $order ) {
             $user_email = $order->get_billing_email();
         } else {
             if( ! is_admin() ) {
-                $user_email = (string) get_user_meta( get_current_user_id(), "billing_email", true ); // @phpstan-ignore-line
+                $user_email = (string) get_user_meta( get_current_user_id(), ($prefix ?: "billing_") . "email", true ); // @phpstan-ignore-line
             }
         }
 
@@ -629,8 +631,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 <?php
                 if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_laskutustapa" ) ) {
                     ?>
-                    <label class="laskuhari-caption" for="laskuhari-laskutustapa"><?php echo __( 'Laskutustapa', 'laskuhari' ); ?>:</label>
-                    <select id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
+                    <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-laskutustapa"><?php echo __( 'Laskutustapa', 'laskuhari' ); ?>:</label>
+                    <select id="<?php echo $prefix; ?>laskuhari-laskutustapa" data-id="laskuhari-laskutustapa" class="laskuhari-pakollinen" name="laskuhari-laskutustapa">
                         <option value="">-- <?php echo __('Valitse laskutustapa', 'laskuhari'); ?> --</option>
                         <?php if( $this->email_lasku_kaytossa || is_admin() ): ?><option value="email"<?php echo ($laskutustapa == "email" ? ' selected' : ''); ?>><?php echo $email_method_text; ?></option><?php endif; ?>
                         <?php if( $this->verkkolasku_kaytossa || is_admin() ): ?><option value="verkkolasku"<?php echo ($laskutustapa == "verkkolasku" ? ' selected' : ''); ?>><?php echo $einvoice_method_text; ?></option><?php endif; ?>
@@ -640,15 +642,15 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 }
                 ?>
                 <div id="laskuhari-sahkoposti-tiedot" style="<?php echo ($laskutustapa == "email" ? '' : 'display: none;'); ?>">
-                    <label class="laskuhari-caption" for="laskuhari-email"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</label>
-                    <input type="text" id="laskuhari-email" placeholder="<?php echo esc_attr( $user_email ); ?>" value="<?php echo esc_attr( $email ); ?>" name="laskuhari-email" /><br />
+                    <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-email"><?php echo __( 'Sähköpostiosoite', 'laskuhari' ); ?>:</label>
+                    <input type="text" id="<?php echo $prefix; ?>laskuhari-email" data-id="laskuhari-email" placeholder="<?php echo esc_attr( $user_email ); ?>" value="<?php echo esc_attr( $email ); ?>" name="laskuhari-email" /><br />
                 </div>
                 <?php
                 if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_ytunnus" ) ) {
                     ?>
                     <div id="laskuhari-ytunnus-field">
-                        <label class="laskuhari-caption" for="laskuhari-ytunnus"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</label>
-                        <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
+                        <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-ytunnus"><?php echo __( 'Y-tunnus', 'laskuhari' ); ?>:</label>
+                        <input type="text" class="verkkolasku-pakollinen" value="<?php echo esc_attr( $ytunnus ); ?>" id="<?php echo $prefix; ?>laskuhari-ytunnus" data-id="laskuhari-ytunnus" name="laskuhari-ytunnus" /><br />
                         </div>
                     <?php
                 }
@@ -657,14 +659,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                     <?php
                     if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_verkkolaskuosoite" ) ) {
                         ?>
-                        <label class="laskuhari-caption" for="laskuhari-verkkolaskuosoite"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</label>
-                        <input type="text" id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( $verkkolaskuosoite ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
+                        <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-verkkolaskuosoite"><?php echo __( 'Verkkolaskuosoite / OVT', 'laskuhari' ); ?>:</label>
+                        <input type="text" id="<?php echo $prefix; ?>laskuhari-verkkolaskuosoite" data-id="laskuhari-verkkolaskuosoite" value="<?php echo esc_attr( $verkkolaskuosoite ); ?>" name="laskuhari-verkkolaskuosoite" /><br />
                         <?php
                     }
                     if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_valittaja" ) ) {
                         ?>
-                        <label class="laskuhari-caption" for="laskuhari-valittaja"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</label>
-                        <select id="laskuhari-valittaja" name="laskuhari-valittaja" class="<?php echo $this->select2_class(); ?>" style="width: 100%;">
+                        <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-valittaja"><?php echo __( 'Verkkolaskuoperaattori', 'laskuhari' ); ?>:</label>
+                        <select id="<?php echo $prefix; ?>laskuhari-valittaja" data-id="laskuhari-valittaja" name="laskuhari-valittaja" class="<?php echo $this->select2_class(); ?>" style="width: 100%;">
                             <option value="">-- <?php echo __( 'Valitse verkkolaskuoperaattori', 'laskuhari' ); ?> ---</option>
                             <?php echo $this->operators_select_options_html( $valittaja ); ?>
                         </select><br /><br />
@@ -674,6 +676,56 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
                 </div>
             </div>
         <?php
+    }
+
+    /**
+     * For compatibility with WooCommerce Address Book plugin
+     * (https://wordpress.org/plugins/woo-address-book/)
+     *
+     * When an order is placed using a WooCommerce Address Book address,
+     * the custom Laskuhari invoicing details meta is saved into a
+     * separate user meta key prefixed with the address book name.
+     *
+     * NOTE: We also prefix the IDs of the invoicing meta fields
+     *       with this prefix because WooCommerce tries to
+     *       maintain the user-filled values when changing
+     *       a checkout field such as the postcode, but
+     *       this also applies to changing the address
+     *       book address.
+     *
+     *       Thus if the selected address book address has an
+     *       empty value for one of the invoicing meta fields,
+     *       WooCommerce will replace the empty value with the
+     *       value that was input earlier. This is not the
+     *       behavior we want. An address book address should
+     *       be able to have an empty value, for example for
+     *       the "viitteenne" field.
+     */
+    protected function get_address_book_prefix( ?WC_Order $order ): string {
+        if( $order ) {
+            return "";
+        }
+
+        $address_book_prefix = "";
+        $data = [];
+
+        if( isset( $_POST["post_data"] ) && is_string( $_POST["post_data"] ) ) {
+            parse_str( $_POST["post_data"], $data );
+
+            if( isset( $data["billing_address_book"] ) ) {
+                $address_book_prefix = $data["billing_address_book"] . "_";
+            }
+
+            if( $address_book_prefix === "billing_" ) {
+                $address_book_prefix = "";
+            }
+
+            if( $address_book_prefix === "add_new_" ) {
+                $address_book_prefix = "";
+            }
+        }
+
+        return $address_book_prefix;
     }
 
     /**
@@ -743,12 +795,14 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
      * @return void
      */
     public function viitteenne_lomake( $order = null ) {
+        $prefix = $this->get_address_book_prefix( $order );
+
         if( ! is_checkout() || ! laskuhari_order_form_has_meta( "_laskuhari_viitteenne" ) ) {
             /** @var string $viitteenne */
-            $viitteenne = get_laskuhari_meta( $order, '_laskuhari_viitteenne' );
+            $viitteenne = get_laskuhari_meta( $order, $prefix . '_laskuhari_viitteenne' );
             ?>
-            <label class="laskuhari-caption" for="laskuhari-viitteenne"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</label>
-            <input type="text" id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
+            <label class="laskuhari-caption" for="<?php echo $prefix; ?>laskuhari-viitteenne"><?php echo __( 'Viitteenne', 'laskuhari' ); ?> (<?php echo __( 'valinnainen', 'laskuhari' ); ?>):</label>
+            <input type="text" id="<?php echo $prefix; ?>laskuhari-viitteenne" data-id="laskuhari-viitteenne" value="<?php echo esc_attr( $viitteenne ); ?>" name="laskuhari-viitteenne" />
             <?php
         }
     }
@@ -1462,7 +1516,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         $order->update_status( $status_after_payment );
 
-        laskuhari_update_order_meta( $order );
+        laskuhari_checkout_update_customer( $order );
 
         do_action( "laskuhari_action_after_payment_completed_before_reduce_stock_levels" );
 
@@ -1538,51 +1592,50 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
     }
 
     /**
-     * Show notices of missing or invalid custom fields at checkout / payment
-     *
-     * @return bool
+     * Show notices of missing or invalid custom fields at checkout
      */
-    function validate_fields() {
+    function validate_fields(): bool {
         $laskutustapa = laskuhari_get_meta_from_request( "_laskuhari_laskutustapa" );
-
-        $success = true;
 
         if( empty( $laskutustapa ) ) {
             wc_add_notice( __( 'Ole hyvä ja valitse laskutustapa', 'laskuhari' ), 'error' );
-            $success = false;
-        } elseif( ! in_array( $laskutustapa, $this->get_available_invoicing_methods() ) ) {
+            return false;
+        }
+
+        if( ! in_array( $laskutustapa, $this->get_available_invoicing_methods() ) ) {
             wc_add_notice( sprintf( __( 'Valitsemasi laskutustapa ei ole sallittu', 'laskuhari' ) ), 'error' );
-            $success = false;
-        } else {
-            $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
-            $vat_id_required = in_array( $laskutustapa, laskuhari_vat_id_mandatory_for_methods() );
+            return false;
+        }
 
-            if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
-                $method_name = laskuhari_method_name_by_slug( $laskutustapa );
-                wc_add_notice( sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ), 'error' );
-                $success = false;
-            }
+        $vat_id = (string) laskuhari_get_meta_from_request( "_laskuhari_ytunnus" );
+        $vat_id_required = in_array( $laskutustapa, laskuhari_vat_id_mandatory_for_methods() );
 
-            if( $laskutustapa === "verkkolasku" ) {
-                $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
-                $valittaja = laskuhari_valittaja_format( (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" ) );
+        if( $vat_id_required && ! laskuhari_is_valid_vat_id( $vat_id ) ) {
+            $method_name = laskuhari_method_name_by_slug( $laskutustapa );
+            wc_add_notice( sprintf( __( 'Y-tunnus on pakollinen %s-laskutustavalla', 'laskuhari' ), $method_name ), 'error' );
+            return false;
+        }
 
-                try {
-                    FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
-                } catch( FinvoiceException $e ) {
-                    wc_add_notice( sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ), 'error' );
-                    $success = false;
+        if( $laskutustapa === "verkkolasku" ) {
+            $verkkolaskuosoite = (string) laskuhari_get_meta_from_request( "_laskuhari_verkkolaskuosoite" );
+            $valittaja = laskuhari_valittaja_format( (string) laskuhari_get_meta_from_request( "_laskuhari_valittaja" ) );
 
-                    Logger::enabled( 'info' ) && Logger::log( sprintf(
-                        'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
-                        $e->getMessage(),
-                        $verkkolaskuosoite,
-                        $valittaja
-                    ), 'info' );
-                }
+            try {
+                FinvoiceValidator::validate_finvoice_address( $verkkolaskuosoite, $valittaja, $vat_id );
+            } catch( FinvoiceException $e ) {
+                wc_add_notice( sprintf( __( 'Virheelliset verkkolaskutiedot: %s', 'laskuhari' ), $e->getMessage() ), 'error' );
+
+                Logger::enabled( 'info' ) && Logger::log( sprintf(
+                    'Laskuhari: Invalid e-invoice address at checkout: %s (%s/%s)',
+                    $e->getMessage(),
+                    $verkkolaskuosoite,
+                    $valittaja
+                ), 'info' );
+
+                return false;
             }
         }
 
-        return $success;
+        return true;
     }
 }

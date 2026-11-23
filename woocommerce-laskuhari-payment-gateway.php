@@ -104,7 +104,6 @@ function laskuhari_payment_gateway_load() {
         add_action( 'wp_footer', 'laskuhari_add_styles' );
         add_action( 'woocommerce_cart_calculate_fees','laskuhari_add_invoice_surcharge', 10, 1 );
         add_action( 'woocommerce_checkout_update_order_review','laskuhari_checkout_update_order_review', 10, 1 );
-        add_action( 'woocommerce_checkout_update_customer', 'laskuhari_checkout_update_customer', 10, 2 );
     }
 
     laskuhari_actions();
@@ -265,35 +264,34 @@ function lh_create_select_box( $name, $options, $current = '' ) {
     return $html;
 }
 
-// get the newest address book prefix of WooCommerce Address Book plugin
-function laskuhari_get_newest_address_book_prefix( $customer ) {
-    $address_book_prefix = "";
+/**
+ * Get the newest address book prefix of WooCommerce Address Book plugin
+ */
+function laskuhari_get_newest_address_book_prefix( WC_Customer $customer ): string {
+    $address_book = $customer->get_meta( "wc_address_book_billing", true );
 
-    $address_names = $customer->get_meta( 'wc_address_book_billing', true );
+    if( is_array( $address_book ) ) {
+        $addresses = $address_book["addresses"] ?? null;
 
-    if( empty( $address_names ) ) {
-        $address_book_prefix = "billing_";
-    } elseif( is_array( $address_names ) ) {
-        $latest = 0;
-        foreach( $address_names as $address_name ) {
-            if( $address_name > $latest ) {
-                $address_book_prefix = $address_name."_";
-            }
+        if( is_array( $addresses ) ) {
+            $last_prefix = end( $addresses );
+        } else {
+            $last_prefix = end( $address_book );
+        }
+
+        if( is_string( $last_prefix ) ) {
+            return trim( $last_prefix, "_" ) . "_";
         }
     }
 
-    return $address_book_prefix;
+    return "";
 }
 
 /**
- * Save customer specific laskuhari meta data from order when
- * order is placed through thew checkout process.
- *
- * @param WC_Customer $customer
- * @param array<string, string> $data The posted data
- * @return void
+ * Save customer specific Laskuhari meta data from order when
+ * order is placed through the checkout process.
  */
-function laskuhari_checkout_update_customer( $customer, $data ) {
+function laskuhari_checkout_update_customer( WC_Order $order ): void {
     $meta_data_to_save = [
         "_laskuhari_laskutustapa",
         "_laskuhari_valittaja",
@@ -301,12 +299,26 @@ function laskuhari_checkout_update_customer( $customer, $data ) {
         "_laskuhari_ytunnus",
     ];
 
-    // for compatibility with WooCommerce Address Book plugin
-    if( isset( $data['billing_address_book'] ) ) {
-        if( $data['billing_address_book'] === "add_new" ) {
+    $customer_id = $order->get_customer_id();
+
+    if( ! $customer_id ) {
+        return;
+    }
+
+    $customer = new WC_Customer( $customer_id );
+
+    $billing_address_book = $order->get_meta( "_billing_address_book", true );
+
+    if( ! is_string( $billing_address_book ) ) {
+        $billing_address_book = null;
+    }
+
+    // For compatibility with WooCommerce Address Book plugin
+    if( ! empty( $billing_address_book ) ) {
+        if( $billing_address_book === "add_new" ) {
             $address_book_prefix = laskuhari_get_newest_address_book_prefix( $customer );
         } else {
-            $address_book_prefix = $data['billing_address_book']."_";
+            $address_book_prefix = trim( $billing_address_book, "_" ) . "_";
         }
 
         if( $address_book_prefix === "billing_" ) {
@@ -321,12 +333,15 @@ function laskuhari_checkout_update_customer( $customer, $data ) {
     $meta_data_to_save = apply_filters( "laskuhari_checkout_meta_data_to_save", $meta_data_to_save, $customer );
 
     foreach( $meta_data_to_save as $meta_key ) {
-        $value = laskuhari_get_meta_from_request( $meta_key, $data );
+        $value = $order->get_meta( $meta_key, true );
 
-        if( $value !== null ) {
-            $customer->update_meta_data( $address_book_prefix.$meta_key, $value );
+        if( is_string( $value ) ) {
+            $value = sanitize_text_field( wp_unslash( $value ) );
+            $customer->update_meta_data( $address_book_prefix . $meta_key, $value );
         }
     }
+
+    $customer->save_meta_data();
 }
 
 /**
@@ -744,8 +759,7 @@ function laskuhari_user_profile_additional_info( $user ) {
         $meta_disp_name   = $meta_field['title'];
         $meta_field_name  = $meta_field['name'];
 
-        $meta_key = get_laskuhari_meta_key( $user->ID, $meta_field_name );
-        $current_value = get_user_meta( $user->ID, $meta_key, true );
+        $current_value = get_user_meta( $user->ID, $meta_field_name, true );
 
         if( "checkbox" === $meta_field['type'] ) {
             if ( "yes" === $current_value ) {
@@ -1496,14 +1510,14 @@ function laskuhari_vat_id_mandatory_for_methods() {
 
 // Return name of invoicing method by slug
 
-function laskuhari_method_name_by_slug( $slug ) {
+function laskuhari_method_name_by_slug( string $slug ): string {
     $names = apply_filters( "laskuhari_method_names_by_slug", [
         "verkkolasku" => "verkkolasku",
         "kirje" => "kirje",
         "email" => "sähköposti",
     ] );
 
-    return $names[$slug];
+    return $names[$slug] ?? "tuntematon";
 }
 
 // Päivitä Laskuharista tuleva metadata
@@ -1519,7 +1533,18 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
         return false;
     }
 
-    laskuhari_update_order_meta( $order );
+    $alt_fields = laskuhari_alternative_meta_fields();
+
+    foreach( $alt_fields as $alt_field => $_alt_keys ) {
+        $key = laskuhari_resolve_alternative_meta_key( $alt_field, $_REQUEST );
+
+        if( $key !== null ) {
+            $value = sanitize_text_field( wp_unslash( $_REQUEST[$key] ) );
+            $order->update_meta_data( $alt_field, $value );
+        }
+    }
+
+    $order->save();
 }
 
 /**
@@ -1539,30 +1564,6 @@ function laskuhari_reset_order_metadata( $order ) {
     $order->update_meta_data( '_laskuhari_uid', "" );
 
     $order->save_meta_data();
-}
-
-/**
- * Set a single order meta value.
- *
- * @param WC_Order $order
- * @param string $meta_key
- * @param mixed $meta_value
- * @param bool $update_user_meta
- * @return void
- */
-function laskuhari_set_order_meta( $order, $meta_key, $meta_value, $update_user_meta = false ) {
-    // update order meta
-    $order->update_meta_data( $meta_key, sanitize_meta( $meta_key, $meta_value, 'post' ) );
-    $order->save_meta_data();
-
-    if( $update_user_meta ) {
-        $user = $order->get_user();
-
-        // update user meta if it's not set already
-        if( $user && ! $user->get( $meta_key ) ) {
-            update_user_meta( $user->ID, $meta_key, $meta_value );
-        }
-    }
 }
 
 /**
@@ -1648,23 +1649,6 @@ function laskuhari_get_meta_from_request( $meta_key, $request = null ) {
 }
 
 /**
- * Set a specific order meta from the request, if given.
- *
- * @param WC_Order $order
- * @param string $meta_key
- * @param bool $update_user_meta Whether to update the order meta to user meta as well
- *
- * @return void
- */
-function laskuhari_maybe_set_order_meta_from_request( $order, $meta_key, $update_user_meta = false ) {
-    $value = laskuhari_get_meta_from_request( $meta_key );
-
-    if( $value !== null ) {
-        laskuhari_set_order_meta( $order, $meta_key, $value, $update_user_meta );
-    }
-}
-
-/**
  * Get metadata from the customer of the given order
  * or the current user if no order is given.
  *
@@ -1691,8 +1675,6 @@ function get_laskuhari_meta( $order, $meta_key ) {
         return null;
     }
 
-    $meta_key = get_laskuhari_meta_key( $user_id, $meta_key );
-
     return get_user_meta( $user_id, $meta_key, true );
 }
 
@@ -1702,43 +1684,10 @@ function get_laskuhari_meta( $order, $meta_key ) {
  *
  * @param ?int $user_id
  * @param string $meta_key
- * @param ?array $fields Fields to use for searching meta (null = use current user meta)
+ * @param array $fields Fields to use for searching meta
  * @return string
  */
-function get_laskuhari_meta_key( $user_id, $meta_key, $fields = null ) {
-    /**
-     * For compatibility with WooCommerce Address Book plugin
-     * (https://wordpress.org/plugins/woo-address-book/)
-     *
-     * When an order is placed using a WooCommerce Address Book address,
-     * the custom Laskuhari invoicing details meta is saved into a
-     * separate user meta key prefixed with the address book name.
-     *
-     * If such a meta key exists, we use that so that the invoicing
-     * details such as eInvoice address and operator ID can be
-     * saved into the specific address book address.
-     */
-    $address_book_prefix = "";
-    if( isset( $_POST['post_data'] ) ) {
-        parse_str( $_POST['post_data'], $data );
-
-        if( isset( $data['billing_address_book'] ) && $data['billing_address_book'] !== "billing" ) {
-            $address_book_prefix = $data['billing_address_book']."_";
-        }
-
-        if( $address_book_prefix === "billing_" ) {
-            $address_book_prefix = "";
-        }
-    }
-
-    if( ! empty( $address_book_prefix ) && metadata_exists( "user", $user_id, $address_book_prefix.$meta_key ) ) {
-        return $address_book_prefix.$meta_key;
-    }
-
-    if( $fields === null ) {
-        return $meta_key;
-    }
-
+function get_laskuhari_meta_key( $user_id, $meta_key, $fields ) {
     $meta_key = laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) ?? $meta_key;
 
     $meta_key = apply_filters( "laskuhari_get_meta_key", $meta_key, $user_id );
@@ -1802,35 +1751,6 @@ function laskuhari_resolve_alternative_meta_key( $meta_key, $fields ) {
     }
 
     return $found_field;
-}
-
-/**
- * Update order meta with information from request.
- *
- * @param WC_Order $order
- * @return void
- */
-function laskuhari_update_order_meta( $order )  {
-    $user_meta_to_update_at_checkout = apply_filters(
-        "laskuhari_user_meta_to_update_at_checkout",
-        [
-            "_laskuhari_laskutustapa",
-            "_laskuhari_verkkolaskuosoite",
-            "_laskuhari_valittaja",
-            "_laskuhari_ytunnus",
-        ]
-    );
-
-    if( ! is_array( $user_meta_to_update_at_checkout ) ) {
-        $user_meta_to_update_at_checkout = [];
-    }
-
-    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", in_array( "_laskuhari_laskutustapa", $user_meta_to_update_at_checkout ) );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_verkkolaskuosoite', in_array( "_laskuhari_verkkolaskuosoite", $user_meta_to_update_at_checkout ) );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_valittaja', in_array( "_laskuhari_valittaja", $user_meta_to_update_at_checkout ) );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_ytunnus', in_array( "_laskuhari_ytunnus", $user_meta_to_update_at_checkout ) );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', in_array( "_laskuhari_email", $user_meta_to_update_at_checkout ) );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', in_array( "_laskuhari_viitteenne", $user_meta_to_update_at_checkout ) );
 }
 
 /**
@@ -3482,7 +3402,7 @@ function laskuhari_process_action_delayed(
 ) {
     $args = func_get_args();
 
-    // schedule background event
+    // Schedule background event
     $delayed_event = laskuhari_schedule_background_event(
         'laskuhari_process_action_delayed_action',
         $args,
@@ -3497,17 +3417,16 @@ function laskuhari_process_action_delayed(
             $order_id
         ), 'notice' );
 
-        // mark invoice as queued if background event scheduling was successful
         $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
 
         if( ! $order ) {
             return false;
         }
 
-        laskuhari_set_order_meta( $order, '_laskuhari_queued', 'yes' );
-
-        // save process args so that queue can be processed later in case of errors
-        laskuhari_set_order_meta( $order, '_laskuhari_queued_args', $args );
+        // Mark invoice as queued if background event scheduling was successful
+        $order->update_meta_data( "_laskuhari_queued", "yes" );
+        $order->update_meta_data( "_laskuhari_queued_args", $args );
+        $order->save_meta_data();
     } else {
         Logger::enabled( 'notice' ) && Logger::log( sprintf(
             'Laskuhari: Scheduling background event failed for order %d',
@@ -3668,10 +3587,6 @@ function laskuhari_process_action(
             'Laskuhari: No invoice for order %d. Creating a new one.', $order_id
         ), 'debug' );
     }
-
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_viitteenne', false );
-    laskuhari_maybe_set_order_meta_from_request( $order, '_laskuhari_email', false );
-    laskuhari_maybe_set_order_meta_from_request( $order, "_laskuhari_laskutustapa", false );
 
     $prices_include_tax = $order->get_meta( '_prices_include_tax', true ) == 'yes' ? true : false;
 
@@ -4401,8 +4316,6 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
         );
     }
 
-    laskuhari_update_order_meta( $order );
-
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/" . $invoice_id . "/laheta";
 
     $api_url = apply_filters( "laskuhari_send_invoice_api_url", $api_url, $order_id, $invoice_id );
@@ -4575,7 +4488,8 @@ function laskuhari_send_invoice( $order, $bulk_action = false ) {
             $mihin
         ) );
 
-        laskuhari_set_order_meta( $order, '_laskuhari_sent', 'yes' );
+        $order->update_meta_data( "_laskuhari_sent", "yes" );
+        $order->save_meta_data();
 
         $status_after_sending = apply_filters( "laskuhari_status_after_sending", false, $order->get_id() );
         if( $status_after_sending ) {

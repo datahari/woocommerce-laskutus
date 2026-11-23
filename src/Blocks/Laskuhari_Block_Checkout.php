@@ -28,13 +28,13 @@ class Laskuhari_Block_Checkout {
             }
         );
 
-        // Register callback for updating Laskuhari payment method details
+        // Register callback for persisting Laskuhari invoicing method to WC session
         woocommerce_store_api_register_update_callback( [
             "namespace" => "laskuhari",
             "callback"  => "laskuhari_checkout_update_order_review",
         ] );
 
-        // Register hook for updating Laskuhari meta in order at checkout
+        // Register hook for updating Laskuhari order meta at checkout
         add_action(
             "woocommerce_store_api_checkout_update_order_from_request",
             [$this, "update_order_meta_at_checkout"],
@@ -45,6 +45,12 @@ class Laskuhari_Block_Checkout {
 
     /**
      * Update the Laskuhari metadata for an order when the checkout form is submitted
+     *
+     * NOTE: User input is not yet validated at this point, so we can't
+     *       persist information to the customer yet. Otherwise we
+     *       risk updating customer information with invalid values.
+     *
+     *       User input is validated in `WC_Laskuhari_Gateway::validate_fields`
      */
     public function update_order_meta_at_checkout( \WC_Order $order, \WP_REST_Request $request ): void {
         if( $order->get_payment_method() !== "laskuhari" ) {
