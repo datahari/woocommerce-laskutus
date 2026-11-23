@@ -2126,34 +2126,71 @@ function laskuhari_actions() {
         return false;
     }
 
-    $order_id   = intval( $_GET['order_id'] ?? $_GET['post'] ?? $_GET['id'] ?? 0 );
+    $order_id = intval( $_GET["order_id"] ?? $_GET["post"] ?? $_GET["id"] ?? 0 );
 
-    if( isset( $_GET['laskuhari'] ) && $_GET['laskuhari'] == "sendonly" ) {
+    $action = $_GET["laskuhari"] ?? null;
+
+    if( isset( $action ) && is_string( $action ) ) {
         Laskuhari_Nonce::verify();
-
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: Sending invoice of order %s via bulk action',
-            $order_id
-        ), 'debug' );
 
         $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
-        $lh = $order ? laskuhari_send_invoice( $order ) : false;
-        laskuhari_go_back( $lh );
-        exit;
-    }
 
-    if( isset( $_GET['laskuhari'] ) ) {
-        Laskuhari_Nonce::verify();
+        if( ! $order ) {
+            Logger::enabled( "error" ) && Logger::log( sprintf(
+                "Laskuhari: Order %s not found in " . __FUNCTION__,
+                $order_id
+            ), "error" );
 
-        $send = ($_GET['laskuhari'] == "send");
+            laskuhari_go_back( [
+                "notice" => urlencode( __( "Tilausta ei löydy", "laskuhari" ) ),
+            ] );
+        }
 
-        Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: %s invoice of order %s via bulk action',
-            $send ? "Sending and creating" : "Creating",
-            $order_id
-        ), 'debug' );
+        $alt_fields = laskuhari_alternative_meta_fields();
 
-        $lh = laskuhari_process_action( $order_id, $send, false, false, true );
+        foreach( $alt_fields as $alt_field => $_alt_keys ) {
+            $key = laskuhari_resolve_alternative_meta_key( $alt_field, $_REQUEST );
+
+            if( $key !== null ) {
+                $value = sanitize_text_field( wp_unslash( $_REQUEST[$key] ) );
+                $order->update_meta_data( $alt_field, $value );
+            }
+        }
+
+        $order->save();
+
+        if( $action === "sendonly" ) {
+            Logger::enabled( "debug" ) && Logger::log( sprintf(
+                "Laskuhari: Sending invoice of order %s via bulk action",
+                $order_id
+            ), "debug" );
+
+            $lh = laskuhari_send_invoice( $order );
+        } elseif( $action === "send" ) {
+            Logger::enabled( "debug" ) && Logger::log( sprintf(
+                "Laskuhari: Creating and sending invoice of order %s via bulk action",
+                $order_id
+            ), "debug" );
+
+            $lh = laskuhari_process_action( $order_id, false, false, false, true );
+        } elseif( $action === "create" ) {
+            Logger::enabled( "debug" ) && Logger::log( sprintf(
+                "Laskuhari: Creating invoice of order %s via bulk action",
+                $order_id
+            ), "debug" );
+
+            $lh = laskuhari_process_action( $order_id, false, false, false, true );
+        } else {
+            Logger::enabled( "error" ) && Logger::log( sprintf(
+                "Laskuhari: Unknown action '%s' for order %d " . __FUNCTION__,
+                $action,
+                $order_id
+            ), "error" );
+
+            $lh = [
+                "notice" => __( "Tuntematon toiminto", "laskuhari" ),
+            ];
+        }
 
         laskuhari_go_back( $lh );
     }
@@ -2270,7 +2307,8 @@ function laskuhari_back_url( $lh = false, $url = false ) {
         'laskuhari_luotu', 'laskuhari_success', 'laskuhari_lahetetty',
         'laskuhari_notice', 'laskuhari_send_invoice', 'laskuhari-laskutustapa',
         'laskuhari-maksuehto', 'laskuhari-ytunnus', 'laskuhari-verkkolaskuosoite',
-        'laskuhari-valittaja', 'laskuhari_action', 'laskuhari-email'
+        'laskuhari-valittaja', 'laskuhari_action', 'laskuhari-email',
+        'laskuhari-viitteenne', '_lhnonce',
     );
 
     $back = remove_query_arg(
@@ -4253,7 +4291,7 @@ function laskuhari_get_order_send_method( $order ) {
     return $send_method;
 }
 
-function laskuhari_send_invoice( $order, $bulk_action = false ) {
+function laskuhari_send_invoice( WC_Order $order, bool $bulk_action = false ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! apply_filters( "laskuhari_can_send_invoice", true, $order, $bulk_action ) ) {

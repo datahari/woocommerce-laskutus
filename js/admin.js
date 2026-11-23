@@ -269,7 +269,7 @@ function laskuhari_admin_action( action ) {
 
 	var laskutustapa = $('#laskuhari-laskutustapa').val();
 
-	if( laskutustapa === "" && action === "send" ) {
+	if( laskutustapa === "" && (action === "send" || action === "sendonly") ) {
 		alert( "Valitse laskutustapa!" );
 		return false;
 	}
@@ -304,16 +304,29 @@ function laskuhari_admin_action( action ) {
 	var viitteenne        = $('#laskuhari-viitteenne').val();
 	var email             = $('#laskuhari-email').val();
 
-	window.location.href = urli+
-		'laskuhari='+action+
-		'&_lhnonce='+encodeURIComponent(laskuhariInfo.nonce)+
-		'&laskuhari-laskutustapa='+encodeURIComponent(laskutustapa)+
-		'&laskuhari-maksuehto='+encodeURIComponent(maksuehto)+
-		'&laskuhari-ytunnus='+encodeURIComponent(ytunnus)+
-		'&laskuhari-verkkolaskuosoite='+encodeURIComponent(verkkolaskuosoite)+
-		'&laskuhari-valittaja='+encodeURIComponent(valittajatunnus)+
-		'&laskuhari-viitteenne='+encodeURIComponent(viitteenne)+
-		'&laskuhari-email='+encodeURIComponent(email);
+    urli += 'laskuhari=' + action +
+            '&_lhnonce=' + encodeURIComponent( laskuhariInfo.nonce );
+
+    if( action === "send" || action === "sendonly" ) {
+        urli += '&laskuhari-laskutustapa=' + encodeURIComponent( laskutustapa );
+
+        if( laskutustapa === "verkkolasku" ) {
+            urli += '&laskuhari-ytunnus=' + encodeURIComponent( ytunnus ) +
+                    '&laskuhari-verkkolaskuosoite=' + encodeURIComponent( verkkolaskuosoite ) +
+                    '&laskuhari-valittaja=' + encodeURIComponent( valittajatunnus );
+        }
+
+        if( laskutustapa === "email" ) {
+            urli += '&laskuhari-email=' + encodeURIComponent( email );
+        }
+    }
+
+    if( action === "send" || action === "create" ) {
+        urli += '&laskuhari-maksuehto=' + encodeURIComponent( maksuehto ) +
+                '&laskuhari-viitteenne=' + encodeURIComponent( viitteenne );
+    }
+
+    window.location.href = urli;
 }
 
 function laskuhari_no_address_confirm( warning ) {
