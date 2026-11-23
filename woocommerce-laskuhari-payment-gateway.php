@@ -593,9 +593,12 @@ function laskuhari_custom_status_filter( $query ) {
 /**
  * Get list of einvoice operators
  *
- * @return array<string, array<string, string>> Associative array of operators. First level is operator type
- *                                              (operator or bank). Second level key is operator code
- *                                              and value is operator name.
+ * @return array<string, array<int|string, string>> Associative array of operators. First level is operator type
+ *                                                  (operator or bank). Second level key is operator code
+ *                                                  and value is operator name.
+ *
+ *                                                  TODO: Change this from an associative array to some other
+ *                                                        datatype because PHP changes numeric keys to integers.
  */
 function laskuhari_operators() {
     return apply_filters( "laskuhari_operators", [

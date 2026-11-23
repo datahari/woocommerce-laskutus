@@ -700,7 +700,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $output = '<optgroup label="'.__( 'Operaattorit', 'laskuhari' ).'">';
 
         foreach( $operators['operators'] as $code => $name ) {
-            if( $selected_operator === $code ) {
+            if( $selected_operator === (string) $code ) {
                 $selected = ' selected';
                 $selected_found = true;
             } else {
@@ -715,7 +715,7 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
         $output .= '<optgroup label="'.__( 'Pankit', 'laskuhari' ).'">';
 
         foreach( $operators['banks'] as $code => $name ) {
-            if( $selected_operator === $code ) {
+            if( $selected_operator === (string) $code ) {
                 $selected = ' selected';
                 $selected_found = true;
             } else {

@@ -73,7 +73,7 @@
         for( const [code, name] of Object.entries( info.operators.operators ) ) {
             operators_list.push( h( "option", { value: code }, name ) );
 
-            if( code === eInvoiceOperator ) {
+            if( String( code ) === eInvoiceOperator ) {
                 selected_operator_found = true;
             }
         }
@@ -82,7 +82,7 @@
         for( const [code, name] of Object.entries( info.operators.banks ) ) {
             banks_list.push( h( "option", { value: code }, name ) );
 
-            if( code === eInvoiceOperator ) {
+            if( String( code ) === eInvoiceOperator ) {
                 selected_operator_found = true;
             }
         }
