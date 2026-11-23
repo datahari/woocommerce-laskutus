@@ -59,6 +59,7 @@
         ] );
 
         useEffect( () => {
+            // Callback: laskuhari_checkout_update_order_review()
             extensionCartUpdate( {
                 namespace: "laskuhari",
                 data: {
