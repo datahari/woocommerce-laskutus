@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - A business ID field is not added to the checkout form fields automatically anymore when it is required for other invoicing methods than electronic invoice. It is instead shown in the Laskuhari payment method form whenever required.
+- An email address field is now always shown in the Laskuhari payment method form for email invoicing method, but it defaults to the billing email in the main checkout form.
 
 ## [1.18.1] 2026-11-07
 
