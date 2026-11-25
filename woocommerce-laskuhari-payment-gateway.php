@@ -2172,7 +2172,7 @@ function laskuhari_actions() {
                 $order_id
             ), "debug" );
 
-            $lh = laskuhari_process_action( $order_id, false, false, false, true );
+            $lh = laskuhari_process_action( $order_id, true, false, false, true );
         } elseif( $action === "create" ) {
             Logger::enabled( "debug" ) && Logger::log( sprintf(
                 "Laskuhari: Creating invoice of order %s via bulk action",
