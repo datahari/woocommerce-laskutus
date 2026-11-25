@@ -176,7 +176,7 @@ let laskuhari_viime_laskutustapa = "";
             laskuhari_viime_maksutapa = $("#payment_method_laskuhari").prop("checked");
         });
 
-        if( $("#laskuhari-laskutustiedot-form").length ) {
+        if( $("#laskuhari-laskutustiedot-form, #laskuhari-lahetystapa-lomake").length ) {
             laskuhari_changed_send_method();
         }
 
