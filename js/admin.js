@@ -310,9 +310,10 @@ function laskuhari_admin_action( action ) {
     if( action === "send" || action === "sendonly" ) {
         urli += '&laskuhari-laskutustapa=' + encodeURIComponent( laskutustapa );
 
+        urli += '&laskuhari-ytunnus=' + encodeURIComponent( ytunnus );
+
         if( laskutustapa === "verkkolasku" ) {
-            urli += '&laskuhari-ytunnus=' + encodeURIComponent( ytunnus ) +
-                    '&laskuhari-verkkolaskuosoite=' + encodeURIComponent( verkkolaskuosoite ) +
+            urli += '&laskuhari-verkkolaskuosoite=' + encodeURIComponent( verkkolaskuosoite ) +
                     '&laskuhari-valittaja=' + encodeURIComponent( valittajatunnus );
         }
 
