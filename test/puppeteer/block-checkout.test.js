@@ -1,0 +1,116 @@
+const puppeteer = require('puppeteer');
+const functions = require('./functions.js');
+const config = require('./config.js');
+
+test("block-checkout", async () => {
+    const browser = await puppeteer.launch({
+        headless: config.headless,
+        defaultViewport: {
+            width: 1452,
+            height: 768
+        },
+        args:[
+            '--start-maximized'
+        ]
+    });
+
+    const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout( 60000 );
+
+    page.on("pageerror", function(err) {
+        console.log("Page error: ", err);
+        //browser.close();
+    });
+
+    // log in to plugin settings page
+    await functions.open_settings( page );
+
+    // reset settings
+    await functions.reset_settings( page );
+
+    // select settings
+    await page.evaluate( function() {
+        let $ = jQuery;
+        $("#woocommerce_laskuhari_auto_gateway_create_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_auto_gateway_enabled").prop( "checked", true );
+        $("#woocommerce_laskuhari_laskuviesti").val(
+            $("#woocommerce_laskuhari_laskuviesti").val() +
+            " (block-checkout)"
+        );
+        $("#woocommerce_laskuhari_instructions").val(
+            $("#woocommerce_laskuhari_instructions").val() +
+            " (block-checkout)"
+        );
+    } );
+
+    // save settings
+    await functions.save_settings( page );
+
+    // wait for settings to be saved
+    await page.waitForNavigation();
+    await page.waitForSelector( ".updated.inline" );
+
+    // log out
+    await functions.logout( page );
+
+    // add products to cart and fill order form
+    await functions.make_order_before_select_invoice_method( page, "block-checkout", true );
+
+    // select email method
+    await page.select( "#laskuhari-laskutustapa", "email" );
+    await functions.sleep( 1500 );
+
+    // check that main checkout form email is replicated in Laskuhari form plaeholder
+    await functions.expect_attribute_value( page, "#laskuhari-email", "placeholder", config.test_email );
+    await functions.expect_field_value( page, "#laskuhari-email", "" );
+
+    // select einvoice method
+    await page.select( "#laskuhari-laskutustapa", "verkkolasku" );
+    await functions.sleep( 1500 );
+
+    // insert business id
+    await functions.wait_for_loading( page );
+    await page.type( "#laskuhari-ytunnus", "1234567-8" );
+
+    // insert einvoice address
+    await page.type( "#laskuhari-verkkolaskuosoite", "003712345678" );
+
+    // select operator
+    await page.select( "#laskuhari-valittaja", "003723327487" );
+    await functions.sleep( 500 );
+
+    // insert reference
+    await page.type( "#laskuhari-viitteenne", "ref for einvoice" );
+
+    await functions.place_order( page, true );
+
+    // open order page
+    await functions.open_order_page( page );
+
+    // wait to load page completely
+    await functions.sleep( 500 );
+
+    // click "Send invoice"
+    await page.click( ".laskuhari-nappi.laheta-lasku" );
+    await functions.sleep( 1000 );
+
+    // check that the business id was saved
+    await functions.expect_field_value( page, "#laskuhari-ytunnus", "1234567-8" );
+
+    // check that the einvoice address was saved
+    await functions.expect_field_value( page, "#laskuhari-verkkolaskuosoite", "003712345678" );
+
+    // check that the operator was saved
+    await functions.expect_field_value( page, "#laskuhari-valittaja",  "003723327487" );
+
+    // check that the invoice was tried to send via einvoice
+    // note: invoice won't be sent with demo credentials
+    // so we just check for the correct error notice
+    await functions.expect_text_regex( page, "#woocommerce-order-notes", /.*Virhe laskun lähetyksessä.*KEY_ERROR.*/ );
+
+    // wait for a while so we can inspect the result
+    await functions.sleep( 5000 );
+
+    // close browser
+    await browser.close();
+}, 600000);
