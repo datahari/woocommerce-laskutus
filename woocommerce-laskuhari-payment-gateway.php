@@ -374,15 +374,21 @@ function laskuhari_grab_paid_order_id( $order_id ) {
  * this request in woocommerce_pre_payment_complete hook - this function is hooked to
  * woocommerce_payment_complete and the order status change hooks and will only
  * be run in which ever hook runs first.
- *
- * @param int $order_id
- * @return void
  */
-function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
+function laskuhari_maybe_create_invoice_for_other_payment_method( WC_Order|int $order ): void {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
+    if( ! is_a( $order, WC_Order::class ) ) {
+        $order = laskuhari_get_wc_order( $order, __FUNCTION__ );
+
+        if( ! $order ) {
+            return;
+        }
+    }
+
+
     // create invoice only if the order was just paid
-    if( $laskuhari_gateway_object->paid_order_id !== $order_id ) {
+    if( $laskuhari_gateway_object->paid_order_id !== $order->get_id() ) {
         return;
     }
 
@@ -391,19 +397,13 @@ function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
 
     Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Handling maybe_create_invoice for order %d',
-        $order_id
+        $order->get_id(),
     ), 'info' );
-
-    $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
-
-    if( ! $order ) {
-        return;
-    }
 
     $allowed_payment_methods = apply_filters(
         "laskuhari_send_invoice_from_payment_methods",
         $laskuhari_gateway_object->send_invoice_from_payment_methods,
-        $order_id
+        $order->get_id()
     );
 
     $payment_method = $order->get_payment_method();
@@ -415,7 +415,7 @@ function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
             implode( ", ", $allowed_payment_methods )
         ), 'debug' );
 
-        return false;
+        return;
     }
 
     $order->update_meta_data( '_laskuhari_paid_by_other', "yes" );
@@ -425,26 +425,26 @@ function laskuhari_maybe_create_invoice_for_other_payment_method( $order_id ) {
     $create_invoice = ! $order->get_meta( '_laskuhari_invoice_number', true );
 
     // allow changing invoice creation logic by other plugins
-    $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order_id );
+    $create_invoice = apply_filters( "laskuhari_handle_payment_complete_create_invoice", $create_invoice, $order->get_id() );
 
     if( $create_invoice ) {
         if( ! $laskuhari_gateway_object->use_wp_cron || $laskuhari_gateway_object->attach_receipt_to_wc_email ) {
             Logger::enabled( 'info' ) && Logger::log( sprintf(
-                'Laskuhari: Creating invoice for order %s synchronously', $order_id
+                'Laskuhari: Creating invoice for order %s synchronously', $order->get_id()
             ), 'info' );
 
-            laskuhari_process_action( $order_id, false, false, false );
+            laskuhari_process_action( $order, false, false, false );
         } else {
             Logger::enabled( 'info' ) && Logger::log( sprintf(
-                'Laskuhari: Creating invoice for order %s delayed', $order_id
+                'Laskuhari: Creating invoice for order %s delayed', $order->get_id()
             ), 'info' );
 
-            laskuhari_process_action_delayed( $order_id, false, false, false );
+            laskuhari_process_action_delayed( $order->get_id(), false, false, false );
         }
     } else {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Not creating invoice on payment complete, order %d',
-            $order_id
+            $order->get_id()
         ), 'debug' );
     }
 }
@@ -2172,14 +2172,14 @@ function laskuhari_actions() {
                 $order_id
             ), "debug" );
 
-            $lh = laskuhari_process_action( $order_id, true, false, false, true );
+            $lh = laskuhari_process_action( $order, true, false, false, true );
         } elseif( $action === "create" ) {
             Logger::enabled( "debug" ) && Logger::log( sprintf(
                 "Laskuhari: Creating invoice of order %s via bulk action",
                 $order_id
             ), "debug" );
 
-            $lh = laskuhari_process_action( $order_id, false, false, false, true );
+            $lh = laskuhari_process_action( $order, false, false, false, true );
         } else {
             Logger::enabled( "error" ) && Logger::log( sprintf(
                 "Laskuhari: Unknown action '%s' for order %d " . __FUNCTION__,
@@ -3022,7 +3022,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! is_object( $order ) ) {
-        $order = wc_get_order( $order );
+        $order = laskuhari_get_wc_order( $order, __FUNCTION__ );
     }
 
     if( ! $order ) {
@@ -3073,7 +3073,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
             return false;
         }
 
-        laskuhari_maybe_create_invoice_for_other_payment_method( $order->get_id() );
+        laskuhari_maybe_create_invoice_for_other_payment_method( $order );
     }
 
     Logger::enabled( 'info' ) && Logger::log( sprintf(
@@ -3542,18 +3542,26 @@ function laskuhari_get_invoicing_address( $order ) {
 }
 
 function laskuhari_process_action(
-    $order_id,
+    WC_Order|int $order,
     $send = false,
     $bulk_action = false,
     $from_gateway = false,
     $force_recreate = false
 ) {
-    $transient_name = "laskuhari_process_action_" . $order_id;
+    if( ! is_a( $order, WC_Order::class ) ) {
+        $order = laskuhari_get_wc_order( $order, __FUNCTION__ );
+
+        if( ! $order ) {
+            return;
+        }
+    }
+
+    $transient_name = "laskuhari_process_action_" . $order->get_id();
     $sleep_time = 0;
     while( ! $bulk_action && get_transient( $transient_name ) === "yes" && $sleep_time < 20 ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Sleeping 5s while transient active, order %d',
-            $order_id
+            $order->get_id()
         ), 'debug' );
         sleep( 5 );
         $sleep_time += 5;
@@ -3562,7 +3570,7 @@ function laskuhari_process_action(
     if( $sleep_time === 20 ) {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
             'Laskuhari: Not processing Laskuhari action again while transient active, order %d',
-            $order_id
+            $order->get_id()
         ), 'debug' );
         return false;
     }
@@ -3573,8 +3581,6 @@ function laskuhari_process_action(
 
     $error_notice = "";
     $success      = "";
-
-    $order = wc_get_order( $order_id );
 
     if( ! $order ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
@@ -3596,7 +3602,7 @@ function laskuhari_process_action(
         // if we are using bulk action to send, don't create invoice again, only send it
         if( $bulk_action && true === $send ) {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
-                'Laskuhari: Invoice for order %s created already. Only sending via bulk action', $order_id
+                'Laskuhari: Invoice for order %s created already. Only sending via bulk action', $order->get_id()
             ), 'debug' );
 
             \delete_transient( $transient_name );
@@ -3609,7 +3615,7 @@ function laskuhari_process_action(
             $error_notice = __( 'Lasku on jo luotu tästä tilauksesta', 'laskuhari' );
 
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
-                'Laskuhari: Invoice for order %s created already. Not creating another.', $order_id
+                'Laskuhari: Invoice for order %s created already. Not creating another.', $order->get_id()
             ), 'debug' );
 
             return array(
@@ -3617,12 +3623,12 @@ function laskuhari_process_action(
             );
         } else {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
-                'Laskuhari: Forcibly creating another invoice for order %d.', $order_id
+                'Laskuhari: Forcibly creating another invoice for order %d.', $order->get_id()
             ), 'debug' );
         }
     } else {
         Logger::enabled( 'debug' ) && Logger::log( sprintf(
-            'Laskuhari: No invoice for order %d. Creating a new one.', $order_id
+            'Laskuhari: No invoice for order %d. Creating a new one.', $order->get_id()
         ), 'debug' );
     }
 
@@ -3642,7 +3648,7 @@ function laskuhari_process_action(
     if( ! $laskuhari_uid ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: UID error while processing action, order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
 
         \delete_transient( $transient_name );
@@ -3695,16 +3701,16 @@ function laskuhari_process_action(
         $maksuehto = laskuhari_get_customer_payment_terms_default( $order->get_customer_id() );
     }
 
-    $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order_id );
+    $customer_id = apply_filters( 'laskuhari_customer_id', $order->get_user_id(), $order->get_id() );
 
     // merkitään lasku heti maksetuksi, jos se tehtiin muusta maksutavasta
     if( laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $invoice_status = apply_filters( "laskuhari_invoice_status_from_other_payment_method", "MAKSETTU", $order_id );
+        $invoice_status = apply_filters( "laskuhari_invoice_status_from_other_payment_method", "MAKSETTU", $order->get_id() );
     } else {
         $invoice_status = "AVOIN";
     }
 
-    $invoice_status = apply_filters( "laskuhari_new_invoice_status", $invoice_status, $order_id );
+    $invoice_status = apply_filters( "laskuhari_new_invoice_status", $invoice_status, $order->get_id() );
 
     $payload = [
         "ref" => "wc",
@@ -3779,7 +3785,7 @@ function laskuhari_process_action(
                 'Laskuhari: Order item does not have a total (%s / %s), order %d',
                 get_class( $item ),
                 $item->get_name(),
-                $order_id
+                $order->get_id()
             ), 'notice' );
 
             $total = 0;
@@ -3796,7 +3802,7 @@ function laskuhari_process_action(
                 'Laskuhari: Order item does not have a subtotal (%s / %s), order %d',
                 get_class( $item ),
                 $item->get_name(),
-                $order_id
+                $order->get_id()
             ), 'debug' );
 
             $subtotal = $total;
@@ -3818,7 +3824,7 @@ function laskuhari_process_action(
                     'Laskuhari: Order item does not have total tax (%s / %s), order %d',
                     get_class( $item ),
                     $item->get_name(),
-                    $order_id
+                    $order->get_id()
                 ), 'notice' );
             }
 
@@ -3831,14 +3837,14 @@ function laskuhari_process_action(
                     'Laskuhari: Order item does not have subtotal tax (%s / %s), order %d',
                     get_class( $item ),
                     $item->get_name(),
-                    $order_id
+                    $order->get_id()
                 ), 'notice' );
             }
         } else {
             Logger::enabled( 'debug' ) && Logger::log( sprintf(
                 'Laskuhari: Order item does not have taxes (%s), order %d',
                 get_class( $item ),
-                $order_id
+                $order->get_id()
             ), 'debug' );
 
             $total_tax_4dp = 0;
@@ -3920,7 +3926,7 @@ function laskuhari_process_action(
                     $item->get_data(),
                     $product_id,
                     $product->get_sku(),
-                    $order_id
+                    $order->get_id()
                 );
             }
         }
@@ -3961,14 +3967,14 @@ function laskuhari_process_action(
         }
 
         if( $laskuhari_gateway_object->show_quantity_unit ) {
-            $quantity_unit = laskuhari_determine_quantity_unit( $item->get_data(), $product_id, $order_id );
+            $quantity_unit = laskuhari_determine_quantity_unit( $item->get_data(), $product_id, $order->get_id() );
         } else {
             $quantity_unit = "";
         }
 
         $product_name = apply_filters( "laskuhari_sanitize_product_name", $item->get_name(), $item->get_data() );
 
-        $laskurivit[] = laskuhari_invoice_row( "item", $item, $order_id, [
+        $laskurivit[] = laskuhari_invoice_row( "item", $item, $order->get_id(), [
             "product_sku"   => $product_sku,
             "product_id"    => $product_id,
             "variation_id"  => $variation_id,
@@ -4028,7 +4034,7 @@ function laskuhari_process_action(
                 "yhtverollinen" => $amount_with_vat * -1
             ];
 
-            $laskurivit[] = laskuhari_invoice_row( "discount", null, $order_id, $discount_row );
+            $laskurivit[] = laskuhari_invoice_row( "discount", null, $order->get_id(), $discount_row );
 
             $laskettu_summa += $amount_with_vat * -1;
 
@@ -4045,7 +4051,7 @@ function laskuhari_process_action(
     // Add an invoice surcharge row if needed. Don't add an invoicing surcharge
     // if the order is paid by another method and the invoice is only a receipt
     if( $add_surcharge && ! laskuhari_order_is_paid_by_other_method( $order ) ) {
-        $laskurivit[] = laskuhari_invoice_row( "invoicing_fee", null, $order_id, [
+        $laskurivit[] = laskuhari_invoice_row( "invoicing_fee", null, $order->get_id(), [
             "nimike"        => "Laskutuslisä",
             "maara"         => 1,
             "veroton"       => $laskutuslisa_veroton,
@@ -4074,7 +4080,7 @@ function laskuhari_process_action(
 
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Rounding amount too large for order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
 
         \delete_transient( $transient_name );
@@ -4087,12 +4093,12 @@ function laskuhari_process_action(
     if( round( $loppusumma, 2 ) != round( $laskettu_summa, 2 ) ) {
         Logger::enabled( 'notice' ) && Logger::log( sprintf(
             'Laskuhari: Adding rounding row for order %d (%.2f / %.2f)',
-            $order_id,
+            $order->get_id(),
             $loppusumma,
             $laskettu_summa
         ), 'notice' );
 
-        $laskurivit[] = laskuhari_invoice_row( "rounding", null, $order_id, [
+        $laskurivit[] = laskuhari_invoice_row( "rounding", null, $order->get_id(), [
             "nimike"        => "Pyöristys",
             "maara"         => 1,
             "veroton"       => ($loppusumma-$laskettu_summa),
@@ -4110,9 +4116,9 @@ function laskuhari_process_action(
     $payload['php_version'] = phpversion();
 
     $api_url = "https://" . laskuhari_domain() . "/rest-api/lasku/uusi";
-    $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order_id );
+    $api_url = apply_filters( "laskuhari_create_invoice_api_url", $api_url, $order->get_id() );
 
-    $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order_id );
+    $payload = apply_filters( "laskuhari_create_invoice_payload", $payload, $order->get_id() );
     $payload = json_encode( $payload, laskuhari_json_flag() );
 
     $response = laskuhari_api_request( $payload, $api_url, "Create invoice" );
@@ -4126,7 +4132,7 @@ function laskuhari_process_action(
 
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Error in creating invoice, order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
 
         \delete_transient( $transient_name );
@@ -4144,7 +4150,7 @@ function laskuhari_process_action(
 
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Error in creating invoice, order %d: %s',
-            $order_id,
+            $order->get_id(),
             $response_json
         ), 'error' );
 
@@ -4158,28 +4164,28 @@ function laskuhari_process_action(
     if( ! isset( $response['vastaus']['laskunro'] ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Invoice number not found in response for order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
     }
 
     if( ! isset( $response['vastaus']['lasku_id'] ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Invoice ID not found in response for order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
     }
 
     if( ! isset( $response['vastaus']['meta']['maksuehto'] ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Payment terms not found in response for order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
     }
 
     if( ! isset( $response['vastaus']['meta']['maksuehtonimi'] ) ) {
         Logger::enabled( 'error' ) && Logger::log( sprintf(
             'Laskuhari: Payment terms name not found in response for order %d',
-            $order_id
+            $order->get_id()
         ), 'error' );
     }
 
