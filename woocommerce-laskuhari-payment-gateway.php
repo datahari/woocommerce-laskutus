@@ -397,7 +397,7 @@ function laskuhari_maybe_create_invoice_for_other_payment_method( WC_Order|int $
 
     Logger::enabled( 'info' ) && Logger::log( sprintf(
         'Laskuhari: Handling maybe_create_invoice for order %d',
-        $order->get_id(),
+        $order->get_id()
     ), 'info' );
 
     $allowed_payment_methods = apply_filters(
