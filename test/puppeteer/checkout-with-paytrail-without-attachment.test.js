@@ -86,6 +86,10 @@ test("checkout-with-paytrail", async () => {
     let element2 = await page.$('#order-'+order_id); // hpos
     expect(!!(element || element2)).toBeTruthy();
 
+    // check that comment about attachment was NOT added to order
+    await functions.open_order_page( page, order_id );
+    await functions.expect_not_text_regex( page, "#woocommerce-order-notes", /.*Liitetty lasku liitteeksi.*/ );
+
     // close browser
     await browser.close();
 }, 600000);

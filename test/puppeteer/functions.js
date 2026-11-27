@@ -43,12 +43,21 @@ exports.expect_field_value = async function( page, selector, value ) {
 }
 
 /**
- * Expect that the `textContent` of an element atches a regex
+ * Expect that the `textContent` of an element matches a regex
  */
 exports.expect_text_regex = async function( page, selector, regex ) {
     const element = await page.$( selector );
     const val = await page.evaluate( el => el.textContent, element );
     expect( val ).toMatch( regex )
+}
+
+/**
+ * Expect that the `textContent` of an element does NOT match a regex
+ */
+exports.expect_not_text_regex = async function( page, selector, regex ) {
+    const element = await page.$( selector );
+    const val = await page.evaluate( el => el.textContent, element );
+    expect( val ).not.toMatch( regex )
 }
 
 exports.check_invoice_amounts = async function( page, order_id, excl_tax, tax, incl_tax ) {
@@ -271,8 +280,8 @@ exports.get_order_id = async function( page ) {
     return url.match( /(id|post)=([0-9]+)/ )[2];
 }
 
-exports.open_order_page = async function( page ) {
-    let order_id = await exports.grab_order_id( page );
+exports.open_order_page = async function( page, order_id = null ) {
+    order_id = order_id ?? await exports.grab_order_id( page );
 
     // log in to order page
     await page.goto( config.wordpress_url+"/wp-login.php" );

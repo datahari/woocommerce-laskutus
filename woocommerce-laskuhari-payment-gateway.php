@@ -3215,7 +3215,7 @@ function laskuhari_send_invoice_attached( $order ) {
                 $order->save_meta_data();
             }
 
-            $order->add_order_note( __( "Liitetty lasku liitteksi tilaussähköpostiin (Laskuhari)", "laskuhari" ) );
+            $order->add_order_note( __( "Liitetty lasku liitteeksi tilaussähköpostiin (Laskuhari)", "laskuhari" ) );
 
             do_action( "laskuhari_after_pdf_attached_to_email", $order, $temp_file, $email_type, $attachments, $id, $object_type );
 
