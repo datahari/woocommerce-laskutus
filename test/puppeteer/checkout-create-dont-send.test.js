@@ -20,7 +20,7 @@ test("checkout-create-dont-send", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -55,7 +55,7 @@ test("checkout-create-dont-send", async () => {
     await functions.logout( page );
 
     // make an order
-    await functions.make_order( page, "create-dont-send" );
+    await functions.make_order( page, "create-dont-send", config.block_checkout );
 
     // open order page
     await functions.open_order_page( page );

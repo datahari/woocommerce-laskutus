@@ -131,38 +131,26 @@ exports.make_order_before_select_invoice_method = async function( page, testid, 
 }
 
 exports.fill_out_checkout_form = async function( page, testid, block_checkout = false ) {
-    // insert first name
-    await page.click( block_checkout ? "#shipping-first_name" : "#billing_first_name" );
-    await page.keyboard.type( "John " + testid );
-
-    // insert last name
-    await page.click( block_checkout ? "#shipping-last_name" : "#billing_last_name" );
-    await page.keyboard.type( "Doe" );
-
-    // fill address details
-    await page.click( block_checkout ? "#shipping-address_1" : "#billing_address_1" );
-    await page.keyboard.type( "Testroad 123" );
-    await page.click( block_checkout ? "#shipping-postcode" : "#billing_postcode" );
-    await page.keyboard.type( "00100" );
-    await page.click( block_checkout ? "#shipping-city" : "#billing_city" );
-    await page.keyboard.type( "Testplace" );
+    await page.type( block_checkout ? "#email" : "#billing_email", config.test_email );
+    await exports.sleep( 500 );
+    await page.type( block_checkout ? "#shipping-first_name" : "#billing_first_name", "John " + testid );
+    await exports.sleep( 500 );
+    await page.type( block_checkout ? "#shipping-last_name" : "#billing_last_name", "Doe" );
+    await exports.sleep( 500 );
+    await page.type( block_checkout ? "#shipping-address_1" : "#billing_address_1", "Testroad 123" );
+    await exports.sleep( 500 );
+    await page.type( block_checkout ? "#shipping-city" : "#billing_city", "Testplace" );
+    await exports.sleep( 500 );
 
     if( block_checkout ) {
-        await page.click( "#shipping-state" );
-        await page.keyboard.type( "Uusimaa" );
+        await page.type( "#shipping-state", "Uusimaa" );
+        await exports.sleep( 500 );
     }
 
-    await page.click( block_checkout ? "#shipping-phone" : "#billing_phone" );
-    await page.keyboard.type( "040 1234 567" );
-
-    if( block_checkout ) {
-        await page.evaluate( () => document.getElementById( "email" ).value = "" );
-    } else {
-        await page.evaluate( () => document.getElementById( "billing_email" ).value = "" );
-    }
-
-    await page.click( block_checkout ? "#email" : "#billing_email" );
-    await page.keyboard.type( config.test_email );
+    await page.type( block_checkout ? "#shipping-phone" : "#billing_phone", "040 1234 567" );
+    await exports.sleep( 500 );
+    await page.type( block_checkout ? "#shipping-postcode" : "#billing_postcode", "00100" );
+    await exports.sleep( 500 );
 
     // blur from email field
     await page.click( block_checkout ? "#shipping-fields > div.wc-block-components-checkout-step__heading-container" : "#order_review" );
@@ -187,8 +175,8 @@ exports.select_paytrail_payment_method = async function( page, block_checkout = 
     if( block_checkout ) {
         // select paytrail payment method
         await exports.wait_for_loading( page );
-        await page.waitForSelector( "#radio-control-wc-payment-method-options-paytrail]__label" );
-        await page.click( "#radio-control-wc-payment-method-options-paytrail]__label" );
+        await page.waitForSelector( "#radio-control-wc-payment-method-options-paytrail__label" );
+        await page.click( "#radio-control-wc-payment-method-options-paytrail__label" );
         return;
     }
 
@@ -208,6 +196,17 @@ exports.select_paytrail_payment_method = async function( page, block_checkout = 
     await page.click( ".paytrail-woocommerce-payment-fields--list-item--input[value=osuuspankki]" );
 }
 
+exports.paytrail_select_payment_method_in_external_window = async function( page ) {
+    // select Verkkopankki
+    await page.waitForSelector( ".accordion-button" );
+    await page.waitForNetworkIdle();
+    await page.click( ".accordion-button" );
+
+    // select OP
+    await page.waitForSelector( "button[aria-label=OP]" );
+    await page.click( "button[aria-label=OP]" );
+}
+
 exports.wait_for_loading = async function( page ) {
     await exports.sleep( 500 );
     await page.waitForFunction( function() {
@@ -220,25 +219,25 @@ exports.sleep = async function( ms ) {
     return new Promise( resolve => setTimeout( resolve, ms ) );
 }
 
-exports.place_order = async function( page, block_checkout ) {
+exports.place_order = async function( page, block_checkout, wait = true ) {
     await exports.wait_for_loading( page );
 
     // send order
     await page.click( block_checkout ? ".wc-block-components-button" : "#place_order" );
 
-    // wait for order to complete
-    await page.waitForSelector( ".woocommerce-order-received", {
-        timeout: 60000
-    } );
+    if( wait ) {
+        // wait for order to complete
+        await page.waitForSelector( ".woocommerce-order-received", {
+            timeout: 60000
+        } );
+    }
 }
 
 exports.make_order = async function( page, testid, block_checkout ) {
     await exports.make_order_before_select_invoice_method( page, testid, block_checkout );
 
     // select email invoicing
-    await page.evaluate(function() {
-        jQuery("#laskuhari-laskutustapa").val("email").change();
-    });
+    await page.select( "#laskuhari-laskutustapa", "email" );
     await exports.wait_for_loading( page );
 
     // insert reference

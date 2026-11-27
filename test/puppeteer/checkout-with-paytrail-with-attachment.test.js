@@ -25,7 +25,7 @@ test("checkout-with-paytrail", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -62,10 +62,14 @@ test("checkout-with-paytrail", async () => {
     await functions.logout( page );
 
     // make an order
-    await functions.add_product_to_cart_and_go_to_checkout( page );
-    await functions.fill_out_checkout_form( page, "paytrail-lh-att" );
-    await functions.select_paytrail_payment_method( page );
-    await functions.place_order( page );
+    await functions.add_product_to_cart_and_go_to_checkout( page, config.block_checkout );
+    await functions.fill_out_checkout_form( page, "paytrail-lh-att", config.block_checkout );
+    await functions.select_paytrail_payment_method( page, config.block_checkout );
+    await functions.place_order( page, config.block_checkout, false );
+
+    if( config.block_checkout ) {
+        await functions.paytrail_select_payment_method_in_external_window( page );
+    }
 
     // wait for order to be placed
     await page.waitForSelector( ".woocommerce-order-received" );
