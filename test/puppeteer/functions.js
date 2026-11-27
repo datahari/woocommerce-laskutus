@@ -115,6 +115,7 @@ exports.add_product_to_cart_and_go_to_checkout = async function( page, block_che
 
     // wait for add to cart action
     await page.waitForSelector( ".woocommerce-mini-cart__total.total" );
+    await exports.sleep( 1000 );
 
     if( block_checkout ) {
         await page.goto( config.wordpress_url + "/index.php/block-checkout" );

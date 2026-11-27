@@ -23,6 +23,10 @@ test("checkout-only-for-billing-customers", async () => {
             //browser.close();
     });
 
+    const laskuhari_payment_method_selector = config.block_checkout ? "#radio-control-wc-payment-method-options-laskuhari__label" : "#payment_method_laskuhari";
+    const place_order_button_selector = config.block_checkout ? ".wc-block-components-button" : "#place_order";
+    const summary_selector = config.block_checkout ? ".checkout-order-summary-block-fill" : ".order-total";
+
     // log in to plugin settings page
     await functions.open_settings( page );
 
@@ -52,15 +56,14 @@ test("checkout-only-for-billing-customers", async () => {
     // add product to cart and go to order page
     await functions.add_product_to_cart_and_go_to_checkout( page, config.block_checkout );
 
-    if( ! config.block_checkout ) {
-        // scroll invoicing method selection into view
-        await page.waitForSelector( ".order-total" );
-        await page.click( ".order-total" );
-    }
+    // scroll the invoicing method form to view
+    await page.waitForSelector( summary_selector );
+    await page.click( summary_selector );
+    await functions.sleep( 2000 );
 
     // check that the invoicing method is not available
-    await page.waitForSelector( "#place_order, .wc-block-components-button" );
-    expect(!!(await page.$('#payment_method_laskuhari, #radio-control-wc-payment-method-options-laskuhari__label, #radio-control-wc-payment-method-options-laskuhari__label'))).toBe( false );
+    await page.waitForSelector( place_order_button_selector );
+    expect(!!(await page.$(laskuhari_payment_method_selector))).toBe( false );
     await functions.sleep( 2000 );
 
     // log in to plugin settings page
@@ -87,15 +90,16 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.add_product_to_cart_and_go_to_checkout( page );
+    await functions.add_product_to_cart_and_go_to_checkout( page, config.block_checkout );
 
     // scroll invoicing method selection into view
-    await page.waitForSelector( ".order-total" );
-    await page.click( ".order-total" );
+    await page.waitForSelector( summary_selector );
+    await page.click( summary_selector );
+    await functions.sleep( 2000 );
 
     // check that the invoicing method is available
-    await page.waitForSelector( "#place_order, .wc-block-components-button" );
-    expect(!!(await page.$('#payment_method_laskuhari, #radio-control-wc-payment-method-options-laskuhari__label'))).toBe( true );
+    await page.waitForSelector( place_order_button_selector );
+    expect(!!(await page.$(laskuhari_payment_method_selector))).toBe( true );
     await functions.sleep( 2000 );
 
     // log in to plugin settings page
@@ -145,15 +149,16 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.login( page, config.test_customer_user, config.test_customer_password );
 
     // add product to cart and go to order page
-    await functions.add_product_to_cart_and_go_to_checkout( page );
+    await functions.add_product_to_cart_and_go_to_checkout( page, config.block_checkout );
 
     // scroll invoicing method selection into view
-    await page.waitForSelector( ".order-total" );
-    await page.click( ".order-total" );
+    await page.waitForSelector( summary_selector );
+    await page.click( summary_selector );
+    await functions.sleep( 2000 );
 
     // check that the invoicing method is available
-    await page.waitForSelector( "#place_order, .wc-block-components-button" );
-    expect(!!(await page.$('#payment_method_laskuhari, #radio-control-wc-payment-method-options-laskuhari__label'))).toBe( true );
+    await page.waitForSelector( place_order_button_selector );
+    expect(!!(await page.$(laskuhari_payment_method_selector))).toBe( true );
     await functions.sleep( 2000 );
 
     // log in to admin
@@ -188,17 +193,16 @@ test("checkout-only-for-billing-customers", async () => {
     await functions.login( page, config.test_customer_user, config.test_customer_password );
 
     // add product to cart and go to order page
-    await functions.add_product_to_cart_and_go_to_checkout( page );
+    await functions.add_product_to_cart_and_go_to_checkout( page, config.block_checkout );
 
     // scroll invoicing method selection into view
-    if( ! config.block_checkout ) {
-        await page.waitForSelector( ".order-total" );
-        await page.click( ".order-total" );
-    }
+    await page.waitForSelector( summary_selector );
+    await page.click( summary_selector );
+    await functions.sleep( 2000 );
 
     // check that the invoicing method is not available
-    await page.waitForSelector( "#place_order, .wc-block-components-button" );
-    expect(!!(await page.$('#payment_method_laskuhari, #radio-control-wc-payment-method-options-laskuhari__label'))).toBe( false );
+    await page.waitForSelector( place_order_button_selector );
+    expect(!!(await page.$(laskuhari_payment_method_selector))).toBe( false );
     await functions.sleep( 2000 );
 
     // close browser
