@@ -374,8 +374,10 @@ function laskuhari_grab_paid_order_id( $order_id ) {
  * this request in woocommerce_pre_payment_complete hook - this function is hooked to
  * woocommerce_payment_complete and the order status change hooks and will only
  * be run in which ever hook runs first.
+ *
+ * @param WC_Order|int $order
  */
-function laskuhari_maybe_create_invoice_for_other_payment_method( WC_Order|int $order ): void {
+function laskuhari_maybe_create_invoice_for_other_payment_method( $order ): void {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     if( ! is_a( $order, WC_Order::class ) ) {
@@ -3541,8 +3543,11 @@ function laskuhari_get_invoicing_address( $order ) {
     ];
 }
 
+/**
+ * @param WC_Order|int $order
+ */
 function laskuhari_process_action(
-    WC_Order|int $order,
+    $order,
     $send = false,
     $bulk_action = false,
     $from_gateway = false,
