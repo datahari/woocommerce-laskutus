@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added support for Block Checkout
 
+### Fixed
+
+- Fixed sending invoice as an attachment to the order confirmation
+
 ### Changed
 
 - A business ID field is not added to the checkout form fields automatically anymore when it is required for other invoicing methods than electronic invoice. It is instead shown in the Laskuhari payment method form whenever required.
