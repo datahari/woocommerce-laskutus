@@ -194,6 +194,17 @@ function laskuhari_get_wc_order( $order_id, $context = '' ) {
     return $order;
 }
 
+/**
+ * Reload a WC_Order object from the database
+ */
+function laskuhari_reload_order( WC_Order &$order, string $context = "" ): void {
+    $reloaded = laskuhari_get_wc_order( $order->get_id(), $context . " [reload]" );
+
+    if( $reloaded ) {
+        $order = $reloaded;
+    }
+}
+
 function laskuhari_domain() {
     return apply_filters( "laskuhari_domain", "oma.laskuhari.fi" );
 }
@@ -374,6 +385,8 @@ function laskuhari_grab_paid_order_id( $order_id ) {
  * this request in woocommerce_pre_payment_complete hook - this function is hooked to
  * woocommerce_payment_complete and the order status change hooks and will only
  * be run in which ever hook runs first.
+ *
+ * NOTE: Reload `WC_Order` after use
  *
  * @param WC_Order|int $order
  */
@@ -1522,17 +1535,20 @@ function laskuhari_method_name_by_slug( string $slug ): string {
     return $names[$slug] ?? "tuntematon";
 }
 
-// Päivitä Laskuharista tuleva metadata
-
-function laskuhari_checkout_update_order_meta( $order_id ) {
+/**
+ * Update Laskuhari related order metadata
+ *
+ * NOTE: Reload `WC_Order` after use
+ */
+function laskuhari_checkout_update_order_meta( int $order_id ): void {
     if( $_POST['payment_method'] != "laskuhari" ) {
-        return false;
+        return;
     }
 
     $order = laskuhari_get_wc_order( $order_id, __FUNCTION__ );
 
     if( ! $order ) {
-        return false;
+        return;
     }
 
     $alt_fields = laskuhari_alternative_meta_fields();
@@ -1551,11 +1567,8 @@ function laskuhari_checkout_update_order_meta( $order_id ) {
 
 /**
  * Reset Laskuhari order metadata
- *
- * @param WC_Order $order
- * @return void
  */
-function laskuhari_reset_order_metadata( $order ) {
+function laskuhari_reset_order_metadata( WC_Order &$order ): void {
     laskuhari_update_payment_status( $order, "", "", "" );
 
     $order->update_meta_data( '_laskuhari_payment_terms_name', "" );
@@ -1821,6 +1834,7 @@ function laskuhari_invoice_status( $order ) {
         "laskunumero" => "0",
     ];
 
+    // TODO: Handle processing in a separate AJAX request instead
     laskuhari_maybe_process_queued_invoice( $order );
 
     $laskunumero = $order->get_meta( '_laskuhari_invoice_number', true );
@@ -2626,14 +2640,14 @@ function laskuhari_get_invoice_data( $order, $invoice_id = null ) {
 /**
  * Update the payment status metadata of an invoice attached to an order
  *
- * @param WC_Order $order Order
+ * @param WC_Order &$order Order
  * @param int $status_code Status code (0 = unpaid / 1 = paid)
  * @param string $status_name Human readable name of status
  * @param int $status_id ID of status in Laskuhari system
  *
  * @return void
  */
-function laskuhari_update_payment_status( $order, $status_code, $status_name, $status_id ) {
+function laskuhari_update_payment_status( &$order, $status_code, $status_name, $status_id ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $old_status = $order->get_meta( '_laskuhari_payment_status', true );
@@ -2674,6 +2688,7 @@ function laskuhari_update_payment_status( $order, $status_code, $status_name, $s
     }
 
     do_action( "laskuhari_payment_status_updated", $order->get_id(), $status_code, $status_name, $status_id );
+    laskuhari_reload_order( $order, __FUNCTION__ );
 }
 
 function laskuhari_get_payment_terms( $force = false ) {
@@ -3017,6 +3032,8 @@ function laskuhari_order_is_paid_by_other_method( $order ) {
  * will be created if it does not exist yet and the order
  * was paid in the current request
  *
+ * NOTE: Reload `WC_Order` after use
+ *
  * @param WC_Order|int $order
  * @return void
  */
@@ -3076,6 +3093,7 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
         }
 
         laskuhari_maybe_create_invoice_for_other_payment_method( $order );
+        laskuhari_reload_order( $order, __FUNCTION__ );
     }
 
     Logger::enabled( 'info' ) && Logger::log( sprintf(
@@ -3095,6 +3113,8 @@ function laskuhari_maybe_send_invoice_attached( $order ) {
  * order confirmation email based on the plugin settings.
  *
  * Note: Invoice will only be attached if it has already been created for the order
+ *
+ * NOTE: Reload `WC_Order` after use
  *
  * @param WC_Order|int $order
  * @return void
@@ -3263,6 +3283,8 @@ function lh_get_file_from_url( $url ) {
 
 /**
  * Attaches invoice PDF to resent order emails
+ *
+ * NOTE: Reload `WC_Order` after use
  *
  * @param WC_Order|int $order
  * @param string $email_type
@@ -3433,6 +3455,14 @@ function laskuhari_process_action_cron_hook() {
     laskuhari_process_action( ...$args );
 }
 
+/**
+ * Process Laskuhari invoice creation by scheduling a background event
+ *
+ * NOTE: Reload `WC_Order` after use
+ *
+ * @param int $order_id
+ * @return void
+ */
 function laskuhari_process_action_delayed(
     $order_id,
     $send = false,
@@ -3481,6 +3511,8 @@ function laskuhari_process_action_delayed(
 /**
  * Process invoice of order that is marked as queued
  * but is not found in WP Cron queue
+ *
+ * NOTE: Reload `WC_Order` after use
  *
  * @param WC_Order $order
  * @return array|false
@@ -3544,6 +3576,10 @@ function laskuhari_get_invoicing_address( $order ) {
 }
 
 /**
+ * Process Laskuhari invoice creation / sending
+ *
+ * NOTE: Reload `WC_Order` after use
+ *
  * @param WC_Order|int $order
  */
 function laskuhari_process_action(
@@ -3580,23 +3616,16 @@ function laskuhari_process_action(
         return false;
     }
 
+    if( $sleep_time > 0 ) {
+        laskuhari_reload_order( $order, __FUNCTION__ );
+    }
+
     \set_transient( $transient_name, "yes", 60 );
 
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
     $error_notice = "";
     $success      = "";
-
-    if( ! $order ) {
-        Logger::enabled( 'error' ) && Logger::log( sprintf(
-            'Laskuhari: Order not found in %s',
-            __FUNCTION__
-        ), 'error' );
-
-        \delete_transient( $transient_name );
-
-        return false;
-    }
 
     $order->delete_meta_data( '_laskuhari_queued' );
     $order->delete_meta_data( '_laskuhari_queued_args' );
@@ -4302,6 +4331,11 @@ function laskuhari_get_order_send_method( $order ) {
     return $send_method;
 }
 
+/**
+ * Send a Laskuhari invoice from an order
+ *
+ * NOTE: Reload `WC_Order` after use
+ */
 function laskuhari_send_invoice( WC_Order $order, bool $bulk_action = false ) {
     $laskuhari_gateway_object = laskuhari_get_gateway_object();
 
