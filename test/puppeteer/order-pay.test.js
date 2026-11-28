@@ -82,7 +82,7 @@ test("order-pay", async () => {
     await page.locator( "#laskuhari-viitteenne" ).fill( "persistence test" );
 
     // pay
-    await functions.place_order( page, config.block_checkout );
+    await functions.place_order( page, false );
 
     // open order page
     await functions.open_order_page( page );
