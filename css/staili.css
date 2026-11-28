@@ -1,5 +1,6 @@
 .laskuhari-caption {
     margin-top: 5px;
+    display: block;
 }
 
 #place_order.laskuhari-place-order-disabled {

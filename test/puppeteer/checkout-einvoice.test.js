@@ -20,7 +20,7 @@ test("checkout-einvoice", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -55,12 +55,10 @@ test("checkout-einvoice", async () => {
     await functions.logout( page );
 
     // add products to cart and fill order form
-    await functions.make_order_before_select_invoice_method( page, "checkout-send-einvoice" );
+    await functions.make_order_before_select_invoice_method( page, "checkout-send-einvoice", config.block_checkout );
 
     // select einvoice method
-    await page.evaluate(function() {
-        jQuery("#laskuhari-laskutustapa").val("verkkolasku").change();
-    });
+    await page.select( "#laskuhari-laskutustapa", "verkkolasku" );
     await functions.sleep( 1500 );
 
     // insert business id
@@ -73,16 +71,14 @@ test("checkout-einvoice", async () => {
     await page.keyboard.type( "003712345678" );
 
     // select operator
-    await page.evaluate(function() {
-        jQuery("#laskuhari-valittaja").val("003723327487").change();
-    });
+    await page.select( "#laskuhari-valittaja", "003723327487" );
     await functions.sleep( 500 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
     await page.keyboard.type( "ref for einvoice" );
 
-    await functions.place_order( page );
+    await functions.place_order( page, config.block_checkout );
 
     // open order page
     await functions.open_order_page( page );

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added support for Block Checkout
+
+### Fixed
+
+- Fixed sending invoice as an attachment to the order confirmation
+
+### Changed
+
+- A business ID field is not added to the checkout form fields automatically anymore when it is required for other invoicing methods than electronic invoice. It is instead shown in the Laskuhari payment method form whenever required.
+- An email address field is now always shown in the Laskuhari payment method form for email invoicing method, but it defaults to the billing email in the main checkout form.
+
 ## [1.18.1] 2026-11-07
 
 ### Changed

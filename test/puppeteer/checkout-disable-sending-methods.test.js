@@ -20,7 +20,7 @@ test("checkout-disable-sending-methods", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -86,7 +86,7 @@ test("checkout-disable-sending-methods", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-einv" );
+    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-einv", config.block_checkout );
 
     // check that there is only einvoice method available
     await page.waitForSelector( "#laskuhari-laskutustapa" );
@@ -116,7 +116,7 @@ test("checkout-disable-sending-methods", async () => {
     await functions.logout( page );
 
     // add product to cart and go to order page
-    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-letter" );
+    await functions.make_order_before_select_invoice_method( page, "test-sending-method-list-letter", config.block_checkout );
 
     // check that there is only letter method available
     await page.waitForSelector( "#laskuhari-laskutustapa" );

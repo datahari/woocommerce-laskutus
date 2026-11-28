@@ -20,7 +20,7 @@ test("checkout-with-invoicing-fee", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -57,7 +57,7 @@ test("checkout-with-invoicing-fee", async () => {
     await functions.logout( page );
 
     // make an order
-    await functions.make_order( page, "with-invoicing-fee" );
+    await functions.make_order( page, "with-invoicing-fee", config.block_checkout );
 
     // wait 30 seconds for cron queue to be processed
     await functions.sleep( 30000 );

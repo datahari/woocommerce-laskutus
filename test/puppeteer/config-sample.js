@@ -17,4 +17,7 @@ module.exports = {
 
     // whether to run tests in headless mode
     headless: true,
+
+    // whether to use block checkout
+    block_checkout: false,
 };

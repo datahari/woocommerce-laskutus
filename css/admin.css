@@ -225,6 +225,7 @@ a.button.tips.laskuhari-invoice img {
 
 .laskuhari-caption {
     margin-top: 5px;
+    display: block;
 }
 
 .button.laskuhari-button-red {

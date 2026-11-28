@@ -20,7 +20,7 @@ test("checkout-letter", async () => {
     page.on("pageerror", function(err) {
             theTempValue = err.toString();
             console.log("Page error: " + theTempValue);
-            browser.close();
+            //browser.close();
     });
 
     // log in to plugin settings page
@@ -55,19 +55,17 @@ test("checkout-letter", async () => {
     await functions.logout( page );
 
     // add products to cart and fill order form
-    await functions.make_order_before_select_invoice_method( page, "checkout-send-letter" );
+    await functions.make_order_before_select_invoice_method( page, "checkout-send-letter", config.block_checkout );
 
     // select letter method
-    await page.evaluate(function() {
-        jQuery("#laskuhari-laskutustapa").val("kirje").change();
-    });
+    await page.select( "#laskuhari-laskutustapa", "kirje" );
     await functions.sleep( 1000 );
 
     // insert reference
     await page.click( "#laskuhari-viitteenne" );
     await page.keyboard.type( "ref for letter" );
 
-    await functions.place_order( page );
+    await functions.place_order( page, config.block_checkout );
 
     // open order page
     await functions.open_order_page( page );
