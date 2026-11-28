@@ -1467,6 +1467,8 @@ class WC_Gateway_Laskuhari extends WC_Payment_Gateway {
 
         \set_transient( $transient_name, "yes", 60 );
 
+        laskuhari_checkout_update_order_meta( $order_id );
+
         if( $this->auto_gateway_create_enabled ) {
             if( ! $this->use_wp_cron || $this->attach_invoice_to_wc_email ) {
                 Logger::enabled( 'info' ) && Logger::log( sprintf(
